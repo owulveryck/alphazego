@@ -12,20 +12,20 @@ const (
 
 type GameState struct {
 	board      []uint8
-	playerTurn uint8
+	PlayerTurn uint8
 }
 
 // Placeholder for GameState methods
-func (gs *GameState) PossibleMoves() []GameState {
-	games := make([]GameState, 0)
+func (gs *GameState) PossibleMoves() []*GameState {
+	games := make([]*GameState, 0)
 	for i := 0; i < BoardSize; i++ {
 		if gs.board[i] == 0 {
 			game := make([]uint8, BoardSize)
 			copy(game, gs.board)
-			game[i] = gs.playerTurn
-			games = append(games, GameState{
+			game[i] = gs.PlayerTurn
+			games = append(games, &GameState{
 				board:      game,
-				playerTurn: 3 - gs.playerTurn,
+				PlayerTurn: 3 - gs.PlayerTurn,
 			})
 		}
 	}
@@ -37,11 +37,11 @@ func (gs *GameState) IsGameOver() bool {
 	return checkGameStatus(gs.board) > 0
 }
 
-func (gs *GameState) MakeMove(move GameState) *GameState {
+func (gs *GameState) MakeMove(move *GameState) *GameState {
 	// Apply a move to the current game state and return the new state
 	return &GameState{
 		move.board,
-		move.playerTurn,
+		move.PlayerTurn,
 	}
 }
 

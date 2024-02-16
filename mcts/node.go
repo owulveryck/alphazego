@@ -5,7 +5,7 @@ import (
 )
 
 type MCTSNode struct {
-	state        gamestate.GameState
+	state        *gamestate.GameState
 	parent       *MCTSNode
 	children     []*MCTSNode
 	wins         float64
