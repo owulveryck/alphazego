@@ -30,6 +30,9 @@ type Arena interface {
 	GetPlayerTurn() Agent
 }
 
+// State is a special representation of an Arena
+type State = Arena
+
 type Game interface {
 	IsGameOver() bool
 	GetWinner() Agent
