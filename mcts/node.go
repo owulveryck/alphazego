@@ -1,16 +1,16 @@
 package mcts
 
 import (
-	"github.com/owulveryck/alphazego/gamestate"
+	"github.com/owulveryck/alphazego/board"
 )
 
 type MCTSNode struct {
-	state        *gamestate.GameState
+	state        board.State
 	parent       *MCTSNode
 	children     []*MCTSNode
 	wins         float64
 	visits       float64
-	untriedMoves []gamestate.GameState
+	untriedMoves []board.State
 }
 
 // MCTSNode methods

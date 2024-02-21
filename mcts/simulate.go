@@ -1,14 +1,18 @@
 package mcts
 
-import "math/rand"
+import (
+	"math/rand"
 
-func (node *MCTSNode) Simulate() uint8 {
+	"github.com/owulveryck/alphazego/board"
+)
+
+func (node *MCTSNode) Simulate() board.Result {
 	// Simulate a random playthrough from this node to a terminal state
 	currentState := node.state
-	for !currentState.IsGameOver() {
+	for currentState.Evaluate() == board.GameOn {
 		possibleMoves := currentState.PossibleMoves()
-		move := possibleMoves[rand.Intn(len(possibleMoves))] // Randomly select a move
-		currentState = currentState.MakeMove(move)           // Apply the move
+		currentState = possibleMoves[rand.Intn(len(possibleMoves))] // Randomly select a move
+
 	}
-	return currentState.GetWinner() // Return the outcome of the simulation
+	return currentState.Evaluate() // Return the outcome of the simulation
 }

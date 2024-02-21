@@ -1,11 +1,12 @@
 package board
 
-// Agent is a player, usually is 1 and 2
+// Agent is a player
 type Agent = uint8
 
 // Move is a possible value on a board
 type Move = uint8
 
+// Result is the result of the evaluation of a state
 type Result = uint8
 
 const (
@@ -18,24 +19,18 @@ const (
 	// GameOn when we did not reach an end state
 	GameOn Result = 0
 	// Player1Wins
-	Player1Wins Result = 1
+	Player1Wins Result = Player1
 	// Player2Wins
-	Player2Wins Result = 2
-	// Draw
+	Player2Wins Result = Player2
+	// Draw is when neither player wins, often due to the board being filled without meeting any player's win condition
 	Draw Result = 3
+	// Stalemat is specific type of draw in some games, where one player cannot make a legal move, but the game's win conditions are not met.
+	Stalemat Result = 4
 )
 
-type Arena interface {
-	GetBoard() []Move
-	GetPlayerTurn() Agent
-}
-
-// State is a special representation of an Arena
-type State = Arena
-
-type Game interface {
-	IsGameOver() bool
-	GetWinner() Agent
-	MakeMove(Arena) Arena
-	PossibleMoves() []Arena
+type State interface {
+	// Evaluate the state and returns gameon, or a winner
+	Evaluate() Result
+	// PossibleMoves ...
+	PossibleMoves() []State
 }

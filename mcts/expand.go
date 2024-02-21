@@ -1,10 +1,10 @@
 package mcts
 
-func (node *MCTSNode) Expand() *MCTSNode {
+func (node *MCTSNode) Expand() {
 	// Expand the tree by creating a new child node for one of the untried moves
 	unexploredMoves := node.state.PossibleMoves() // Assume this returns a list of game states
 	for _, move := range unexploredMoves {
-		newState := node.state.MakeMove(move) // Assume this applies the move and returns a new state
+		newState := move
 		child := &MCTSNode{
 			state:    newState,
 			parent:   node,
@@ -14,5 +14,4 @@ func (node *MCTSNode) Expand() *MCTSNode {
 		}
 		node.children = append(node.children, child)
 	}
-	return nil
 }
