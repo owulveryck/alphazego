@@ -6,11 +6,17 @@ import (
 	"github.com/owulveryck/alphazego/board"
 )
 
+const (
+	reset = "\033[0m"
+	red   = "\033[31m"
+	blue  = "\033[34m"
+)
+
 func (tictactoe *TicTacToe) String() string {
 	players := map[board.Agent]string{
 		board.EmptyPlace: " ",
-		board.Player1:    "X",
-		board.Player2:    "O",
+		board.Player1:    reset + red + "X" + reset,
+		board.Player2:    reset + blue + "O" + reset,
 	}
 	var b strings.Builder
 	b.WriteString("Current player: " + players[tictactoe.PlayerTurn] + "\n")
