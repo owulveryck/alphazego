@@ -13,12 +13,11 @@ func (m *MCTS) RunMCST(s board.State) board.State {
 	var ok bool
 	if n, ok = m.inventory[s]; !ok {
 		n = &MCTSNode{
-			state:        s,
-			parent:       &MCTSNode{},
-			children:     []*MCTSNode{},
-			wins:         0,
-			visits:       0,
-			untriedMoves: nil,
+			state:    s,
+			parent:   &MCTSNode{},
+			children: []*MCTSNode{},
+			wins:     0,
+			visits:   0,
 		}
 	}
 	n.Expand()

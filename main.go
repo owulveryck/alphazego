@@ -7,11 +7,12 @@ import (
 )
 
 func main() {
-	ttt := &tictactoe.TicTacToe{
+	var ttt board.State
+	ttt = &tictactoe.TicTacToe{
 		PlayerTurn: board.Player1,
 	}
 	mcts := &mcts.MCTS{}
 	for ttt.Evaluate() == board.GameOn {
-		ttt = mcts.RunMCST(ttt).(*tictactoe.TicTacToe)
+		ttt = mcts.RunMCST(ttt)
 	}
 }
