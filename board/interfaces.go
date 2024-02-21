@@ -29,6 +29,8 @@ const (
 )
 
 type State interface {
+	// CurrentPlayer is the player that will play on the current board
+	CurrentPlayer() Agent
 	// Evaluate the state and returns gameon, or a winner
 	Evaluate() Result
 	// PossibleMoves ...

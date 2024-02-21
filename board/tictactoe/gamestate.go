@@ -1,4 +1,6 @@
-package gamestate
+package tictactoe
+
+import "github.com/owulveryck/alphazego/board"
 
 // Define constants for the players and empty cells
 const (
@@ -10,42 +12,60 @@ const (
 	BoardSize = 9
 )
 
-type GameState struct {
+type TicTacToe struct {
 	board      []uint8
 	PlayerTurn uint8
 }
 
+// CurrentPlayer is the player that will play on the current board
+func (tictactoe *TicTacToe) CurrentPlayer() board.Agent {
+	panic("not implemented") // TODO: Implement
+}
+
+// Evaluate the state and returns gameon, or a winner
+func (t *TicTacToe) Evaluate() board.Result {
+	panic("not implemented") // TODO: Implement
+}
+
+func ToBoardState(t []*TicTacToe) []board.State {
+	output := make([]board.State, len(t))
+	for i := range t {
+		output[i] = t[i]
+	}
+	return output
+}
+
 // Placeholder for GameState methods
-func (gs *GameState) PossibleMoves() []*GameState {
-	games := make([]*GameState, 0)
+func (t *TicTacToe) PossibleMoves() []board.State {
+	games := make([]*TicTacToe, 0)
 	for i := 0; i < BoardSize; i++ {
-		if gs.board[i] == 0 {
+		if t.board[i] == 0 {
 			game := make([]uint8, BoardSize)
-			copy(game, gs.board)
-			game[i] = gs.PlayerTurn
-			games = append(games, &GameState{
+			copy(game, t.board)
+			game[i] = t.PlayerTurn
+			games = append(games, &TicTacToe{
 				board:      game,
-				PlayerTurn: 3 - gs.PlayerTurn,
+				PlayerTurn: 3 - t.PlayerTurn,
 			})
 		}
 	}
 	// Return a slice of possible next states
-	return games
+	return ToBoardState(games)
 }
 
-func (gs *GameState) IsGameOver() bool {
+func (gs *TicTacToe) IsGameOver() bool {
 	return checkGameStatus(gs.board) > 0
 }
 
-func (gs *GameState) MakeMove(move *GameState) *GameState {
+func (gs *TicTacToe) MakeMove(move *TicTacToe) *TicTacToe {
 	// Apply a move to the current game state and return the new state
-	return &GameState{
+	return &TicTacToe{
 		move.board,
 		move.PlayerTurn,
 	}
 }
 
-func (gs *GameState) GetWinner() uint8 {
+func (gs *TicTacToe) GetWinner() uint8 {
 	status := checkGameStatus(gs.board)
 	if status == 3 {
 		return 0

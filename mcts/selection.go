@@ -11,7 +11,7 @@ func (node *MCTSNode) SelectChild() *MCTSNode {
 
 	for _, child := range node.children {
 		wins := child.wins
-		if node.state.PlayerTurn != child.state.PlayerTurn {
+		if node.state.CurrentPlayer() != child.state.CurrentPlayer() {
 			// Adjust for the perspective of the player to make a move
 			wins = child.visits - child.wins
 		}
