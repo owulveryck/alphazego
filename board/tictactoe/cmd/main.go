@@ -23,5 +23,6 @@ func main() {
 		// Convert uint64 to uint8 since
 		ttt.Play(uint8(val))
 	}
-
+	fmt.Println(ttt)
+	fmt.Println("result: ", ttt.Evaluate())
 }

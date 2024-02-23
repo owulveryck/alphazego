@@ -19,8 +19,11 @@ func (m *MCTS) RunMCST(s board.State) board.State {
 			wins:     0,
 			visits:   0,
 		}
+		m.inventory[s] = n
 	}
-	n.Expand()
+	if n.visits == 0 {
+		n.Expand()
+	}
 	n.SelectChild()
 	return nil
 }
