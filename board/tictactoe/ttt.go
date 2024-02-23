@@ -14,6 +14,16 @@ type TicTacToe struct {
 	PlayerTurn uint8
 }
 
+func (tictactoe *TicTacToe) GetMoveFromState(s board.State) board.Move {
+	next := s.(*TicTacToe)
+	for i := 0; i < len(next.board); i++ {
+		if next.board[i] != tictactoe.board[i] {
+			return uint8(i)
+		}
+	}
+	return 0
+}
+
 func NewTicTacToe() *TicTacToe {
 	return &TicTacToe{
 		board:      make([]uint8, BoardSize),

@@ -1,18 +1,37 @@
 package main
 
 import (
+	"fmt"
+	"log"
+	"strconv"
+
 	"github.com/owulveryck/alphazego/board"
 	"github.com/owulveryck/alphazego/board/tictactoe"
 	"github.com/owulveryck/alphazego/mcts"
 )
 
 func main() {
-	var ttt board.State
-	ttt = &tictactoe.TicTacToe{
-		PlayerTurn: board.Player1,
+	ttt := tictactoe.NewTicTacToe()
+	var move string
+	for ttt.Evaluate() == 0 {
+		fmt.Println(ttt)
+		fmt.Print("Enter your move: ")
+		fmt.Scan(&move)
+		// Convert string to uint64
+		val, err := strconv.ParseUint(move, 10, 8) // Base 10, and up to 8 bits
+		if err != nil {
+			log.Fatal(err)
+		}
+		// Convert uint64 to uint8 since
+		ttt.Play(uint8(val))
+		ttt.Play(getNextMoveFromMCTS(ttt))
+		// Now run the MCTS and change the state
 	}
-	mcts := &mcts.MCTS{}
-	for ttt.Evaluate() == board.GameOn {
-		ttt = mcts.RunMCST(ttt)
-	}
+	fmt.Println(ttt)
+}
+
+func getNextMoveFromMCTS(s board.State) board.Move {
+	m := &mcts.MCTS{}
+	next := m.RunMCST(s)
+	return s.(board.Playable).GetMoveFromState(next)
 }

@@ -2,28 +2,18 @@ package mcts
 
 import board "github.com/owulveryck/alphazego/board"
 
-type MCTS struct {
-	inventory map[board.State]*MCTSNode
-}
+type MCTS struct{}
 
 // RunMCTS runs the Monte Carlo Tree Search algorithm, taking the current game state as input.
 // This implementation of MCTS is stateless, meaning it does not retain any information between calls.
 func (m *MCTS) RunMCST(s board.State) board.State {
-	var n *MCTSNode // Placeholder for the current node
-	var ok bool     // Flag to check existence in inventory
-
-	// Check if the current state is already in the inventory (cache of visited states).
-	// If not, initialize a new node for this state.
-	if n, ok = m.inventory[s]; !ok {
-		n = &MCTSNode{
-			state:    s,             // Current game state
-			parent:   &MCTSNode{},   // Placeholder parent node
-			children: []*MCTSNode{}, // Initialize without any children
-			wins:     0,             // No wins initially
-			visits:   0,             // No visits initially
-		}
-		// Add the new node to the inventory for future reference.
-		m.inventory[s] = n
+	// initialize a new node for this state.
+	n := &MCTSNode{
+		state:    s,             // Current game state
+		parent:   &MCTSNode{},   // Placeholder parent node
+		children: []*MCTSNode{}, // Initialize without any children
+		wins:     0,             // No wins initially
+		visits:   0,             // No visits initially
 	}
 
 	var winRate float64 // Placeholder for the win rate calculation

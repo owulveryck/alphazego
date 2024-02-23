@@ -36,3 +36,7 @@ type State interface {
 	// PossibleMoves ...
 	PossibleMoves() []State
 }
+
+type Playable interface {
+	GetMoveFromState(State) Move
+}
