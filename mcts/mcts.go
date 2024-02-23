@@ -13,8 +13,8 @@ type MCTS struct{}
 func (m *MCTS) RunMCST(s board.State) board.State {
 	// initialize a new node for this state.
 	n := &MCTSNode{
-		state:    s,             // Current game state
-		parent:   &MCTSNode{},   // Placeholder parent node
+		state:    s, // Current game state
+		parent:   nil,
 		children: []*MCTSNode{}, // Initialize without any children
 		wins:     0,             // No wins initially
 		visits:   0,             // No visits initially
@@ -33,11 +33,11 @@ func (m *MCTS) RunMCST(s board.State) board.State {
 	// This loop selects the best child based on the UCB1 formula, expands the tree, simulates games from the new nodes,
 	// and backpropagates the results to update the statistics of the nodes.
 	i := 0
-	for winRate < 0.95 || i < 10 {
-		n = n.SelectChild()     // Select the best child to explore based on UCB1.
-		n.Expand()              // Expand the tree by adding a new child node for an unexplored move.
-		result := n.Simulate()  // Simulate a random playthrough from the new node to a terminal state.
-		n.Backpropagate(result) // Update the node and its ancestors based on the simulation outcome.
+	for winRate < 0.65 || i < 10 {
+		nn := n.SelectChild()    // Select the best child to explore based on UCB1.
+		nn.Expand()              // Expand the tree by adding a new child node for an unexplored move.
+		result := nn.Simulate()  // Simulate a random playthrough from the new node to a terminal state.
+		nn.Backpropagate(result) // Update the node and its ancestors based on the simulation outcome.
 		log.Printf("result: %v, wins: %v, visits: %v, winRate: %v", result, n.wins, n.visits, winRate)
 		winRate = n.wins / n.visits // Update win rate after backpropagation.
 		i++

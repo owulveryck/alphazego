@@ -10,7 +10,7 @@ import (
 func (node *MCTSNode) Backpropagate(result board.Result) {
 	// Starting from the current node, loop through all ancestors until the root node is reached.
 	// The loop uses 'n' to traverse the tree upwards, with 'n.parent' moving to each parent node.
-	for n := node; n.parent != nil; n = n.parent {
+	for n := node; n != nil; n = n.parent {
 		n.visits += 1 // Increment the visits count for each node on the path back to the root.
 
 		// Check if the simulation result matches this node's player turn.
@@ -25,7 +25,9 @@ func (node *MCTSNode) Backpropagate(result board.Result) {
 		// This could involve checking if the result indicates a draw and then deciding
 		// whether to count that as a half-win, a full win, or something else for the node.
 		// Example:
-		// if result == drawCode { n.wins += 0.5 } // Assuming 'drawCode' represents a drawn game result.
+		if result == board.Draw {
+			n.wins += 0.5
+		}
 	}
 
 	// This method systematically updates the visit and win counts for each node from the
