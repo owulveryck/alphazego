@@ -1,12 +1,16 @@
 package mcts
 
+import (
+	"github.com/owulveryck/alphazego/board"
+)
+
 // Backpropagate updates the statistics for this node and its ancestors up to the root node
 // after a game simulation is completed. The statistics updated include the number of visits
 // and wins, which are used to calculate the node's value in future selections.
-func (node *MCTSNode) Backpropagate(result uint8) {
+func (node *MCTSNode) Backpropagate(result board.Result) {
 	// Starting from the current node, loop through all ancestors until the root node is reached.
 	// The loop uses 'n' to traverse the tree upwards, with 'n.parent' moving to each parent node.
-	for n := node; n != nil; n = n.parent {
+	for n := node; n.parent != nil; n = n.parent {
 		n.visits += 1 // Increment the visits count for each node on the path back to the root.
 
 		// Check if the simulation result matches this node's player turn.

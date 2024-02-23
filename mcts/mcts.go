@@ -1,6 +1,10 @@
 package mcts
 
-import board "github.com/owulveryck/alphazego/board"
+import (
+	"log"
+
+	board "github.com/owulveryck/alphazego/board"
+)
 
 type MCTS struct{}
 
@@ -28,12 +32,15 @@ func (m *MCTS) RunMCST(s board.State) board.State {
 	// Continue the search until the win rate of the current node is satisfactory (e.g., < 95%).
 	// This loop selects the best child based on the UCB1 formula, expands the tree, simulates games from the new nodes,
 	// and backpropagates the results to update the statistics of the nodes.
-	for winRate < 0.95 {
-		n = n.SelectChild()         // Select the best child to explore based on UCB1.
-		n.Expand()                  // Expand the tree by adding a new child node for an unexplored move.
-		result := n.Simulate()      // Simulate a random playthrough from the new node to a terminal state.
-		n.Backpropagate(result)     // Update the node and its ancestors based on the simulation outcome.
+	i := 0
+	for winRate < 0.95 || i < 10 {
+		n = n.SelectChild()     // Select the best child to explore based on UCB1.
+		n.Expand()              // Expand the tree by adding a new child node for an unexplored move.
+		result := n.Simulate()  // Simulate a random playthrough from the new node to a terminal state.
+		n.Backpropagate(result) // Update the node and its ancestors based on the simulation outcome.
+		log.Printf("result: %v, wins: %v, visits: %v, winRate: %v", result, n.wins, n.visits, winRate)
 		winRate = n.wins / n.visits // Update win rate after backpropagation.
+		i++
 	}
 
 	// Return the state associated with the node that has been determined to be the best move.

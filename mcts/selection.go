@@ -1,6 +1,8 @@
 package mcts
 
-import "math"
+import (
+	"math"
+)
 
 // SelectChild iteratively selects the best child node based on the UCB1 score,
 // aiming to balance exploration and exploitation.
