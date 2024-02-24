@@ -21,19 +21,12 @@ func (m *MCTS) RunMCST(s board.State) board.State {
 	}
 
 	var winRate float64 // Placeholder for the win rate calculation
-	// Calculate the win rate if the node has been visited before.
-	// Win rate is calculated as the ratio of wins to total visits.
-	if n.visits == 0 {
-		winRate = 0 // Avoid division by zero for unvisited nodes.
-	} else {
-		winRate = n.wins / n.visits // 𝑊𝑖𝑛𝑅𝑎𝑡𝑒 = 𝑊𝑖𝑛𝑠 / 𝑉𝑖𝑠𝑖𝑡𝑠
-	}
 
 	// Continue the search until the win rate of the current node is satisfactory (e.g., < 95%).
 	// This loop selects the best child based on the UCB1 formula, expands the tree, simulates games from the new nodes,
 	// and backpropagates the results to update the statistics of the nodes.
 	i := 0
-	for winRate < 0.65 || i < 10 {
+	for i < 500 {
 		nn := n.SelectChild()    // Select the best child to explore based on UCB1.
 		nn.Expand()              // Expand the tree by adding a new child node for an unexplored move.
 		result := nn.Simulate()  // Simulate a random playthrough from the new node to a terminal state.
@@ -42,7 +35,24 @@ func (m *MCTS) RunMCST(s board.State) board.State {
 		winRate = n.wins / n.visits // Update win rate after backpropagation.
 		i++
 	}
+	winRate = 0
+
+	var bestState board.State
+	for _, n := range n.children {
+		var currWinRate float64
+		// Calculate the win rate if the node has been visited before.
+		// Win rate is calculated as the ratio of wins to total visits.
+		if n.visits == 0 {
+			currWinRate = 0 // Avoid division by zero for unvisited nodes.
+		} else {
+			currWinRate = n.wins / n.visits // 𝑊𝑖𝑛𝑅𝑎𝑡𝑒 = 𝑊𝑖𝑛𝑠 / 𝑉𝑖𝑠𝑖𝑡𝑠
+		}
+		if currWinRate > winRate {
+			bestState = n.state
+			winRate = currWinRate
+		}
+	}
 
 	// Return the state associated with the node that has been determined to be the best move.
-	return n.state
+	return bestState
 }
