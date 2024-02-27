@@ -6,20 +6,32 @@ import (
 	board "github.com/owulveryck/alphazego/board"
 )
 
-type MCTS struct{}
+func NewMCTS() *MCTS {
+	return &MCTS{
+		make(map[string]*MCTSNode),
+	}
+}
+
+type MCTS struct {
+	inventory map[string]*MCTSNode
+}
 
 // RunMCTS runs the Monte Carlo Tree Search algorithm, taking the current game state as input.
 // This implementation of MCTS is stateless, meaning it does not retain any information between calls.
 func (m *MCTS) RunMCST(s board.State) board.State {
 	// initialize a new node for this state.
-	n := &MCTSNode{
-		state:    s, // Current game state
-		parent:   nil,
-		children: []*MCTSNode{}, // Initialize without any children
-		wins:     0,             // No wins initially
-		visits:   0,             // No visits initially
+	var n *MCTSNode
+	var ok bool
+	if n, ok = m.inventory[string(s.BoardID())]; !ok {
+		n = &MCTSNode{
+			state:    s, // Current game state
+			parent:   nil,
+			children: []*MCTSNode{}, // Initialize without any children
+			wins:     0,             // No wins initially
+			visits:   0,             // No visits initially
+		}
+		m.inventory[string(s.BoardID())] = n
 	}
-
 	var winRate float64 // Placeholder for the win rate calculation
 
 	// Continue the search until the win rate of the current node is satisfactory (e.g., < 95%).
@@ -50,6 +62,20 @@ func (m *MCTS) RunMCST(s board.State) board.State {
 		if currWinRate > winRate {
 			bestState = n.state
 			winRate = currWinRate
+		}
+	}
+
+	// TODO: change this
+	// all all the nodes to the inventory
+	for _, n := range n.children {
+		if n, ok = m.inventory[string(s.BoardID())]; !ok {
+			m.inventory[string(s.BoardID())] = n
+		}
+		for _, n := range n.children {
+			if n, ok = m.inventory[string(s.BoardID())]; !ok {
+				m.inventory[string(s.BoardID())] = n
+
+			}
 		}
 	}
 

@@ -14,6 +14,11 @@ type TicTacToe struct {
 	PlayerTurn uint8
 }
 
+// BoardID returns a uniq identifier for the board
+func (tictactoe *TicTacToe) BoardID() []byte {
+	return append(tictactoe.board, tictactoe.PlayerTurn)
+}
+
 func (tictactoe *TicTacToe) GetMoveFromState(s board.State) board.Move {
 	next := s.(*TicTacToe)
 	for i := 0; i < len(next.board); i++ {

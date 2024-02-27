@@ -13,6 +13,7 @@ import (
 func main() {
 	ttt := tictactoe.NewTicTacToe()
 	var move string
+	m := mcts.NewMCTS()
 	for ttt.Evaluate() == 0 {
 		fmt.Println(ttt)
 		fmt.Print("Enter your move: ")
@@ -24,14 +25,13 @@ func main() {
 		}
 		// Convert uint64 to uint8 since
 		ttt.Play(uint8(val))
-		ttt.Play(getNextMoveFromMCTS(ttt))
+		ttt.Play(getNextMoveFromMCTS(m, ttt))
 		// Now run the MCTS and change the state
 	}
 	fmt.Println(ttt)
 }
 
-func getNextMoveFromMCTS(s board.State) board.Move {
-	m := &mcts.MCTS{}
+func getNextMoveFromMCTS(m *mcts.MCTS, s board.State) board.Move {
 	next := m.RunMCST(s)
 	return s.(board.Playable).GetMoveFromState(next)
 }

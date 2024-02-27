@@ -9,6 +9,9 @@ type Move = uint8
 // Result is the result of the evaluation of a state
 type Result = uint8
 
+// ID is a unique identifier of a board
+type ID = []byte
+
 const (
 	// Player1 ...
 	Player1 Agent = 1
@@ -35,6 +38,8 @@ type State interface {
 	Evaluate() Result
 	// PossibleMoves ...
 	PossibleMoves() []State
+	// BoardID returns a uniq identifier for the board
+	BoardID() ID
 }
 
 type Playable interface {

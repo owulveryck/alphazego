@@ -25,9 +25,11 @@ func (node *MCTSNode) Backpropagate(result board.Result) {
 		// This could involve checking if the result indicates a draw and then deciding
 		// whether to count that as a half-win, a full win, or something else for the node.
 		// Example:
-		if result == board.Draw {
-			n.wins += 0.5
-		}
+		/*
+			if result == board.Draw {
+				n.wins += 0.5
+			}
+		*/
 	}
 
 	// This method systematically updates the visit and win counts for each node from the
