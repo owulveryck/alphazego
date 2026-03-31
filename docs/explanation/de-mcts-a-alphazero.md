@@ -148,7 +148,7 @@ Le code actuel propage un resultat discret (1 = Player1 gagne, 2 = Player2, 3 = 
 ```go
 func (n *MCTSNode) Backpropagate(result board.Result) {
     n.visits++
-    playerWhoMovedHere := 3 - n.state.CurrentPlayer()
+    playerWhoMovedHere := n.state.PreviousPlayer()
     if result == playerWhoMovedHere {
         n.wins += 1
     } else if result == board.Draw {
@@ -167,7 +167,7 @@ La valeur `v ∈ [-1, 1]` est continue. Elle est exprimee **du point de vue du j
 ```go
 func (node *MCTSNode) BackpropagateValue(value float64) {
     // Inverser : passer de la perspective du joueur courant
-    // a celle du joueur qui a joue le coup (= 3 - CurrentPlayer)
+    // a celle du joueur qui a joue le coup (= PreviousPlayer)
     value = -value
     for n := node; n != nil; n = n.parent {
         n.visits++

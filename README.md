@@ -268,14 +268,14 @@ func (node *MCTSNode) Simulate() board.Result {
 
 Apres la simulation, on remonte le resultat du noeud simule jusqu'a la racine. A chaque noeud, on incremente le compteur de visites et on credite une victoire si le resultat correspond au joueur qui a **fait le coup** menant a ce noeud.
 
-Le point subtil : `CurrentPlayer()` retourne le joueur dont c'est le tour (celui qui va jouer), pas celui qui vient de jouer. Le joueur qui a amene la partie dans cet etat est donc `3 - CurrentPlayer()`.
+Le point subtil : `CurrentPlayer()` retourne le joueur dont c'est le tour (celui qui va jouer), pas celui qui vient de jouer. Le joueur qui a amene la partie dans cet etat est `PreviousPlayer()`. Cela permet au moteur de fonctionner quel que soit le nombre de joueurs.
 
 ```go
 func (node *MCTSNode) Backpropagate(result board.Result) {
     for n := node; n != nil; n = n.parent {
         n.visits += 1
 
-        playerWhoMovedHere := 3 - n.state.CurrentPlayer()
+        playerWhoMovedHere := n.state.PreviousPlayer()
         if result == playerWhoMovedHere {
             n.wins += 1
         } else if result == board.Draw {

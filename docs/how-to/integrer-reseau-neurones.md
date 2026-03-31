@@ -189,7 +189,7 @@ La fonction `terminalValue` convertit un `board.Result` discret en valeur contin
 
 Fichier : `mcts/backpropagate.go`
 
-Ajouter une variante qui propage une valeur continue. La valeur initiale (du point de vue du joueur courant) est d'abord inversee pour respecter la convention du MCTS pur : `wins` stocke la valeur du point de vue du joueur qui a effectue le coup menant a ce noeud (`3 - CurrentPlayer()`). Ensuite le signe alterne a chaque niveau :
+Ajouter une variante qui propage une valeur continue. La valeur initiale (du point de vue du joueur courant) est d'abord inversee pour respecter la convention du MCTS pur : `wins` stocke la valeur du point de vue du joueur qui a effectue le coup menant a ce noeud (`PreviousPlayer()`). Ensuite le signe alterne a chaque niveau :
 
 ```go
 func (node *MCTSNode) BackpropagateValue(value float64) {

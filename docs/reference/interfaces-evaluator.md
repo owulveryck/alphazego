@@ -1,6 +1,27 @@
 # Interfaces Go pour le reseau de neurones
 
-Specification des interfaces a ajouter pour integrer un reseau de neurones dans le MCTS d'AlphaZeGo.
+Specification des interfaces dans `board/interfaces.go` pour le MCTS d'AlphaZeGo.
+
+## Interface State
+
+`State` est l'interface centrale du framework. Elle represente un etat dans un probleme de decision sequentiel a un ou plusieurs agents.
+
+```go
+type State interface {
+    // CurrentPlayer retourne l'agent dont c'est le tour d'agir.
+    CurrentPlayer() Agent
+    // PreviousPlayer retourne l'agent qui a effectue le coup menant a cet etat.
+    PreviousPlayer() Agent
+    // Evaluate retourne l'etat courant du probleme : GameOn, Player1Wins, etc.
+    Evaluate() Result
+    // PossibleMoves retourne tous les etats atteignables depuis l'etat courant.
+    PossibleMoves() []State
+    // ID retourne un identifiant unique pour cet etat.
+    ID() ID
+}
+```
+
+`PreviousPlayer()` permet au moteur MCTS de savoir qui a joue le dernier coup sans connaitre la logique de tour (2 joueurs en alternance, N joueurs en round-robin, etc.).
 
 ## Interface Evaluator
 

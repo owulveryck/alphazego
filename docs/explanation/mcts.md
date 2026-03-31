@@ -89,12 +89,12 @@ Le resultat de la simulation est **propage vers le haut** de l'arbre, du noeud s
 - `wins += 1` si le joueur qui a joue le coup menant a ce noeud a gagne
 - `wins += 0.5` en cas de match nul
 
-**Subtilite critique** : a chaque noeud, `CurrentPlayer()` designe le joueur **a qui c'est le tour de jouer**, pas celui qui a joue le coup. Le joueur qui a joue le coup menant a ce noeud est `3 - CurrentPlayer()`. Les wins doivent etre creditees a ce dernier.
+**Subtilite critique** : a chaque noeud, `CurrentPlayer()` designe le joueur **a qui c'est le tour de jouer**, pas celui qui a joue le coup. Le joueur qui a joue le coup menant a ce noeud est `PreviousPlayer()`. Les wins doivent etre creditees a ce dernier.
 
 Dans le code (`mcts/backpropagate.go`) :
 
 ```go
-playerWhoMovedHere := 3 - n.state.CurrentPlayer()
+playerWhoMovedHere := n.state.PreviousPlayer()
 if result == playerWhoMovedHere {
     n.wins += 1
 } else if result == board.Draw {
