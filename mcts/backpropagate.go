@@ -11,25 +11,18 @@ func (node *MCTSNode) Backpropagate(result board.Result) {
 	// Starting from the current node, loop through all ancestors until the root node is reached.
 	// The loop uses 'n' to traverse the tree upwards, with 'n.parent' moving to each parent node.
 	for n := node; n != nil; n = n.parent {
-		n.visits += 1 // Increment the visits count for each node on the path back to the root.
+		n.visits += 1
 
-		// Check if the simulation result matches this node's player turn.
-		// The assumption here is that 'result' is coded in a way to match the player's identifier
-		// in the node's state, e.g., '1' for one player and '2' for the other in a two-player game.
-		// If they match, it means this node (and thus the decision leading to it) was on the winning path.
-		if n.state.CurrentPlayer() == result {
-			n.wins += 1 // Increment the win count for the node.
+		// Credit wins to the player who made the move leading to this node.
+		// CurrentPlayer() returns who is about to play, so the player who moved here
+		// is the opponent: 3 - CurrentPlayer().
+		// This ensures UCB1 correctly evaluates children from the parent's perspective.
+		playerWhoMovedHere := 3 - n.state.CurrentPlayer()
+		if result == playerWhoMovedHere {
+			n.wins += 1
+		} else if result == board.Draw {
+			n.wins += 0.5
 		}
-		// Optional: Handling draws.
-		// Depending on your game's rules, you might need to handle draws explicitly.
-		// This could involve checking if the result indicates a draw and then deciding
-		// whether to count that as a half-win, a full win, or something else for the node.
-		// Example:
-		/*
-			if result == board.Draw {
-				n.wins += 0.5
-			}
-		*/
 	}
 
 	// This method systematically updates the visit and win counts for each node from the

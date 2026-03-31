@@ -1,24 +1,43 @@
+// Package tictactoe implements a tic-tac-toe game compatible with the
+// [board.State] interface, allowing it to be used with the MCTS engine.
+//
+// The board is represented as a flat slice of 9 cells (positions 0-8):
+//
+//	0 | 1 | 2
+//	──┼───┼──
+//	3 | 4 | 5
+//	──┼───┼──
+//	6 | 7 | 8
+//
+// Each cell contains 0 (empty), 1 ([board.Player1] / X), or 2 ([board.Player2] / O).
 package tictactoe
 
 import (
 	"github.com/owulveryck/alphazego/board"
 )
 
-// Define constants for the players and empty cells
+// BoardSize is the number of cells on a tic-tac-toe board (3x3 = 9).
 const (
 	BoardSize = 9
 )
 
+// TicTacToe represents the state of a tic-tac-toe game.
+// It implements [board.State] and [board.Playable].
 type TicTacToe struct {
 	board      []uint8
 	PlayerTurn uint8
 }
 
-// BoardID returns a uniq identifier for the board
+// BoardID returns a unique identifier for this board state.
+// The ID is the board cells concatenated with the current player byte,
+// producing a 10-byte slice.
 func (tictactoe *TicTacToe) BoardID() []byte {
 	return append(tictactoe.board, tictactoe.PlayerTurn)
 }
 
+// GetMoveFromState compares the current board with another state and returns
+// the position (0-8) where the boards differ. This identifies which move was
+// played to transition from the current state to s.
 func (tictactoe *TicTacToe) GetMoveFromState(s board.State) board.Move {
 	next := s.(*TicTacToe)
 	for i := 0; i < len(next.board); i++ {
@@ -29,6 +48,8 @@ func (tictactoe *TicTacToe) GetMoveFromState(s board.State) board.Move {
 	return 0
 }
 
+// NewTicTacToe creates a new tic-tac-toe game with an empty board.
+// Player1 goes first.
 func NewTicTacToe() *TicTacToe {
 	return &TicTacToe{
 		board:      make([]uint8, BoardSize),
@@ -36,17 +57,22 @@ func NewTicTacToe() *TicTacToe {
 	}
 }
 
+// Play places the current player's mark at position p (0-8)
+// and switches the turn to the other player.
 func (t *TicTacToe) Play(p board.Move) {
 	t.board[p] = t.PlayerTurn
 	t.PlayerTurn = 3 - t.PlayerTurn
 }
 
-// CurrentPlayer is the player that will play on the current board
+// CurrentPlayer returns the player whose turn it is to play.
 func (t *TicTacToe) CurrentPlayer() board.Agent {
 	return t.PlayerTurn
 }
 
-// Evaluate the state and returns gameon, or a winner
+// Evaluate checks the board for a winner or draw.
+// It returns [board.GameOn] if the game is still in progress,
+// [board.Player1Wins] or [board.Player2Wins] if a player has three in a row,
+// or [board.Draw] if all cells are filled with no winner.
 func (t *TicTacToe) Evaluate() board.Result {
 	// Define all winning positions: rows, columns, and diagonals
 	// Check for a win
@@ -83,7 +109,9 @@ func toBoardState(t []*TicTacToe) []board.State {
 	return output
 }
 
-// Placeholder for GameState methods
+// PossibleMoves returns a slice of all reachable game states from the current
+// position. Each returned state has one additional move played (at an empty cell)
+// and the turn switched to the other player.
 func (t *TicTacToe) PossibleMoves() []board.State {
 	games := make([]*TicTacToe, 0)
 	for i := 0; i < BoardSize; i++ {

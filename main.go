@@ -32,6 +32,6 @@ func main() {
 }
 
 func getNextMoveFromMCTS(m *mcts.MCTS, s board.State) board.Move {
-	next := m.RunMCST(s)
+	next := m.RunMCTS(s, 1000)
 	return s.(board.Playable).GetMoveFromState(next)
 }

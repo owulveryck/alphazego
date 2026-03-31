@@ -12,6 +12,9 @@ const (
 	blue  = "\033[34m"
 )
 
+// String returns a human-readable representation of the board using
+// ANSI colors: red for Player1 (X) and blue for Player2 (O).
+// It also displays whose turn it is.
 func (tictactoe *TicTacToe) String() string {
 	players := map[board.Agent]string{
 		board.EmptyPlace: " ",

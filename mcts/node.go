@@ -1,6 +1,8 @@
 package mcts
 
 import (
+	"math"
+
 	"github.com/owulveryck/alphazego/board"
 )
 
@@ -38,4 +40,44 @@ type MCTSNode struct {
 	// to balance exploration and exploitation in the selection strategy, ensuring that
 	// the search explores a wide range of moves while also concentrating on promising areas.
 	visits float64
+
+	// mcts holds a reference back to the MCTS instance for inventory access during expansion.
+	mcts *MCTS
+}
+
+// IsTerminal returns true if this node represents a terminal game state (win, loss, or draw).
+func (n *MCTSNode) IsTerminal() bool {
+	return n.state.Evaluate() != board.GameOn
+}
+
+// IsFullyExpanded returns true if all possible moves from this state have been expanded as children.
+func (n *MCTSNode) IsFullyExpanded() bool {
+	return len(n.children) >= len(n.state.PossibleMoves())
+}
+
+// SelectChildUCB selects the immediate child with the highest UCB1 score.
+func (n *MCTSNode) SelectChildUCB() *MCTSNode {
+	bestScore := math.Inf(-1)
+	var bestChild *MCTSNode
+	for _, child := range n.children {
+		score := child.UCB1()
+		if score > bestScore {
+			bestScore = score
+			bestChild = child
+		}
+	}
+	return bestChild
+}
+
+// SelectBestMove returns the child with the highest visit count (most explored path).
+func (n *MCTSNode) SelectBestMove() *MCTSNode {
+	var bestChild *MCTSNode
+	bestVisits := float64(-1)
+	for _, child := range n.children {
+		if child.visits > bestVisits {
+			bestVisits = child.visits
+			bestChild = child
+		}
+	}
+	return bestChild
 }

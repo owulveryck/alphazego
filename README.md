@@ -1,326 +1,193 @@
 # alphazego
 
-A repository that may not go far but could be eventually an alphazero implementation in Go from Scratch
+Une implementation d'AlphaZero en Go, from scratch.
 
 ## Introduction
 
-I would like to understand AlphaGo and AlphaZero by implementing it from scratch.
-I don't know how far it will go.
+L'objectif de ce projet est de comprendre AlphaGo et AlphaZero en les implementant de zero.
+Le jeu utilise est le morpion (tic-tac-toe), car ses regles sont simples et permettent de se concentrer sur l'algorithme.
 
-I will use tic-tac-toe as it is a fairly easy game to understand.
+La premiere etape est d'implementer le MCTS (Monte Carlo Tree Search).
+La suite sera d'ajouter les parties deep-learning.
 
-First, I will implement a MTCS from scratch.
-Then I will try to add the deep-learning parts
+## Qu'est-ce que le MCTS ?
 
-### MCTS
+Le MCTS est un algorithme de recherche utilise en intelligence artificielle pour choisir le meilleur coup dans un jeu.
+Il est a la base d'AlphaGo et AlphaZero.
 
-This is written by ChatGPT:
+L'idee centrale : plutot que d'explorer toutes les possibilites (impossible pour un jeu comme le Go), on **simule des milliers de parties aleatoires** et on utilise les resultats pour guider la recherche vers les coups les plus prometteurs.
 
-Monte Carlo Tree Search (MCTS) is a decision-making algorithm commonly used in artificial intelligence (AI) applications, especially for playing board games like Go, chess, and many others.
-It helps an AI decide on the best move to make in a given situation.
-Here's a simplified explanation of how MCTS works:
+### Le jeu vu comme un arbre
 
-#### Tree Structure
-Imagine the game as a tree where each node represents a game state (or position), and the branches represent the possible moves (or actions) leading to the next states.
-
-#### Four Phases of MCTS
-
-- Selection: Starting from the root node (the current state of the game), the algorithm selects child nodes down the tree based on a strategy that balances between exploring new nodes and exploiting known successful paths.
-This strategy often involves some mathematical formulae like the Upper Confidence Bound (UCB1).
-- Expansion: Once it reaches a node that has unexplored child nodes (possible moves that haven't been tried yet), the algorithm expands the tree by adding one of these new nodes.
-- Simulation: From this new node, the algorithm simulates a random play-out or game until a predefined condition is met (like reaching the end of the game).
-This random simulation helps estimate the potential of the move that led to the new node.
-- Backpropagation: After the simulation ends, the results (win or lose) are propagated back up the tree, updating the information at each node along the way.
-This update improves the accuracy of the selection strategy for future iterations.
-
-#### Repetition
-MCTS repeats these four phases many times, building a more and more refined tree where the paths to high-scoring outcomes are explored more thoroughly.
-
-#### Decision
-After a set number of iterations or time, the algorithm picks the move associated with the most promising path explored in the tree.
-
-Key Takeaway
-The beauty of MCTS is its balance between exploring new, potentially better moves (exploration) and exploiting the moves known to lead to success (exploitation).
-It doesn't require an exhaustive search of all possible game states or an extensive database of past games, making it powerful for complex games like Go.
-The algorithm "learns" the best moves by simulating many games within the possible moves tree and uses those simulations to make informed decisions, improving as it goes.
-
-### UCB1
-
-Imagine you're at a carnival with lots of different games to play, but you only have a limited amount of time and tokens.
-Some games you've tried before and know they're fun, and some games are totally new to you.
-You want to make sure you have the best time by playing the most fun games, but you also want to try new games because they might be even more fun.
-This is where the UCB1 formula, which stands for "Upper Confidence Bound 1," comes into play, but let's call it the "Fun Finder Formula" to make it easier.
-
-The Fun Finder Formula helps you decide which game to play next by thinking about two things:
-
-#### How much fun you had before
-If you played a game before and it was super fun, you'll probably want to play it again.
-The Fun Finder Formula remembers how much fun each game was based on your past plays.
-
-#### Giving all games a chance
-Even if you haven't tried a game yet, the Fun Finder Formula nudges you to try it because who knows? It might turn out to be the most fun game at the carnival.
-
-Here's how it does it:
-
-- It gives each game a score that goes up both because of how much fun it was before and because of how few times you've tried it.
-This means games that were a lot of fun get high scores, but so do games you haven't played much yet.
-- Every time you're deciding what to play, you look at all the games' scores and pick the one with the highest score.
-This means you're choosing between playing a game you know is fun and trying out a game that could be even more fun.
-
-So, the Fun Finder Formula (UCB1) helps you have the best time at the carnival by making sure you play a mix of games you know you love and new games that might become your new favorites.
-
-#### Maths
-
-Let's add some math to our "Fun Finder Formula" (UCB1) to see how it actually works when you're deciding which carnival game to play next.
-Each game at the carnival has two important numbers:
-
-- Average Fun Score: This is how much fun you've had on average each time you played the game.
-Let's call this $AverageFun(game)$
-- Number of Plays: This is how many times you've played the game.
-We'll call this $Plays(game)$.
-
-And there's one more number that's about the whole carnival:
-
-- **Total Number of Plays**: This is how many games you've played in total, not just one game but all the different games.
-Let's call this $ \text{TotalPlays} $.
-
-The Fun Finder Formula (UCB1) combines these numbers to give each game a \"Try This Next\" score.
-Here's the formula for the score of each game:
-
-$$ \text{Score}(game) = \text{AverageFun}(game) + \sqrt{\frac{2 \times \ln(\text{TotalPlays})}{\text{Plays}(game)}} $$
-
-This formula has two parts:
-
-1. **$\text{AverageFun}(game)$**: This is the first part, which says, \"If a game was fun before, it's probably still fun.\" It's like remembering which games made you laugh the most.
-2. **$\sqrt{\frac{2 \times \ln(\text{TotalPlays})}{\text{Plays}(game)}}$**: This is the second part, which pushes you to try games you haven't played much yet.
-The more you play in total (making $ \text{TotalPlays} $ bigger) and the fewer times you've tried a game (making $ \text{Plays}(game) $ smaller), the bigger this part gets.
-This means games you haven't played much yet get a boost in their score, tempting you to try them.
-
-When you combine these parts, every game at the carnival gets a score that balances \"this is already fun\" with \"this could be exciting because it's new.\" Before you decide what to play next, you calculate these scores for all the games and then go to the one with the highest score.
-That way, you're always choosing between the best of what you know and the exciting possibilities of what you don't, making sure your time at the carnival is super fun!"
-
-### Creating the basic MCTS in Go 
-
-Creating a simple Monte Carlo Tree Search (MCTS) for Tic-Tac-Toe in Go (Golang) involves several steps.
-Below is a high-level overview of what you need to do, followed by a basic code structure to get you started.
-
-#### Steps to Create MCTS for Tic-Tac-Toe
-1. Define the Game State: Represent the Tic-Tac-Toe board and keep track of the current player, the positions of 'X' and 'O', and whether the game is over.
-2. Implement Game Logic: Functions for making moves, checking for a win or draw, and generating possible moves from the current state.
-3. Node Structure for MCTS: Each node in the MCTS tree will represent a game state, including information like the number of wins, losses, and visits for that state, as well as links to parent and child nodes.
-4. Selection: Navigate the tree from the root to a leaf node by choosing nodes that maximize a given selection strategy, such as the Upper Confidence Bound (UCB1).
-5. Expansion: If the chosen leaf node represents a non-terminal state, expand the tree by creating new child nodes for each possible move.
-6. Simulation: From a new child node, simulate random play (rollout) until the game reaches a terminal state, then evaluate the outcome.
-7. Backpropagation: Update the nodes from the selected leaf back to the root with the result of the simulation, adjusting the win/loss statistics.
-
-```go 
-package main
-
-import "fmt"
-
-// Define constants for the players and empty cells
-const (
-    Empty = 0
-    PlayerX = 1
-    PlayerO = 2
-)
-
-// GameState represents the Tic-Tac-Toe board
-type GameState struct {
-    board [3][3]int
-    playerTurn int
-}
-
-// MCTSNode represents a node in the MCTS tree
-type MCTSNode struct {
-    state GameState
-    parent *MCTSNode
-    children []*MCTSNode
-    wins float64
-    visits float64
-    untriedMoves []GameState // Or any representation of a move
-}
-```
-
-### Outline for MCTS Implementation
-1. Game State Management: Implement functions to make moves, check for game over conditions (win, lose, draw), and list possible moves from the current state.
-2. MCTS Node Structure: Design the MCTSNode struct with fields for tracking the game state, parent and child nodes, wins, visits, and possible moves.
-3. Selection: Use the UCB1 formula to traverse the tree from the root to a leaf node, selecting the child with the highest value each time.
-4. Expansion: At a leaf node, if the game isn't over, create new child nodes for each possible move not yet explored.
-5. Simulation: From a new node, simulate random moves to the end of the game and determine the winner.
-6. Backpropagation: Update nodes with the simulation result, incrementing visits and adjusting the win count based on the outcome.
-
-```go 
-package main
-
-import (
-    "fmt"
-    "math"
-    "math/rand"
-    "time"
-)
-
-type GameState struct {
-    board [3][3]int
-    playerTurn int
-}
-
-type MCTSNode struct {
-    state GameState
-    parent *MCTSNode
-    children []*MCTSNode
-    wins float64
-    visits float64
-    untriedMoves []GameState
-}
-
-// Placeholder for GameState methods
-func (gs *GameState) PossibleMoves() []GameState {
-    // Return a slice of possible next states
-    return nil
-}
-
-func (gs *GameState) IsGameOver() bool {
-    // Return true if the game is over, false otherwise
-    return false
-}
-
-func (gs *GameState) MakeMove(move GameState) *GameState {
-    // Apply a move to the current game state and return the new state
-    return &GameState{}
-}
-
-func (gs *GameState) GetWinner() int {
-    // Determine the winner of the game; return 0 for draw, 1 for Player X, 2 for Player O
-    return 0
-}
-
-// MCTSNode methods
-func (node *MCTSNode) UCB1() float64 {
-    if node.visits == 0 {
-        return math.Inf(1) // Return positive infinity to prioritize unvisited nodes
-    }
-    return node.wins / node.visits + math.Sqrt(2*math.Log(node.parent.visits)/node.visits)
-}
-
-func (node *MCTSNode) SelectChild() *MCTSNode {
-    // Select the child with the highest UCB1 score
-    return nil
-}
-
-func (node *MCTSNode) Expand() *MCTSNode {
-    // Expand the tree by creating a new child node for one of the untried moves
-    return nil
-}
-
-func (node *MCTSNode) Simulate() int {
-    // Simulate a random playthrough from this node to a terminal state
-    return 0
-}
-
-func (node *MCTSNode) Backpropagate(result int) {
-    // Update this node and its ancestors with the simulation result
-}
+Chaque position du jeu est un **noeud** de l'arbre. Chaque coup possible est une **branche** qui mene a un nouveau noeud (une nouvelle position).
 
 ```
+Position actuelle (racine)
+├── Coup A → Position A
+│   ├── Reponse 1 → ...
+│   └── Reponse 2 → ...
+├── Coup B → Position B
+│   └── Reponse 1 → ...
+└── Coup C → Position C
+    ├── Reponse 1 → ...
+    └── Reponse 2 → ...
+```
 
-## MCTS Methods
+Le MCTS construit progressivement cet arbre en repetant quatre phases a chaque iteration.
 
-Flesh out the selection, expansion, simulation, and backpropagation methods for the MCTSNode.
-This involves implementing the UCB1 calculation, expanding the tree with new moves, simulating games to determine outcomes, and updating nodes based on simulation results.
+### Les quatre phases
 
-### Backpropagation
+#### 1. Selection
 
-Backpropagation in the context of Monte Carlo Tree Search (MCTS), specifically for a game like Tic-Tac-Toe, is the process of updating the nodes of the search tree after a simulation is completed. The purpose of backpropagation is to incrementally adjust the statistical information stored at each node based on the outcome of the simulation, which helps the algorithm make more informed decisions in future iterations. Here's a detailed explanation:
+On part de la racine et on descend dans l'arbre en choisissant a chaque etape l'enfant le plus prometteur, jusqu'a atteindre un noeud **feuille** (un noeud qui n'a pas encore ete entierement explore).
 
-Goal of Backpropagation
-The goal is to update each node from the selected node down to the root with the result of the simulation to reflect how promising each node (or move) is based on the new information. This involves updating two main pieces of information:
+Le choix se fait avec la formule **UCB1** (voir plus bas), qui equilibre deux objectifs contradictoires :
+- **Exploitation** : aller vers les coups qui ont bien marche jusqu'ici
+- **Exploration** : essayer les coups peu visites, qui pourraient se reveler meilleurs
 
-Visits (N): The number of times a node has been visited, which includes the current visit.
-Wins (W): The total wins recorded from the node's perspective. The definition of a "win" can vary based on the game and the perspective of the player making the simulation.
-How Backpropagation Works
-Result Evaluation: Once the simulation reaches a terminal state (win, lose, or draw), the outcome is evaluated. In Tic-Tac-Toe, this could be a win for X, a win for O, or a draw.
+#### 2. Expansion
 
-Backpropagation Loop: Starting from the node that was expanded and simulated, the algorithm moves back up the tree to the root. At each node, it updates the statistics based on the simulation's outcome:
+Quand on atteint un noeud feuille qui n'est pas en fin de partie, on ajoute **un seul** nouveau noeud enfant correspondant a un coup pas encore essaye.
 
-Increment Visits: For every node along the path back to the root, increment the visits count by 1. This reflects that a new simulation has passed through this node.
-Update Wins: If the simulation resulted in a win from the perspective of the player corresponding to the node, increment the wins count. For Tic-Tac-Toe, if the simulation ends in a win for X, all nodes representing X's turns along the path would have their wins count incremented.
-Perspective Handling: It's important to adjust the wins based on the perspective of the node. In games like Tic-Tac-Toe, where players take turns, the interpretation of a win is inverted at each level of the tree. If the simulated game is won by X, then nodes where it was X's turn would count this as a win, while nodes where it was O's turn would not.
+#### 3. Simulation (rollout)
+
+A partir du nouveau noeud, on joue une **partie aleatoire** jusqu'a la fin (victoire, defaite ou match nul). On ne cherche pas a bien jouer : on choisit des coups au hasard. L'idee est d'obtenir une estimation rapide de la valeur du coup.
+
+#### 4. Retropropagation (backpropagation)
+
+Le resultat de la simulation est **propage vers le haut** de l'arbre, du noeud simule jusqu'a la racine. Chaque noeud traverse met a jour deux compteurs :
+- **visits** : combien de fois on est passe par ce noeud
+- **wins** : combien de victoires ont ete observees pour le joueur qui a choisi ce coup
+
+Apres des milliers d'iterations, l'arbre contient suffisamment de statistiques pour choisir le meilleur coup : celui dont l'enfant a recu le **plus de visites**.
+
+## UCB1 : le compromis exploration/exploitation
+
+### L'intuition
+
+Imaginez que vous etes dans une fete foraine avec plein de stands de jeux. Vous avez un temps limite. Certains jeux, vous les connaissez et savez qu'ils sont amusants. D'autres, vous ne les avez jamais essayes.
+
+Comment repartir votre temps ? Si vous ne jouez qu'aux jeux que vous connaissez, vous passez a cote de jeux potentiellement meilleurs. Si vous ne faites qu'essayer des nouveautes, vous perdez du temps sur des jeux mediocres.
+
+UCB1 resout ce dilemme en donnant a chaque jeu un **score** qui combine :
+- **La recompense moyenne** : les jeux amusants ont un score eleve
+- **Un bonus d'exploration** : les jeux peu essayes recoivent un bonus qui diminue au fur et a mesure qu'on les teste
+
+On choisit toujours le jeu avec le score le plus eleve.
+
+### La formule
+
+$$ \text{UCB1} = \underbrace{\frac{W}{N}}_{\text{exploitation}} + \underbrace{C \sqrt{\frac{\ln N_p}{N}}}_{\text{exploration}} $$
+
+| Symbole | Signification |
+|---------|---------------|
+| $W$ | Nombre de victoires du noeud |
+| $N$ | Nombre de visites du noeud |
+| $N_p$ | Nombre de visites du noeud parent |
+| $C$ | Constante d'exploration ($\sqrt{2}$ par defaut) |
+
+- Un noeud jamais visite ($N = 0$) recoit un score de $+\infty$ pour garantir qu'il sera explore au moins une fois.
+- Plus $C$ est grand, plus l'algorithme explore. Plus $C$ est petit, plus il exploite.
+
+## Structure du code
+
+```
+alphazego/
+├── board/
+│   ├── interfaces.go          # Interfaces du jeu (State, Playable)
+│   └── tictactoe/
+│       ├── ttt.go             # Implementation du morpion
+│       ├── console.go         # Affichage du plateau
+│       └── cmd/main.go        # Petit programme jouable en console
+├── mcts/
+│   ├── mcts.go                # Boucle principale du MCTS (RunMCTS)
+│   ├── node.go                # Structure MCTSNode + methodes utilitaires
+│   ├── ucb1.go                # Calcul du score UCB1
+│   ├── expand.go              # Phase d'expansion
+│   ├── simulate.go            # Phase de simulation (rollout)
+│   └── backpropagate.go       # Phase de retropropagation
+└── main.go                    # Programme principal (humain vs MCTS)
+```
+
+### Separer le jeu du MCTS
+
+Le MCTS ne connait pas les regles du morpion. Il manipule des **interfaces** definies dans `board/interfaces.go` :
 
 ```go
-func (node *MCTSNode) Backpropagate(result int) {
-    // Loop to update nodes up to the root
-    for n := node; n != nil; n = n.parent {
-        n.visits += 1
-        // If the result matches the playerTurn of this node, it's a win for this node
-        if n.state.playerTurn == result {
-            n.wins += 1
-        }
-        // For Tic-Tac-Toe, you might also need to handle draws specifically
-        // depending on how you want to treat them in your win/loss statistics
-    }
+type State interface {
+    CurrentPlayer() Agent       // Qui doit jouer ?
+    Evaluate() Result           // La partie est-elle finie ? Qui a gagne ?
+    PossibleMoves() []State     // Quels sont les coups possibles ?
+    BoardID() []byte            // Identifiant unique de la position
 }
 ```
 
-**Key Considerations**
-Draw Handling: How to handle draws depends on your specific implementation. Some strategies might consider a draw as a half-win or a separate statistic.
-Perspective Adjustment: The example treats wins from the perspective of the current player at each node. Ensure this aligns with how you've structured your game state and tree.
+Cela signifie qu'on peut brancher n'importe quel jeu sur le MCTS, a condition qu'il implemente cette interface. Le morpion est un premier exemple simple.
 
-### Selection
-Selection in Monte Carlo Tree Search (MCTS) is a critical step where the algorithm decides which path to take through the game tree, aiming to balance between exploring new possibilities and exploiting known successful paths.
-This balance is crucial for efficiently searching the vast space of possible moves in complex games like Tic-Tac-Toe.
-Here's a detailed explanation:
+### Le morpion
 
-### Goal of Selection
+Le plateau est represente par un slice de 9 cases (`[]uint8`), numerotees de 0 a 8 :
 
-The primary goal of the selection phase is to navigate from the root of the tree to a leaf node by making a series of choices that lead to promising areas of the tree.
-A \"promising area\" could mean a path that has historically led to wins (exploitation) or a path that hasn't been explored much yet and might lead to new discoveries (exploration).
+```
+ 0 | 1 | 2
+───┼───┼───
+ 3 | 4 | 5
+───┼───┼───
+ 6 | 7 | 8
+```
 
-### The Upper Confidence Bound (UCB1) Algorithm
-
-One popular strategy for selection in MCTS is the Upper Confidence Bound (UCB1) algorithm.
-UCB1 balances exploration and exploitation by considering both the win rate of a node and how frequently the node has been visited relative to its siblings.
-The formula for UCB1 is:
-
-$$ \text{UCB1} = \frac{W_i}{N_i} + C \sqrt{\frac{\ln N_p}{N_i}} $$
-
-Where:
-- $W_i$ is the number of wins after the $i$-th move.
-- $N_i$ is the number of simulations that have passed through the $i$-th move.
-- $N_p$ is the total number of simulations that have passed through the parent node.
-- $C$ is the exploration parameter, which determines the balance between exploration and exploitation.
-A higher value of $C$ encourages more exploration.
-
-### How Selection Works
-
-Starting from the root node, the algorithm recursively selects child nodes until it reaches a leaf node (a node with no children or representing a game state that hasn't been fully explored).
-At each step, it chooses the child node with the highest UCB1 score.
-This process involves:
-
-1. **Calculating UCB1 for Each Child**: For every child of the current node, calculate the UCB1 score using the formula above.
-2. **Choosing the Best Child**: Select the child with the highest UCB1 score.
-This child is considered the most promising based on current information.
-3. **Repeating Until a Leaf Node Is Reached**: Continue this process down the tree until you arrive at a node that either has no children (because it's a terminal state) or hasn't been fully expanded (some moves haven't been explored yet).
-
-### Example Implementation
-
-Here's a simplified version of how the selection process might be implemented in a function in Go.
-This function would be part of the `MCTSNode` struct:
+Chaque case vaut `0` (vide), `1` (joueur 1 / X) ou `2` (joueur 2 / O). L'alternance des joueurs est geree par `3 - PlayerTurn` : si c'est au joueur 1, le prochain sera `3 - 1 = 2`, et vice versa.
 
 ```go
-func (node *MCTSNode) SelectChild(C float64) *MCTSNode {
-    var bestScore float64 = -1
+type TicTacToe struct {
+    board      []uint8    // 9 cases
+    PlayerTurn uint8      // 1 ou 2
+}
+
+func (t *TicTacToe) Play(p board.Move) {
+    t.board[p] = t.PlayerTurn
+    t.PlayerTurn = 3 - t.PlayerTurn
+}
+```
+
+### Le noeud MCTS
+
+Chaque noeud de l'arbre represente une position de jeu et stocke les statistiques accumulees :
+
+```go
+type MCTSNode struct {
+    state    board.State      // La position de jeu
+    parent   *MCTSNode        // Le noeud parent (nil pour la racine)
+    children []*MCTSNode      // Les noeuds enfants (coups explores)
+    wins     float64          // Victoires observees
+    visits   float64          // Nombre de visites
+    mcts     *MCTS            // Reference vers l'instance MCTS
+}
+```
+
+## Implementation des quatre phases
+
+### 1. Selection (`node.go`, `ucb1.go`)
+
+La boucle de selection dans `RunMCTS` descend dans l'arbre tant que le noeud courant n'est pas terminal et que tous ses enfants ont ete explores au moins une fois :
+
+```go
+node := root
+for !node.IsTerminal() && node.IsFullyExpanded() {
+    node = node.SelectChildUCB()
+}
+```
+
+`SelectChildUCB` choisit l'enfant avec le meilleur score UCB1 parmi les enfants immediats. La methode est **non recursive** : c'est la boucle ci-dessus qui gere la descente dans l'arbre.
+
+```go
+func (n *MCTSNode) SelectChildUCB() *MCTSNode {
+    bestScore := math.Inf(-1)
     var bestChild *MCTSNode
-
-    for _, child := range node.children {
-        wins := child.wins
-        if node.state.playerTurn != child.state.playerTurn {
-            // Adjust for the perspective of the player to make a move
-            wins = child.visits - child.wins
-        }
-        ucb1 := wins/child.visits + C*math.Sqrt(math.Log(node.visits)/child.visits)
-        if ucb1 > bestScore {
-            bestScore = ucb1
+    for _, child := range n.children {
+        score := child.UCB1()
+        if score > bestScore {
+            bestScore = score
             bestChild = child
         }
     }
@@ -328,122 +195,131 @@ func (node *MCTSNode) SelectChild(C float64) *MCTSNode {
 }
 ```
 
-### Key Considerations
-
-- **Exploration Parameter ($C$)**: The choice of $C$ significantly affects the algorithm's behavior.
-Common values for $C$ are in the range of $\sqrt{2}$, but the optimal value can depend on the specific game and context.
-- **Win Rate Adjustment**: When calculating the UCB1 score, adjust the win rate based on the perspective of the current player, especially in two-player games where the advantage of a move for one player is a disadvantage for the other.
-
-By carefully selecting paths through the game tree, the MCTS algorithm efficiently discovers and focuses on the most promising moves, leading to stronger gameplay performance.
-
-## Expansion
-Expansion in Monte Carlo Tree Search (MCTS) is a key phase that occurs after the selection phase.
-Once a promising leaf node is selected — that is, a node that represents a game state with unexplored moves — the expansion phase adds one or more new child nodes to the tree, each representing a possible next move from that state.
-This phase is crucial for exploring the game's possible outcomes and discovering new strategies.
-Here’s how the expansion phase works in detail:
-
-### Goal of Expansion
-
-The primary goal of the expansion phase is to explore new parts of the game tree.
-By adding new nodes for unexplored moves, the algorithm incrementally builds a representation of the game's possible states, allowing for a more informed decision-making process in future iterations.
-
-### How Expansion Works
-
-1. **Identify Unexplored Moves**: Starting from the selected leaf node, the algorithm identifies possible moves from the current game state that have not yet been explored.
-In games like Tic-Tac-Toe, this would involve looking at the game board and identifying empty spaces where a player can make a move.
-
-2. **Create New Child Nodes**: For each unexplored move identified, the algorithm creates a new child node attached to the current node.
-Each child node represents a new game state resulting from making one of the unexplored moves.
-The specifics of this process include:
-   - Copying the current game state and applying the unexplored move to create the child node's game state.
-   - Setting the appropriate player turn for the new game state based on the game's rules.
-   - Initializing the win/loss statistics for the new node, typically starting from zero.
-
-3. **Select a Node for Simulation**: Often, immediately after expansion, one of the newly created child nodes is selected for the simulation phase.
-The choice of which child node to simulate can vary:
-   - The algorithm might randomly select one of the new nodes for simulation.
-   - Alternatively, it might use some heuristics or other criteria for selection, depending on the specific implementation and the game's characteristics.
-
-### Example Implementation
-
-Here's a simplified version of what the expansion step might look like in a function as part of the `MCTSNode` struct in Go.
-This assumes you have a method to generate possible moves from the current game state and a way to apply those moves to create new game states:
+Le score UCB1 est calcule dans `ucb1.go`. Un noeud jamais visite retourne `+Inf` pour etre explore en priorite :
 
 ```go
-func (node *MCTSNode) Expand() {
-    unexploredMoves := node.state.PossibleMoves() // Assume this returns a list of game states
-    for _, move := range unexploredMoves {
-        newState := node.state.MakeMove(move) // Assume this applies the move and returns a new state
-        child := &MCTSNode{
-            state: *newState,
-            parent: node,
-            wins: 0,
-            visits: 0,
-            children: []*MCTSNode{}, // No children yet
+func (n *MCTSNode) UCB1() float64 {
+    if n.visits == 0 {
+        return math.Inf(1)
+    }
+    C := math.Sqrt(2)
+    avgReward := n.wins / float64(n.visits)
+    if n.parent == nil {
+        return avgReward
+    }
+    return avgReward + C*math.Sqrt(math.Log(float64(n.parent.visits))/float64(n.visits))
+}
+```
+
+Les methodes utilitaires :
+- `IsTerminal()` : verifie si `Evaluate()` retourne autre chose que `GameOn` (partie finie)
+- `IsFullyExpanded()` : verifie si le nombre d'enfants est egal au nombre de coups possibles
+
+### 2. Expansion (`expand.go`)
+
+`Expand` ajoute **un seul** nouvel enfant a chaque appel. Il determine les coups non encore explores en comparant les `BoardID` des enfants existants avec ceux des coups possibles :
+
+```go
+func (node *MCTSNode) Expand() *MCTSNode {
+    possibleMoves := node.state.PossibleMoves()
+
+    existingIDs := make(map[string]bool)
+    for _, child := range node.children {
+        existingIDs[string(child.state.BoardID())] = true
+    }
+
+    for _, move := range possibleMoves {
+        if !existingIDs[string(move.BoardID())] {
+            child := &MCTSNode{
+                state:    move,
+                parent:   node,
+                children: []*MCTSNode{},
+                mcts:     node.mcts,
+            }
+            node.children = append(node.children, child)
+            return child
         }
-        node.children = append(node.children, child)
     }
+    return nil
 }
 ```
 
-### Key Considerations
+**Point important** : chaque noeud enfant est cree independamment. On ne partage pas les noeuds entre differentes branches via une table de transposition. Si un meme etat est atteint par deux chemins differents, deux noeuds distincts sont crees. C'est essentiel car la retropropagation remonte via le champ `parent` : partager un noeud ferait remonter les statistiques dans la mauvaise branche.
 
-- **Single vs.
-Multiple Expansions**: Some implementations of MCTS expand only one node per visit to the selected leaf, adding a single new game state based on one possible move.
-Others might add multiple children at once.
-The choice depends on the specific goals of the algorithm and the computational resources available.
-- **Initialization of Node Statistics**: Newly expanded nodes start with no visits and no wins, but depending on the implementation, they might also inherit or simulate some initial values to better integrate into the tree's existing strategy.
+### 3. Simulation (`simulate.go`)
 
-By carefully expanding the game tree, MCTS explores new strategies and outcomes, gradually improving its understanding of the game and enhancing its decision-making process.
-
-## Simulation
-Simulation, often referred to as the \"playout\" phase in Monte Carlo Tree Search (MCTS), is a crucial step where the algorithm simulates a game from a given node's state to a terminal condition (win, loss, or draw) using a predefined strategy.
-This phase follows the expansion of the MCTS tree, where a new node has been added to represent an unexplored move.
-The primary goal of the simulation is to gather information about the potential outcome of the game from that point, providing insight into the value of taking a particular path.
-
-### How Simulation Works
-
-1. **Starting Point**: The simulation begins from the state of the newly expanded node.
-This state represents a specific configuration of the game (e.g., a Tic-Tac-Toe board layout) after a certain sequence of moves.
-
-2. **Random or Heuristic Play**: The game is simulated forward from this state to a conclusion.
-The moves for each player can be selected randomly, which is common in basic MCTS implementations because it's straightforward and unbiased.
-Alternatively, lightweight heuristics (simple rules or strategies) can guide move selection to make the simulation more realistic and potentially more informative, though this approach can introduce biases based on the chosen heuristics.
-
-3. **Reaching a Terminal State**: The simulation continues until the game reaches a terminal state, which in the context of Tic-Tac-Toe, occurs when either player wins or all the spaces on the board are filled, resulting in a draw.
-
-4. **Evaluation of Outcome**: Once the game concludes, the outcome is evaluated to determine the winner.
-This outcome influences the update process during the backpropagation phase, helping adjust the statistical values of the nodes visited during the selection phase up to the root.
-
-### Purpose of Simulation
-
-The simulation phase aims to estimate the value of reaching the game state represented by the node.
-By simulating the game's progression from that state to an end, MCTS gains insights into how promising the path leading to that node might be, without needing to exhaustively search all possible future game states.
-
-### Example Implementation
-
-Here's a conceptual view of how a simulation function could be structured in Go, as part of the MCTSNode struct.
-This simplistic version assumes a method to check for terminal states and to randomly select among possible moves:
+`Simulate` joue une partie aleatoire depuis l'etat du noeud jusqu'a la fin. Les coups sont choisis au hasard parmi les coups possibles :
 
 ```go
-func (node *MCTSNode) Simulate() int {
+func (node *MCTSNode) Simulate() board.Result {
     currentState := node.state
-    for !currentState.IsGameOver() {
+    for currentState.Evaluate() == board.GameOn {
         possibleMoves := currentState.PossibleMoves()
-        move := possibleMoves[rand.Intn(len(possibleMoves))] // Randomly select a move
-        currentState = currentState.MakeMove(move) // Apply the move
+        currentState = possibleMoves[rand.Intn(len(possibleMoves))]
     }
-    return currentState.GetWinner() // Return the outcome of the simulation
+    return currentState.Evaluate()
 }
 ```
 
-### Key Considerations
+`Simulate` ne modifie jamais l'etat du noeud : elle travaille sur des copies locales creees par `PossibleMoves()`.
 
-- **Balance Between Randomness and Strategy**: Purely random simulations provide unbiased estimations of a node's value but might not reflect realistic gameplay, especially in games where certain strategies significantly increase the chances of winning.
-Incorporating simple heuristics can improve the quality of simulations but requires careful design to avoid introducing biases that could mislead the search process.
+### 4. Retropropagation (`backpropagate.go`)
 
-- **Efficiency**: Simulations are the most computationally intensive part of MCTS, as potentially thousands of them may be required to adequately explore the game tree.
-Optimizing the simulation process, for example, by limiting the depth of playouts or using efficient methods to select and apply moves, can significantly impact the performance and effectiveness of the MCTS algorithm.
+Apres la simulation, on remonte le resultat du noeud simule jusqu'a la racine. A chaque noeud, on incremente le compteur de visites et on credite une victoire si le resultat correspond au joueur qui a **fait le coup** menant a ce noeud.
 
-Simulation thus provides a direct way to assess the potential of newly explored moves, informing the algorithm's future selections and expansions by grounding decisions in simulated outcomes.
+Le point subtil : `CurrentPlayer()` retourne le joueur dont c'est le tour (celui qui va jouer), pas celui qui vient de jouer. Le joueur qui a amene la partie dans cet etat est donc `3 - CurrentPlayer()`.
 
+```go
+func (node *MCTSNode) Backpropagate(result board.Result) {
+    for n := node; n != nil; n = n.parent {
+        n.visits += 1
+
+        playerWhoMovedHere := 3 - n.state.CurrentPlayer()
+        if result == playerWhoMovedHere {
+            n.wins += 1
+        } else if result == board.Draw {
+            n.wins += 0.5
+        }
+    }
+}
+```
+
+Cette convention garantit que les `wins` d'un noeud representent les victoires du point de vue du **parent**. Quand le parent utilise UCB1 pour choisir parmi ses enfants, il compare directement leurs `wins/visits` : l'enfant avec le meilleur ratio est celui qui mene le plus souvent a une victoire pour le parent.
+
+Les matchs nuls comptent pour 0.5, ce qui les place entre une victoire (1.0) et une defaite (0.0).
+
+## Choix final du coup
+
+Apres toutes les iterations, le MCTS choisit le coup correspondant a l'enfant de la racine qui a recu le **plus de visites** (pas le plus de victoires). Le nombre de visites est un indicateur plus fiable que le ratio de victoires car il reflete la confiance globale de l'algorithme.
+
+```go
+func (n *MCTSNode) SelectBestMove() *MCTSNode {
+    var bestChild *MCTSNode
+    bestVisits := float64(-1)
+    for _, child := range n.children {
+        if child.visits > bestVisits {
+            bestVisits = child.visits
+            bestChild = child
+        }
+    }
+    return bestChild
+}
+```
+
+## Utilisation
+
+```bash
+go run main.go
+```
+
+Le programme lance une partie de morpion ou vous jouez contre le MCTS. Entrez le numero de la case (0-8) pour jouer votre coup.
+
+## Tests
+
+```bash
+go test ./...
+```
+
+Les tests couvrent :
+- Le jeu de morpion : creation, coups, evaluation des victoires/matchs nuls, generation des coups possibles
+- Le MCTS : UCB1, selection, expansion, simulation, retropropagation, et tests d'integration verifiant que l'IA **bloque les victoires adverses** et **saisit les coups gagnants**
