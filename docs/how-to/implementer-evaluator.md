@@ -1,6 +1,6 @@
 # Implementer un Evaluator
 
-Guide pour creer une implementation de l'interface `board.Evaluator`, qui permet d'utiliser le MCTS en mode AlphaZero.
+Guide pour creer une implementation de l'interface `mcts.Evaluator`, qui permet d'utiliser le MCTS en mode AlphaZero.
 
 ## Prerequis
 
@@ -10,9 +10,9 @@ Guide pour creer une implementation de l'interface `board.Evaluator`, qui permet
 ## L'interface
 
 ```go
-// dans board/interfaces.go
+// dans mcts/evaluator.go
 type Evaluator interface {
-    Evaluate(state State) (policy []float64, value float64)
+    Evaluate(state board.State) (policy []float64, value float64)
 }
 ```
 

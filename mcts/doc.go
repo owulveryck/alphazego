@@ -27,7 +27,7 @@
 // # Mode AlphaZero
 //
 // Create an [MCTS] instance with [NewAlphaMCTS] en fournissant un
-// [board.Evaluator] (reseau de neurones) et une constante d'exploration cpuct:
+// [Evaluator] (reseau de neurones) et une constante d'exploration cpuct:
 //
 //	m := mcts.NewAlphaMCTS(evaluator, 1.5)
 //	bestState := m.RunMCTS(currentState, 800)
@@ -36,7 +36,7 @@
 //
 //  1. Selection: descend the tree using PUCT (avec priors du
 //     policy network) au lieu de UCB1.
-//  2. Expansion + Evaluation: appel unique a [board.Evaluator.Evaluate] pour
+//  2. Expansion + Evaluation: appel unique a [Evaluator.Evaluate] pour
 //     obtenir policy et value. Tous les enfants sont crees d'un coup avec
 //     leurs priors.
 //  3. Pas de simulation: la value du reseau remplace le rollout.

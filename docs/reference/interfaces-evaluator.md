@@ -1,6 +1,6 @@
 # Interfaces Go pour le reseau de neurones
 
-Specification des interfaces dans `board/interfaces.go` pour le MCTS d'AlphaZeGo.
+Specification des interfaces dans `board/interfaces.go` et `mcts/evaluator.go` pour le MCTS d'AlphaZeGo.
 
 ## Interface State
 
@@ -27,10 +27,10 @@ type State interface {
 
 ## Interface Evaluator
 
-L'`Evaluator` est le point d'entree entre le MCTS et le reseau de neurones. Il est defini dans `board/interfaces.go`.
+L'`Evaluator` est le point d'entree entre le MCTS et le reseau de neurones. Il est defini dans `mcts/evaluator.go` (package `mcts`).
 
 ```go
-// Evaluator fournit une evaluation par reseau de neurones d'une position de jeu.
+// Evaluator fournit une evaluation d'une position de jeu.
 // Il est utilise par le MCTS pour remplacer les rollouts aleatoires (value)
 // et guider l'exploration (policy).
 type Evaluator interface {
@@ -41,7 +41,7 @@ type Evaluator interface {
     //
     // La somme des elements de policy doit etre egale a 1.
     // Les coups illegaux ne doivent pas apparaitre dans policy.
-    Evaluate(state State) (policy []float64, value float64)
+    Evaluate(state board.State) (policy []float64, value float64)
 }
 ```
 

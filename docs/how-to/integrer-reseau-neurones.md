@@ -10,23 +10,28 @@ Comprendre les concepts decriere ces modifications :
 - [De MCTS a AlphaZero](../explanation/de-mcts-a-alphazero.md)
 - [Interfaces Evaluator et Tensorizable](../reference/interfaces-evaluator.md)
 
-## Etape 1 : Ajouter les interfaces
+## Etape 1 : Les interfaces
 
-Fichier : `board/interfaces.go`
+Les deux interfaces cles sont deja definies :
 
-Ajouter les interfaces `Evaluator` et `Tensorizable` (voir [reference/interfaces-evaluator.md](../reference/interfaces-evaluator.md) pour le code complet).
+- `Evaluator` dans `mcts/evaluator.go` — fournit policy et value
+- `Tensorizable` dans `board/interfaces.go` — convertit un etat en tenseur
 
 ```go
+// mcts/evaluator.go
 type Evaluator interface {
-    Evaluate(state State) (policy []float64, value float64)
+    Evaluate(state board.State) (policy []float64, value float64)
 }
 
+// board/interfaces.go
 type Tensorizable interface {
     Features() []float32
     FeatureShape() [3]int
     ActionSize() int
 }
 ```
+
+Voir [reference/interfaces-evaluator.md](../reference/interfaces-evaluator.md) pour les details.
 
 ## Etape 2 : Implementer Tensorizable pour le morpion
 
@@ -62,7 +67,7 @@ Fichier : `mcts/mcts.go`
 ```go
 type MCTS struct {
     inventory map[string]*mctsNode
-    evaluator board.Evaluator
+    evaluator Evaluator
     cpuct     float64
 }
 
@@ -70,7 +75,7 @@ func NewMCTS() *MCTS {
     return &MCTS{inventory: make(map[string]*mctsNode)}
 }
 
-func NewAlphaMCTS(eval board.Evaluator, cpuct float64) *MCTS {
+func NewAlphaMCTS(eval Evaluator, cpuct float64) *MCTS {
     return &MCTS{
         inventory: make(map[string]*mctsNode),
         evaluator: eval,

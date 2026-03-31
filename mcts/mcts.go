@@ -21,7 +21,7 @@ func NewMCTS() *MCTS {
 // value, et la selection utilise PUCT.
 type MCTS struct {
 	inventory map[string]*mctsNode // Stores nodes by their state ID for potential reuse within a search.
-	evaluator board.Evaluator      // nil = MCTS pur, non-nil = AlphaZero
+	evaluator Evaluator            // nil = MCTS pur, non-nil = AlphaZero
 	cpuct     float64              // constante d'exploration pour PUCT (utilise uniquement avec evaluator)
 }
 
@@ -29,7 +29,7 @@ type MCTS struct {
 // L'evaluateur fournit une policy (priors) et une value pour chaque position,
 // remplacant les rollouts aleatoires. Le parametre cpuct controle l'exploration
 // dans la formule PUCT (typiquement entre 1.0 et 5.0).
-func NewAlphaMCTS(eval board.Evaluator, cpuct float64) *MCTS {
+func NewAlphaMCTS(eval Evaluator, cpuct float64) *MCTS {
 	return &MCTS{
 		inventory: make(map[string]*mctsNode),
 		evaluator: eval,

@@ -58,9 +58,33 @@ const (
 // ([tictactoe.TicTacToe]) en est l'implementation de reference pour deux
 // joueurs.
 //
-// Un State doit etre immuable du point de vue du MCTS : les methodes comme
-// [State.PossibleMoves] doivent retourner de nouveaux State sans modifier
-// le recepteur.
+// # Implementer State
+//
+// Le struct d'etat doit contenir au minimum trois informations :
+//
+//   - L'etat du probleme (plateau, configuration, etc.)
+//   - Le joueur courant (qui doit agir)
+//   - Le dernier coup joue (pour [State.LastMove])
+//
+// Astuce : utiliser un tableau fixe ([N]uint8) plutot qu'un slice ([]uint8)
+// pour le plateau simplifie [State.PossibleMoves] : l'affectation d'un
+// tableau copie les donnees automatiquement, sans appel a copy().
+//
+// # Contrat
+//
+// Les invariants suivants doivent etre respectes :
+//
+//   - [State.PossibleMoves] ne doit jamais modifier le recepteur. Chaque etat
+//     retourne doit etre une copie independante (c'est le piege le plus courant).
+//   - Chaque etat retourne par [State.PossibleMoves] doit avoir
+//     [State.CurrentPlayer] defini sur le joueur suivant et
+//     [State.LastMove] defini sur l'action qui a produit cet etat.
+//   - [State.PossibleMoves] retourne un slice vide (ou nil) quand
+//     [State.Evaluate] != [NoPlayer] : un etat terminal n'a pas de coups.
+//   - [State.ID] doit etre deterministe et inclure le joueur courant.
+//     Meme plateau + joueur different = ID different.
+//
+// Voir l'exemple du package pour une implementation complete (morpion).
 //
 // # Mapping vers d'autres domaines
 //
@@ -70,48 +94,53 @@ const (
 //   - Planification : CurrentPlayer = agent, PossibleMoves = actions possibles
 type State interface {
 	// CurrentPlayer retourne le joueur dont c'est le tour d'agir.
+	// Pour un jeu a deux joueurs en alternance, le joueur suivant est 3 - joueur.
 	CurrentPlayer() PlayerID
+
 	// PreviousPlayer retourne le joueur qui a effectue le coup menant a cet etat.
-	// Pour l'etat initial (aucun coup joue), le comportement est defini par
-	// l'implementation (typiquement [NoPlayer] ou le dernier joueur dans l'ordre de jeu).
-	// Cette methode permet au moteur MCTS de determiner "qui a joue ici" sans
-	// connaitre la logique de tour (alternance, round-robin, etc.).
+	// Pour un jeu a deux joueurs : 3 - CurrentPlayer().
+	// Pour l'etat initial, le comportement est defini par l'implementation
+	// (typiquement le dernier joueur dans l'ordre de jeu).
+	// Le moteur MCTS utilise cette methode pour crediter les victoires
+	// au bon joueur lors de la retropropagation.
 	PreviousPlayer() PlayerID
+
 	// Evaluate retourne l'issue du probleme :
 	//   - [NoPlayer] (0) si le probleme est en cours
 	//   - [DrawResult] (-1) en cas de match nul
 	//   - un PlayerID positif si ce joueur a gagne
+	//
+	// Le moteur MCTS appelle cette methode a chaque noeud pour detecter
+	// les etats terminaux. Un etat ou Evaluate != NoPlayer ne doit pas
+	// avoir de coups possibles (PossibleMoves retourne nil ou vide).
 	Evaluate() PlayerID
+
 	// PossibleMoves retourne tous les etats atteignables depuis l'etat courant
-	// en effectuant une action. Chaque State retourne au prochain agent comme
-	// CurrentPlayer.
+	// en effectuant une action. C'est la methode la plus importante a implementer
+	// correctement.
+	//
+	// Chaque etat retourne doit :
+	//   - etre une copie independante (ne pas partager de donnees mutables avec le recepteur)
+	//   - avoir CurrentPlayer() defini sur le joueur suivant
+	//   - avoir LastMove() defini sur l'action qui a produit cet etat
+	//
+	// Retourne nil ou un slice vide si Evaluate() != [NoPlayer].
+	//
+	// Astuce : utiliser un tableau fixe ([N]uint8) au lieu d'un slice ([]uint8)
+	// pour le plateau rend la copie automatique par simple affectation.
 	PossibleMoves() []State
+
 	// ID retourne un identifiant unique pour cet etat. Deux etats avec la meme
 	// configuration et le meme joueur courant doivent retourner des ID identiques.
+	// Inclure le joueur courant dans l'ID : meme plateau avec un joueur
+	// different constitue un etat different.
 	ID() string
-	// LastMove retourne le coup (position) qui a ete joue pour atteindre cet etat.
-	// Pour l'etat initial (aucun coup joue), la valeur de retour n'est pas definie
-	// (typiquement 0). L'appelant doit verifier via [State.Evaluate] ou le contexte
-	// si l'etat est initial.
-	LastMove() uint8
-}
 
-// Evaluator fournit une evaluation d'une position de jeu.
-// Il est utilise par le MCTS pour remplacer les rollouts aleatoires (value)
-// et guider l'exploration (policy).
-//
-// Pour un MCTS pur, un evaluateur effectue des rollouts aleatoires avec
-// une policy uniforme. Pour AlphaZero, un reseau de neurones fournit
-// les deux en un seul appel.
-type Evaluator interface {
-	// Evaluate prend un etat de jeu et retourne :
-	//   - policy : probabilite a priori pour chaque coup legal,
-	//     dans le meme ordre que [State.PossibleMoves].
-	//     La somme des elements doit etre egale a 1.
-	//   - value : estimation de victoire pour le joueur courant, dans [-1, 1].
-	//     1 signifie victoire certaine du joueur courant,
-	//     -1 signifie defaite certaine, 0 signifie match nul.
-	Evaluate(state State) (policy []float64, value float64)
+	// LastMove retourne le coup (position) qui a ete joue pour atteindre cet etat.
+	// Chaque etat retourne par [State.PossibleMoves] doit avoir ce champ
+	// correctement initialise.
+	// Pour l'etat initial (aucun coup joue), la valeur n'est pas significative.
+	LastMove() uint8
 }
 
 // Tensorizable est implemente par les etats de jeu qui peuvent etre

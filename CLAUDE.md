@@ -7,7 +7,7 @@ Implementation d'AlphaZero en Go, from scratch. Le jeu de reference est le morpi
 ```
 alphazego/
 ├── board/
-│   ├── interfaces.go              # Interfaces generiques (State, Evaluator, Tensorizable)
+│   ├── interfaces.go              # Interfaces generiques (State, Tensorizable)
 │   └── tictactoe/
 │       ├── ttt.go                 # Implementation du morpion (State + Tensorizable)
 │       ├── console.go             # Affichage ANSI du plateau
@@ -16,6 +16,7 @@ alphazego/
 │       └── cmd/main.go            # Programme jouable (humain vs IA)
 ├── mcts/
 │   ├── doc.go                     # Documentation du package
+│   ├── evaluator.go               # Interface Evaluator (policy + value)
 │   ├── mcts.go                    # Boucle principale RunMCTS, NewMCTS, NewAlphaMCTS
 │   ├── node.go                    # mctsNode (interne), isTerminal, selectChildUCB, selectBestMove
 │   ├── ucb1.go                    # Formule UCB1 (MCTS pur)

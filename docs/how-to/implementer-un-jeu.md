@@ -171,7 +171,7 @@ Voir la [reference des interfaces](../reference/interfaces-evaluator.md) pour le
 
 ## 6. Optionnel : `Evaluator` pour une evaluation custom
 
-Implementez `board.Evaluator` pour remplacer les rollouts aleatoires :
+Implementez `mcts.Evaluator` pour remplacer les rollouts aleatoires :
 
 ```go
 type MonEvaluateur struct{}

@@ -94,13 +94,14 @@ $$ \text{UCB1} = \underbrace{\frac{W}{N}}_{\text{exploitation}} + \underbrace{C 
 ```
 alphazego/
 ├── board/
-│   ├── interfaces.go          # Interfaces generiques (State, Evaluator, Tensorizable)
+│   ├── interfaces.go          # Interfaces generiques (State, Tensorizable)
 │   └── tictactoe/
 │       ├── ttt.go             # Implementation du morpion
 │       ├── console.go         # Affichage du plateau
 │       └── cmd/main.go        # Petit programme jouable en console
 ├── mcts/
 │   ├── doc.go                 # Documentation du package
+│   ├── evaluator.go           # Interface Evaluator (policy + value)
 │   ├── mcts.go                # Boucle principale (RunMCTS, NewMCTS, NewAlphaMCTS)
 │   ├── node.go                # Noeud interne + methodes utilitaires
 │   ├── ucb1.go                # Formule UCB1 (MCTS pur)
