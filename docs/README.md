@@ -21,7 +21,8 @@ Cette documentation suit la [structure Divio](https://docs.divio.com/documentati
 
 - [Integrer un reseau de neurones dans le MCTS](how-to/integrer-reseau-neurones.md) -- Les modifications concretes a apporter au code
 - [Implementer un Evaluator](how-to/implementer-evaluator.md) -- Comment creer un evaluateur (uniforme, rollout, ONNX)
+- [Implementer un nouveau jeu](how-to/implementer-un-jeu.md) -- Comment implementer `board.State` pour connecter un jeu au MCTS
 
 ## Tutoriels
 
-*(a venir)*
+- [Le morpion pas a pas](tutorials/morpion-pas-a-pas.md) -- Construire un morpion jouable contre une IA MCTS, de zero

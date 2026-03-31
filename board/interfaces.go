@@ -36,14 +36,6 @@ package board
 // ou [DrawResult] en cas de match nul.
 type PlayerID int
 
-// Move represente une action ou une position. Dans un jeu de plateau,
-// c'est une case. Dans un probleme generique, c'est un identifiant d'action.
-type Move = uint8
-
-// ID est un identifiant unique pour un etat. Deux etats identiques
-// (meme configuration, meme agent courant) doivent produire le meme ID.
-type ID = []byte
-
 const (
 	// NoPlayer indique qu'aucun joueur n'est concerne. Utilise comme valeur de
 	// retour de [State.Evaluate] pour indiquer que le jeu est en cours, et comme
@@ -95,16 +87,13 @@ type State interface {
 	// CurrentPlayer.
 	PossibleMoves() []State
 	// ID retourne un identifiant unique pour cet etat. Deux etats avec la meme
-	// configuration et le meme agent courant doivent retourner des ID identiques.
-	ID() ID
-}
-
-// Playable is implemented by game states that can extract the move
-// that was played between two consecutive states.
-type Playable interface {
-	// GetMoveFromState compares the receiver with another State and returns
-	// the Move (board position) that differs between the two.
-	GetMoveFromState(State) Move
+	// configuration et le meme joueur courant doivent retourner des ID identiques.
+	ID() string
+	// LastMove retourne le coup (position) qui a ete joue pour atteindre cet etat.
+	// Pour l'etat initial (aucun coup joue), la valeur de retour n'est pas definie
+	// (typiquement 0). L'appelant doit verifier via [State.Evaluate] ou le contexte
+	// si l'etat est initial.
+	LastMove() uint8
 }
 
 // Evaluator fournit une evaluation d'une position de jeu.

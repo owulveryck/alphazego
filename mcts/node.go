@@ -6,12 +6,12 @@ import (
 	"github.com/owulveryck/alphazego/board"
 )
 
-// MCTSNode represents a single node in the Monte Carlo Tree Search (MCTS) algorithm.
+// mctsNode represents a single node in the Monte Carlo Tree Search (MCTS) algorithm.
 // Each node corresponds to a specific game state and contains statistical information
 // about the outcomes of simulations that have been run through this node. The structure
 // of the tree is formed by parent and child relationships between nodes, enabling the
 // navigation and expansion of the search tree as the algorithm progresses.
-type MCTSNode struct {
+type mctsNode struct {
 	// state holds the current game state that this node represents.
 	// The game state includes all necessary information to continue play or simulation
 	// from this point, such as the board configuration, the player whose turn it is, etc.
@@ -20,13 +20,13 @@ type MCTSNode struct {
 	// parent is a pointer to the parent node in the search tree. The root node of the tree
 	// will have a nil parent. This link is used to traverse back up the tree during the
 	// backpropagation phase of the MCTS algorithm, updating statistics along the way.
-	parent *MCTSNode
+	parent *mctsNode
 
 	// children is a slice of pointers to the child nodes of this node. Each child represents
 	// a possible future game state that can be reached from the current state. The children
 	// are the result of expanding the search tree by exploring the outcomes of possible moves
 	// from the current state.
-	children []*MCTSNode
+	children []*mctsNode
 
 	// wins records the total number of wins (or other positive outcomes, depending on the
 	// game and scoring system) observed in simulations that have passed through this node.
@@ -51,28 +51,28 @@ type MCTSNode struct {
 	mcts *MCTS
 }
 
-// IsTerminal returns true if this node represents a terminal game state (win, loss, or draw).
-func (n *MCTSNode) IsTerminal() bool {
+// isTerminal returns true if this node represents a terminal game state (win, loss, or draw).
+func (n *mctsNode) isTerminal() bool {
 	return n.state.Evaluate() != board.NoPlayer
 }
 
-// IsFullyExpanded returns true if all possible moves from this state have been expanded as children.
-func (n *MCTSNode) IsFullyExpanded() bool {
+// isFullyExpanded returns true if all possible moves from this state have been expanded as children.
+func (n *mctsNode) isFullyExpanded() bool {
 	return len(n.children) >= len(n.state.PossibleMoves())
 }
 
-// SelectChildUCB selects the immediate child with the highest score.
-// When an [Evaluator] is configured, it uses [MCTSNode.PUCT] (with prior probabilities).
-// Otherwise, it uses [MCTSNode.UCB1] (pure MCTS).
-func (n *MCTSNode) SelectChildUCB() *MCTSNode {
+// selectChildUCB selects the immediate child with the highest score.
+// When an Evaluator is configured, it uses puct (with prior probabilities).
+// Otherwise, it uses ucb1 (pure MCTS).
+func (n *mctsNode) selectChildUCB() *mctsNode {
 	bestScore := math.Inf(-1)
-	var bestChild *MCTSNode
+	var bestChild *mctsNode
 	for _, child := range n.children {
 		var score float64
 		if n.mcts != nil && n.mcts.evaluator != nil {
-			score = child.PUCT()
+			score = child.puct()
 		} else {
-			score = child.UCB1()
+			score = child.ucb1()
 		}
 		if score > bestScore {
 			bestScore = score
@@ -82,9 +82,9 @@ func (n *MCTSNode) SelectChildUCB() *MCTSNode {
 	return bestChild
 }
 
-// SelectBestMove returns the child with the highest visit count (most explored path).
-func (n *MCTSNode) SelectBestMove() *MCTSNode {
-	var bestChild *MCTSNode
+// selectBestMove returns the child with the highest visit count (most explored path).
+func (n *mctsNode) selectBestMove() *mctsNode {
+	var bestChild *mctsNode
 	bestVisits := float64(-1)
 	for _, child := range n.children {
 		if child.visits > bestVisits {

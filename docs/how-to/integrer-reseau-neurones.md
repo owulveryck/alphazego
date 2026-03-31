@@ -44,12 +44,12 @@ assert(len(features) == 27)  // 3 * 3 * 3
 assert(game.ActionSize() == 9)
 ```
 
-## Etape 3 : Ajouter le champ prior au MCTSNode
+## Etape 3 : Ajouter le champ prior au noeud interne
 
 Fichier : `mcts/node.go`
 
 ```go
-type MCTSNode struct {
+type mctsNode struct {
     // ... champs existants ...
     prior float64 // P(s,a) du policy network (0 si MCTS pur)
 }
@@ -61,18 +61,18 @@ Fichier : `mcts/mcts.go`
 
 ```go
 type MCTS struct {
-    inventory map[string]*MCTSNode
+    inventory map[string]*mctsNode
     evaluator board.Evaluator
     cpuct     float64
 }
 
 func NewMCTS() *MCTS {
-    return &MCTS{inventory: make(map[string]*MCTSNode)}
+    return &MCTS{inventory: make(map[string]*mctsNode)}
 }
 
 func NewAlphaMCTS(eval board.Evaluator, cpuct float64) *MCTS {
     return &MCTS{
-        inventory: make(map[string]*MCTSNode),
+        inventory: make(map[string]*mctsNode),
         evaluator: eval,
         cpuct:     cpuct,
     }
@@ -81,10 +81,10 @@ func NewAlphaMCTS(eval board.Evaluator, cpuct float64) *MCTS {
 
 ## Etape 5 : Implementer PUCT
 
-Fichier : `mcts/puct.go` (nouveau)
+Fichier : `mcts/puct.go`
 
 ```go
-func (n *MCTSNode) PUCT() float64 {
+func (n *mctsNode) puct() float64 {
     if n.visits == 0 {
         if n.parent == nil {
             return n.prior
@@ -99,20 +99,20 @@ func (n *MCTSNode) PUCT() float64 {
 }
 ```
 
-## Etape 6 : Modifier SelectChildUCB pour utiliser PUCT si disponible
+## Etape 6 : Modifier selectChildUCB pour utiliser PUCT si disponible
 
 Fichier : `mcts/node.go`
 
 ```go
-func (n *MCTSNode) SelectChildUCB() *MCTSNode {
+func (n *mctsNode) selectChildUCB() *mctsNode {
     bestScore := math.Inf(-1)
-    var bestChild *MCTSNode
+    var bestChild *mctsNode
     for _, child := range n.children {
         var score float64
         if n.mcts != nil && n.mcts.evaluator != nil {
-            score = child.PUCT()
+            score = child.puct()
         } else {
-            score = child.UCB1()
+            score = child.ucb1()
         }
         if score > bestScore {
             bestScore = score
@@ -123,22 +123,22 @@ func (n *MCTSNode) SelectChildUCB() *MCTSNode {
 }
 ```
 
-## Etape 7 : Ajouter ExpandAll pour l'expansion guidee
+## Etape 7 : Ajouter expandAll pour l'expansion guidee
 
 Fichier : `mcts/expand.go`
 
-Ajouter une nouvelle methode `ExpandAll` qui cree **tous** les enfants et leur attribue leur prior. L'`Expand()` existant reste inchange pour le chemin MCTS pur.
+Ajouter une nouvelle methode `expandAll` qui cree **tous** les enfants et leur attribue leur prior. La methode `expand()` existante reste inchangee pour le chemin MCTS pur.
 
 ```go
-// ExpandAll cree des noeuds enfants pour tous les coups possibles,
+// expandAll cree des noeuds enfants pour tous les coups possibles,
 // en leur attribuant les priors fournis par le policy network.
-func (node *MCTSNode) ExpandAll(policy []float64) {
+func (node *mctsNode) expandAll(policy []float64) {
     possibleMoves := node.state.PossibleMoves()
     for i, move := range possibleMoves {
-        child := &MCTSNode{
+        child := &mctsNode{
             state:    move,
             parent:   node,
-            children: []*MCTSNode{},
+            children: []*mctsNode{},
             prior:    policy[i],
             mcts:     node.mcts,
         }
@@ -147,38 +147,38 @@ func (node *MCTSNode) ExpandAll(policy []float64) {
 }
 ```
 
-**Point important** : `ExpandAll` ne retourne rien et ne fait pas d'appel a l'evaluateur. C'est `RunMCTS` qui appelle l'evaluateur une seule fois et passe la policy a `ExpandAll` (voir etape 8).
+**Point important** : `expandAll` ne retourne rien et ne fait pas d'appel a l'evaluateur. C'est `RunMCTS` qui appelle l'evaluateur une seule fois et passe la policy a `expandAll` (voir etape 8).
 
 ## Etape 8 : Modifier RunMCTS pour utiliser la value au lieu du rollout
 
 Fichier : `mcts/mcts.go`, dans la boucle d'iteration.
 
-Le point cle est d'appeler l'evaluateur **une seule fois** par expansion. L'appel retourne a la fois la policy (pour `ExpandAll`) et la value (pour `BackpropagateValue`) :
+Le point cle est d'appeler l'evaluateur **une seule fois** par expansion. L'appel retourne a la fois la policy (pour `expandAll`) et la value (pour `backpropagateValue`) :
 
 ```go
-if !node.IsTerminal() && !node.IsFullyExpanded() {
+if !node.isTerminal() && !node.isFullyExpanded() {
     if m.evaluator != nil {
         // AlphaZero : evaluation unique → expansion + backpropagation
         policy, value := m.evaluator.Evaluate(node.state)
-        node.ExpandAll(policy)
-        node.BackpropagateValue(value)
+        node.expandAll(policy)
+        node.backpropagateValue(value)
     } else {
         // MCTS pur : expansion incrementale + rollout
-        expandedNode := node.Expand()
+        expandedNode := node.expand()
         if expandedNode == nil {
             expandedNode = node
         }
-        result := expandedNode.Simulate()
-        expandedNode.Backpropagate(result)
+        result := expandedNode.simulate()
+        expandedNode.backpropagate(result)
     }
-} else if node.IsTerminal() {
+} else if node.isTerminal() {
     // Noeud terminal : resultat connu, pas besoin du reseau
     if m.evaluator != nil {
         value := terminalValue(node.state)
-        node.BackpropagateValue(value)
+        node.backpropagateValue(value)
     } else {
-        result := node.Simulate()
-        node.Backpropagate(result)
+        result := node.simulate()
+        node.backpropagate(result)
     }
 }
 ```
@@ -192,7 +192,7 @@ Fichier : `mcts/backpropagate.go`
 Ajouter une variante qui propage une valeur continue. La valeur initiale (du point de vue du joueur courant) est d'abord inversee pour respecter la convention du MCTS pur : `wins` stocke la valeur du point de vue du joueur qui a effectue le coup menant a ce noeud (`PreviousPlayer()`). Ensuite le signe alterne a chaque niveau :
 
 ```go
-func (node *MCTSNode) BackpropagateValue(value float64) {
+func (node *mctsNode) backpropagateValue(value float64) {
     // Inverser pour passer de la perspective du joueur courant
     // a celle du joueur qui a effectue le coup (convention MCTS)
     value = -value
@@ -204,7 +204,7 @@ func (node *MCTSNode) BackpropagateValue(value float64) {
 }
 ```
 
-L'`Backpropagate(result board.PlayerID)` existant reste inchange pour le chemin MCTS pur.
+La methode `backpropagate(result board.PlayerID)` existante reste inchangee pour le chemin MCTS pur.
 
 ## Etape 10 : Implementer l'Evaluator avec ONNX Runtime
 
@@ -246,7 +246,7 @@ func (e *ONNXEvaluator) Evaluate(state board.State) ([]float64, float64) {
 ## Verification
 
 1. **Tests de regression** : les tests existants (`TestRunMCTS_TakesWin`, `TestRunMCTS_BlocksWin`) passent avec `NewMCTS()` -- le chemin MCTS pur n'est pas affecte
-2. **Tests unitaires** : verifier PUCT, `ExpandAll`, `BackpropagateValue` avec des valeurs connues
+2. **Tests unitaires** : verifier PUCT, `expandAll`, `backpropagateValue` avec des valeurs connues
 3. **Test d'integration** : verifier que `NewAlphaMCTS` avec un evaluateur a rollout (`rolloutEvaluator` dans `puct_test.go`) bloque et prend les victoires
 4. **Benchmark** : comparer le temps par iteration avec et sans reseau
 
@@ -256,7 +256,7 @@ Pour implementer un Evaluator, voir [how-to/implementer-evaluator.md](implemente
 ## Prochaines etapes
 
 ```
-Fait : 1-9 (interfaces, Tensorizable, prior, PUCT, ExpandAll, BackpropagateValue, RunMCTS)
+Fait : 1-9 (interfaces, Tensorizable, prior, PUCT, expandAll, backpropagateValue, RunMCTS)
 A faire :
   10. Evaluator ONNX (evaluator/onnx.go)     ← necessite un modele entraine
   11. Boucle d'entrainement (Python)          ← hors du scope Go

@@ -2,14 +2,14 @@ package mcts
 
 import "math"
 
-// UCB1 calculates the Upper Confidence Bound (UCB) score for the given node
+// ucb1 calculates the Upper Confidence Bound (UCB) score for the given node
 // Formula: Q(s, a) + √(2 * log(N(p)) / N(s, a))
 // Where N(p) is the number of visits to the parent node, and N(s, a) is the number of visits to this node
 //
 // This UCB1 function is designed to balance exploration and exploitation by
 // evaluating both the average success (reward) of a node and its relative unexplored state.
 // Higher UCB scores indicate nodes that are either highly successful or insufficiently explored.
-func (n *MCTSNode) UCB1() float64 {
+func (n *mctsNode) ucb1() float64 {
 	if n.visits == 0 {
 		// Returns infinity for unvisited nodes to prioritize their exploration.
 		// This ensures that every action is tried at least once before further exploitation.

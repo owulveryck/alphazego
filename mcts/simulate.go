@@ -6,9 +6,9 @@ import (
 	"github.com/owulveryck/alphazego/board"
 )
 
-// Simulate performs a random playthrough from the current game state until a terminal state is reached.
+// simulate performs a random playthrough from the current game state until a terminal state is reached.
 // It selects moves randomly and advances the game state until it can be evaluated as a win, lose, or draw.
-func (node *MCTSNode) Simulate() board.PlayerID {
+func (node *mctsNode) simulate() board.PlayerID {
 	// Start from the current state of the node.
 	currentState := node.state
 

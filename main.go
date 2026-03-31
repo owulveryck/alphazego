@@ -22,13 +22,18 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		ttt.Play(uint8(val))
+		if err := ttt.Play(uint8(val)); err != nil {
+			fmt.Println("Coup invalide :", err)
+			continue
+		}
 		if ttt.Evaluate() != board.NoPlayer {
 			break
 		}
 		aiMove := getNextMoveFromMCTS(m, ttt)
 		fmt.Printf("L'IA joue en %d\n", aiMove)
-		ttt.Play(aiMove)
+		if err := ttt.Play(aiMove); err != nil {
+			log.Fatal(err)
+		}
 	}
 	fmt.Println(ttt)
 	switch ttt.Evaluate() {
@@ -41,7 +46,7 @@ func main() {
 	}
 }
 
-func getNextMoveFromMCTS(m *mcts.MCTS, s board.State) board.Move {
+func getNextMoveFromMCTS(m *mcts.MCTS, s board.State) uint8 {
 	next := m.RunMCTS(s, 1000)
-	return s.(board.Playable).GetMoveFromState(next)
+	return next.LastMove()
 }

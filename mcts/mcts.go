@@ -1,9 +1,7 @@
 package mcts
 
 import (
-	"log"
-
-	board "github.com/owulveryck/alphazego/board"
+	"github.com/owulveryck/alphazego/board"
 )
 
 // NewMCTS initializes a new MCTS structure.
@@ -12,7 +10,7 @@ import (
 // within a single RunMCTS call.
 func NewMCTS() *MCTS {
 	return &MCTS{
-		inventory: make(map[string]*MCTSNode),
+		inventory: make(map[string]*mctsNode),
 	}
 }
 
@@ -22,7 +20,7 @@ func NewMCTS() *MCTS {
 // En mode AlphaZero (cree par [NewAlphaMCTS]), l'evaluator fournit policy et
 // value, et la selection utilise PUCT.
 type MCTS struct {
-	inventory map[string]*MCTSNode // Stores nodes by their state ID for potential reuse within a search.
+	inventory map[string]*mctsNode // Stores nodes by their state ID for potential reuse within a search.
 	evaluator board.Evaluator      // nil = MCTS pur, non-nil = AlphaZero
 	cpuct     float64              // constante d'exploration pour PUCT (utilise uniquement avec evaluator)
 }
@@ -33,7 +31,7 @@ type MCTS struct {
 // dans la formule PUCT (typiquement entre 1.0 et 5.0).
 func NewAlphaMCTS(eval board.Evaluator, cpuct float64) *MCTS {
 	return &MCTS{
-		inventory: make(map[string]*MCTSNode),
+		inventory: make(map[string]*mctsNode),
 		evaluator: eval,
 		cpuct:     cpuct,
 	}
@@ -57,24 +55,18 @@ func terminalValue(s board.State) float64 {
 	return 1.0
 }
 
-// GetOrCreateNode retrieves a node from the inventory or creates a new one if it doesn't exist.
-func (m *MCTS) GetOrCreateNode(s board.State, parent *MCTSNode) *MCTSNode {
-	boardID := string(s.ID())
+// getOrCreateNode retrieves a node from the inventory or creates a new one if it doesn't exist.
+func (m *MCTS) getOrCreateNode(s board.State, parent *mctsNode) *mctsNode {
+	boardID := s.ID()
 	if node, ok := m.inventory[boardID]; ok {
-		// TODO: Potentially update parent if a shorter path is found? Or handle graph structure explicitly.
-		// For now, just return the existing node.
 		return node
 	}
 
-	// Node not found, create a new one
-	newNode := &MCTSNode{
+	newNode := &mctsNode{
 		state:    s,
 		parent:   parent,
-		children: []*MCTSNode{}, // Initialize empty
-		wins:     0,
-		visits:   0,
-		// untriedActions: s.GetPossibleActions(), // Assuming state can provide actions
-		mcts: m, // Pass reference to MCTS for inventory access during expansion
+		children: []*mctsNode{},
+		mcts:     m,
 	}
 	m.inventory[boardID] = newNode
 	return newNode
@@ -84,66 +76,48 @@ func (m *MCTS) GetOrCreateNode(s board.State, parent *MCTSNode) *MCTSNode {
 // It takes the current game state 's' and the number of iterations 'iterations' as input.
 // It returns the state resulting from the best move found.
 func (m *MCTS) RunMCTS(s board.State, iterations int) board.State {
-	// 1. Create or retrieve the root node for the current state.
-	root := m.GetOrCreateNode(s, nil) // Root has no parent
+	root := m.getOrCreateNode(s, nil)
 
-	// 2. Perform MCTS iterations
 	for i := 0; i < iterations; i++ {
-		// a. Selection: Start from root, traverse down the tree using UCB1 until a leaf node is found.
-		// A leaf node is one that is terminal or not fully expanded.
+		// Selection: descend the tree using UCB until a leaf node is found.
 		node := root
-		for !node.IsTerminal() && node.IsFullyExpanded() {
-			child := node.SelectChildUCB() // Select best child based on UCB
+		for !node.isTerminal() && node.isFullyExpanded() {
+			child := node.selectChildUCB()
 			if child == nil {
-				// Should not happen if IsFullyExpanded is true and not terminal, but handle defensively.
-				log.Printf("Warning: SelectChildUCB returned nil for non-terminal, fully expanded node %v", string(node.state.ID()))
-				break // Stop traversal for this iteration
+				break
 			}
 			node = child
 		}
 
-		// b. Expansion + Evaluation + Backpropagation
-		if !node.IsTerminal() && !node.IsFullyExpanded() {
+		// Expansion + Evaluation + Backpropagation
+		if !node.isTerminal() && !node.isFullyExpanded() {
 			if m.evaluator != nil {
-				// AlphaZero path: call the evaluator once to get policy + value,
-				// expand all children with priors, backpropagate the value.
 				policy, value := m.evaluator.Evaluate(node.state)
-				node.ExpandAll(policy)
-				node.BackpropagateValue(value)
+				node.expandAll(policy)
+				node.backpropagateValue(value)
 			} else {
-				// Pure MCTS path: expand one child, random rollout, backpropagate result.
-				expandedNode := node.Expand()
+				expandedNode := node.expand()
 				if expandedNode == nil {
-					log.Printf("Warning: Expansion failed for non-terminal, non-fully-expanded node %v", string(node.state.ID()))
 					expandedNode = node
 				}
-				result := expandedNode.Simulate()
-				expandedNode.Backpropagate(result)
+				result := expandedNode.simulate()
+				expandedNode.backpropagate(result)
 			}
 		} else {
-			// Terminal or fully expanded node.
 			if m.evaluator != nil {
 				value := terminalValue(node.state)
-				node.BackpropagateValue(value)
+				node.backpropagateValue(value)
 			} else {
-				result := node.Simulate()
-				node.Backpropagate(result)
+				result := node.simulate()
+				node.backpropagate(result)
 			}
 		}
 	}
 
-	// 3. Select the best move from the root node's children.
-	// Typically, this is the child with the highest visit count, as it's the most explored path.
-	bestChild := root.SelectBestMove() // Implement this method in node.go (usually max visits)
-
+	bestChild := root.selectBestMove()
 	if bestChild == nil {
-		log.Println("Warning: No best child found after MCTS, returning original state.")
-		// This might happen if iterations = 0, the root is terminal, or no moves are possible.
-		// Consider returning an error or a specific indicator if no move is possible.
-		return s // Return the original state as no move could be determined.
+		return s
 	}
 
-	log.Printf("MCTS finished. Root visits: %f. Best child visits: %f, wins: %f", root.visits, bestChild.visits, bestChild.wins)
-	// Return the state associated with the best child node.
 	return bestChild.state
 }

@@ -77,7 +77,7 @@ Cette convention fonctionne pour n'importe quel nombre de joueurs. Que le jeu ai
 
 Le morpion est le cas classique. Deux joueurs alternent : quand l'un joue, c'est au tour de l'autre. La logique de tour est triviale : `PreviousPlayer = 3 - CurrentPlayer` (puisque `3 - 1 = 2` et `3 - 2 = 1`).
 
-Dans ce cas, le jeu est **adversarial** : ce qui est bon pour un joueur est mauvais pour l'autre. Le MCTS exploite cette propriete dans `BackpropagateValue` (chemin AlphaZero) en inversant le signe de la valeur a chaque niveau de l'arbre.
+Dans ce cas, le jeu est **adversarial** : ce qui est bon pour un joueur est mauvais pour l'autre. Le MCTS exploite cette propriete dans la backpropagation AlphaZero en inversant le signe de la valeur a chaque niveau de l'arbre.
 
 ### 1 joueur
 
@@ -85,7 +85,7 @@ Un probleme a un seul joueur (planification, optimisation) est modelisable : l'u
 
 ### N joueurs
 
-Pour N > 2, chaque implementation de `State` definit sa propre logique de tour via `PreviousPlayer()`. Le chemin MCTS pur (rollouts + `Backpropagate` discret) fonctionne directement. Le chemin AlphaZero (`BackpropagateValue` avec alternance de signe) est limite a 2 joueurs pour l'instant.
+Pour N > 2, chaque implementation de `State` definit sa propre logique de tour via `PreviousPlayer()`. Le chemin MCTS pur (rollouts + backpropagation discrete) fonctionne directement. Le chemin AlphaZero (backpropagation avec alternance de signe) est limite a 2 joueurs pour l'instant.
 
 ## Pourquoi pas une interface Player plus riche ?
 
@@ -172,7 +172,7 @@ Au lieu de generer du texte token par token (de gauche a droite), on explore un 
 2. **Evaluer chacune** — un second appel au LLM (ou un modele critique) estime la qualite du raisonnement partiel. C'est `Evaluator.value`.
 3. **Choisir la plus prometteuse** — le MCTS utilise PUCT pour equilibrer exploration et exploitation.
 4. **Approfondir** — on continue la generation depuis la branche choisie.
-5. **Retenir le meilleur chemin** — apres N iterations, `SelectBestMove` retourne la continuation la plus visitee.
+5. **Retenir le meilleur chemin** — apres N iterations, le MCTS retourne la continuation la plus visitee.
 
 ### Generateur vs critique : un jeu a deux agents
 

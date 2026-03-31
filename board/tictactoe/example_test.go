@@ -128,17 +128,16 @@ func ExampleTicTacToe_PreviousPlayer() {
 	// Previous player after P2 plays: 2
 }
 
-func ExampleTicTacToe_GetMoveFromState() {
+func ExampleTicTacToe_LastMove() {
 	game := tictactoe.NewTicTacToe()
 	game.Play(0) // Player1 at position 0
-	// Now it's Player2's turn. Suppose Player2 plays at position 4.
+	// Now it's Player2's turn. Each possible next state knows its LastMove.
 
 	moves := game.PossibleMoves()
 	// Find the state where position 4 was played
 	for _, next := range moves {
-		move := board.State(game).(board.Playable).GetMoveFromState(next)
-		if move == 4 {
-			fmt.Println("Found move at position:", move)
+		if next.LastMove() == 4 {
+			fmt.Println("Found move at position:", next.LastMove())
 			break
 		}
 	}
@@ -151,11 +150,11 @@ func ExampleTicTacToe_ID() {
 	game2 := tictactoe.NewTicTacToe()
 
 	// Same state produces the same ID
-	fmt.Println("Same state, same ID:", string(game1.ID()) == string(game2.ID()))
+	fmt.Println("Same state, same ID:", game1.ID() == game2.ID())
 
 	// Different state produces a different ID
 	game2.Play(0)
-	fmt.Println("Different state, same ID:", string(game1.ID()) == string(game2.ID()))
+	fmt.Println("Different state, same ID:", game1.ID() == game2.ID())
 	// Output:
 	// Same state, same ID: true
 	// Different state, same ID: false

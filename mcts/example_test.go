@@ -38,7 +38,7 @@ func ExampleMCTS_RunMCTS_extractMove() {
 	bestState := m.RunMCTS(game, 1000)
 
 	// Extract the actual move number (0-8) from the state change
-	move := board.State(game).(board.Playable).GetMoveFromState(bestState)
+	move := bestState.LastMove()
 	fmt.Println("MCTS chose a valid position:", move >= 0 && move <= 8)
 	// Output:
 	// MCTS chose a valid position: true
@@ -59,7 +59,7 @@ func ExampleMCTS_RunMCTS_takesWin() {
 
 	// MCTS should find the winning move
 	bestState := m.RunMCTS(game, 5000)
-	move := board.State(game).(board.Playable).GetMoveFromState(bestState)
+	move := bestState.LastMove()
 	fmt.Println("MCTS plays winning move at position 2:", move == 2)
 	// Output:
 	// MCTS plays winning move at position 2: true
@@ -79,7 +79,7 @@ func ExampleMCTS_RunMCTS_blocksOpponent() {
 
 	// MCTS (playing as Player2) should block at position 2
 	bestState := m.RunMCTS(game, 5000)
-	move := board.State(game).(board.Playable).GetMoveFromState(bestState)
+	move := bestState.LastMove()
 	fmt.Println("MCTS blocks at position 2:", move == 2)
 	// Output:
 	// MCTS blocks at position 2: true
@@ -111,7 +111,7 @@ func ExampleMCTS_RunMCTS_fullGame() {
 	moves := 0
 	for game.Evaluate() == board.NoPlayer {
 		bestState := m.RunMCTS(game, 500)
-		move := board.State(game).(board.Playable).GetMoveFromState(bestState)
+		move := bestState.LastMove()
 		game.Play(move)
 		moves++
 	}
@@ -155,20 +155,4 @@ func (e *exampleEvaluator) Evaluate(state board.State) ([]float64, float64) {
 		policy[i] = 1.0 / float64(n)
 	}
 	return policy, 0.0
-}
-
-func ExampleMCTS_GetOrCreateNode() {
-	m := mcts.NewMCTS()
-	game := tictactoe.NewTicTacToe()
-
-	// Create a root node
-	node := m.GetOrCreateNode(game, nil)
-	fmt.Println("Node created:", node != nil)
-
-	// Requesting the same state returns the same node
-	sameNode := m.GetOrCreateNode(game, nil)
-	fmt.Println("Same node returned:", node == sameNode)
-	// Output:
-	// Node created: true
-	// Same node returned: true
 }

@@ -185,8 +185,7 @@ func filterLegalMoves(state board.State, rawPolicy []float64) []float64 {
 
     for i, move := range moves {
         // Identifier l'index de l'action dans l'espace complet
-        // En utilisant Playable pour obtenir le numero du coup
-        action := state.(board.Playable).GetMoveFromState(move)
+        action := move.LastMove()
         p := math.Exp(rawPolicy[action]) // softmax sur les logits
         policy[i] = p
         sum += p
@@ -211,7 +210,7 @@ m := mcts.NewAlphaMCTS(eval, 1.5)
 
 // Jouer un coup
 bestState := m.RunMCTS(currentState, 800)
-move := board.State(currentState).(board.Playable).GetMoveFromState(bestState)
+move := bestState.LastMove()
 ```
 
 ## Points de vigilance

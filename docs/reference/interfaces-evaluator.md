@@ -8,16 +8,18 @@ Specification des interfaces dans `board/interfaces.go` pour le MCTS d'AlphaZeGo
 
 ```go
 type State interface {
-    // CurrentPlayer retourne l'agent dont c'est le tour d'agir.
-    CurrentPlayer() Agent
-    // PreviousPlayer retourne l'agent qui a effectue le coup menant a cet etat.
-    PreviousPlayer() Agent
-    // Evaluate retourne l'etat courant du probleme : GameOn, Player1Wins, etc.
-    Evaluate() Result
+    // CurrentPlayer retourne le joueur dont c'est le tour d'agir.
+    CurrentPlayer() PlayerID
+    // PreviousPlayer retourne le joueur qui a effectue le coup menant a cet etat.
+    PreviousPlayer() PlayerID
+    // Evaluate retourne l'issue du probleme : NoPlayer (en cours), DrawResult, ou le PlayerID gagnant.
+    Evaluate() PlayerID
     // PossibleMoves retourne tous les etats atteignables depuis l'etat courant.
     PossibleMoves() []State
     // ID retourne un identifiant unique pour cet etat.
-    ID() ID
+    ID() string
+    // LastMove retourne le coup (position) qui a ete joue pour atteindre cet etat.
+    LastMove() uint8
 }
 ```
 
@@ -140,64 +142,25 @@ func (t *TicTacToe) ActionSize() int {
 }
 ```
 
-## Modifications du MCTS
+## Utilisation du MCTS
 
-### Nouveau champ dans MCTSNode
-
-```go
-type MCTSNode struct {
-    state    board.State
-    parent   *MCTSNode
-    children []*MCTSNode
-    wins     float64
-    visits   float64
-    prior    float64    // P(s,a) -- prior du policy network
-    mcts     *MCTS
-}
-```
-
-### MCTS avec Evaluator optionnel
+### MCTS pur
 
 ```go
-type MCTS struct {
-    inventory map[string]*MCTSNode
-    evaluator board.Evaluator // nil = MCTS pur, non-nil = AlphaZero
-    cpuct     float64         // constante d'exploration pour PUCT
-}
-
-func NewMCTS() *MCTS {
-    return &MCTS{inventory: make(map[string]*MCTSNode)}
-}
-
-func NewAlphaMCTS(eval board.Evaluator, cpuct float64) *MCTS {
-    return &MCTS{
-        inventory: make(map[string]*MCTSNode),
-        evaluator: eval,
-        cpuct:     cpuct,
-    }
-}
+m := mcts.NewMCTS()
+bestState := m.RunMCTS(currentState, 1000)
+move := bestState.LastMove()
 ```
 
-### PUCT (remplace UCB1 quand evaluator != nil)
+### MCTS avec Evaluator (style AlphaZero)
 
 ```go
-func (n *MCTSNode) PUCT() float64 {
-    if n.visits == 0 {
-        if n.parent == nil {
-            return n.prior
-        }
-        return n.mcts.cpuct * n.prior * math.Sqrt(n.parent.visits)
-    }
-
-    q := n.wins / n.visits
-    if n.parent == nil {
-        return q
-    }
-
-    exploration := n.mcts.cpuct * n.prior * math.Sqrt(n.parent.visits) / (1 + n.visits)
-    return q + exploration
-}
+m := mcts.NewAlphaMCTS(evaluator, 1.5)
+bestState := m.RunMCTS(currentState, 800)
+move := bestState.LastMove()
 ```
+
+En mode AlphaZero, la selection utilise PUCT (avec les priors du policy network) au lieu de UCB1, et la value du reseau remplace les rollouts aleatoires. Les details internes (noeuds, PUCT, backpropagation) sont encapsules dans le package `mcts` et ne sont pas exposes.
 
 ## Choix d'implementation du reseau en Go
 

@@ -23,11 +23,12 @@ L'interface `board.State` capture exactement ces quatre proprietes :
 
 ```go
 type State interface {
-    CurrentPlayer() Agent       // Quel agent doit agir ?
-    PreviousPlayer() Agent      // Quel agent a effectue le dernier coup ?
-    Evaluate() Result           // L'etat est-il terminal ? Quelle issue ?
+    CurrentPlayer() PlayerID    // Quel agent doit agir ?
+    PreviousPlayer() PlayerID   // Quel agent a effectue le dernier coup ?
+    Evaluate() PlayerID         // L'etat est-il terminal ? Quelle issue ?
     PossibleMoves() []State     // Quels etats sont atteignables ?
-    ID() []byte                 // Identifiant unique de cet etat
+    ID() string                 // Identifiant unique de cet etat
+    LastMove() uint8            // Quel coup a mene a cet etat ?
 }
 ```
 
@@ -40,6 +41,7 @@ Malgre les noms herites des jeux (`Player`, `Moves`), chaque methode a une signi
 | `Evaluate()` | Victoire/nul/en cours | Accord/blocage/en cours | Guerison/echec/en cours | Piece terminee/en cours |
 | `PossibleMoves()` | Coups legaux | Propositions possibles | Examens/traitements | Notes/accords possibles |
 | `ID()` | Position du plateau | Etat de la negociation | Dossier patient | Partition en cours |
+| `LastMove()` | Coup joue | Derniere proposition | Dernier examen/traitement | Derniere note ajoutee |
 
 ## Le morpion comme implementation de reference
 
@@ -100,11 +102,12 @@ Le moteur MCTS n'a pas besoin de connaitre le nombre de joueurs. Il a besoin de 
 
 ```go
 type State interface {
-    CurrentPlayer() Agent       // Qui doit agir maintenant ?
-    PreviousPlayer() Agent      // Qui a agi pour arriver ici ?
-    Evaluate() Result           // L'etat est-il terminal ?
+    CurrentPlayer() PlayerID    // Qui doit agir maintenant ?
+    PreviousPlayer() PlayerID   // Qui a agi pour arriver ici ?
+    Evaluate() PlayerID         // L'etat est-il terminal ?
     PossibleMoves() []State     // Quels etats sont atteignables ?
-    ID() []byte                 // Identifiant unique
+    ID() string                 // Identifiant unique
+    LastMove() uint8            // Quel coup a mene ici ?
 }
 ```
 
@@ -116,19 +119,19 @@ Chaque implementation de `State` encapsule sa propre logique de tour :
 | 3 joueurs (round-robin) | `(CurrentPlayer() + 1) % 3 + 1` (le precedent) |
 | 1 joueur (planification) | Toujours le meme agent |
 
-Le moteur MCTS utilise `PreviousPlayer()` dans `Backpropagate` pour crediter les victoires au bon agent, sans aucune arithmetique codee en dur.
+Le moteur MCTS utilise `PreviousPlayer()` dans la backpropagation pour crediter les victoires au bon agent, sans aucune arithmetique codee en dur.
 
 ### Le chemin MCTS pur : N joueurs immediatement
 
-`Backpropagate` fonctionne pour N joueurs : a chaque noeud, il verifie si le resultat terminal correspond a l'agent qui a joue le coup (`result == PreviousPlayer()`). Si oui, il credite une victoire. Sinon, il ne credite rien (ou 0.5 pour un match nul).
+La backpropagation fonctionne pour N joueurs : a chaque noeud, elle verifie si le resultat terminal correspond a l'agent qui a joue le coup (`result == PreviousPlayer()`). Si oui, elle credite une victoire. Sinon, elle ne credite rien (ou 0.5 pour un match nul).
 
 ### Le chemin AlphaZero : deux joueurs pour l'instant
 
-`BackpropagateValue` utilise l'alternance de signe (`value = -value`), qui suppose un jeu a **somme nulle a deux joueurs**. Pour generaliser a N joueurs, il faudrait que l'evaluateur retourne un vecteur de N valeurs (une par joueur) au lieu d'un scalaire. C'est une evolution future.
+La backpropagation AlphaZero utilise l'alternance de signe (`value = -value`), qui suppose un jeu a **somme nulle a deux joueurs**. Pour generaliser a N joueurs, il faudrait que l'evaluateur retourne un vecteur de N valeurs (une par joueur) au lieu d'un scalaire. C'est une evolution future.
 
 ### La contrainte sur les constantes
 
-Les constantes `Player1Wins`, `Player2Wins` et `Draw` occupent des valeurs fixes (1, 2, 3). Pour un jeu a 3+ joueurs, il faut que les identifiants d'agents n'entrent pas en collision avec `Draw = 3`. La fonction `PlayerWins(a Agent) Result` formalise la convention : le `Result` d'une victoire est l'`Agent` lui-meme.
+`Evaluate()` retourne directement un `PlayerID` : le gagnant si la partie est finie, `NoPlayer` (0) si elle est en cours, ou `DrawResult` (-1) en cas de match nul. Il n'y a pas de type `Result` separe. Pour un jeu a 3+ joueurs, il suffit d'utiliser des `PlayerID` distincts (3, 4, ...) ; `DrawResult` (-1) ne peut pas entrer en collision.
 
 ### Cas d'usage selon le nombre d'agents
 

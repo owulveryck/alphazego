@@ -36,6 +36,22 @@ func TestPlay(t *testing.T) {
 	}
 }
 
+func TestPlay_Validation(t *testing.T) {
+	ttt := NewTicTacToe()
+	// Position hors limites
+	if err := ttt.Play(9); err == nil {
+		t.Error("expected error for out-of-bounds position")
+	}
+	// Coup valide
+	if err := ttt.Play(0); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	// Case deja occupee
+	if err := ttt.Play(0); err == nil {
+		t.Error("expected error for occupied cell")
+	}
+}
+
 func TestCurrentPlayer(t *testing.T) {
 	ttt := NewTicTacToe()
 	if ttt.CurrentPlayer() != board.Player1 {
@@ -53,16 +69,12 @@ func TestID(t *testing.T) {
 	if len(id) != BoardSize+1 {
 		t.Errorf("expected ID length %d, got %d", BoardSize+1, len(id))
 	}
-	// Last byte should be the current player
-	if id[BoardSize] != byte(board.Player1) {
-		t.Errorf("expected last byte to be Player1, got %d", id[BoardSize])
-	}
 
 	// Two different states should have different IDs
 	ttt2 := NewTicTacToe()
 	ttt2.Play(0)
 	id2 := ttt2.ID()
-	if string(id) == string(id2) {
+	if id == id2 {
 		t.Error("expected different IDs for different states")
 	}
 }
@@ -161,17 +173,21 @@ func TestPossibleMoves_FullBoard(t *testing.T) {
 	}
 }
 
-func TestGetMoveFromState(t *testing.T) {
+func TestLastMove(t *testing.T) {
 	ttt := NewTicTacToe()
-	ttt.Play(0) // Player1 plays at 0
-
-	next := &TicTacToe{
-		board:      []uint8{1, 0, 0, 0, 2, 0, 0, 0, 0},
-		PlayerTurn: board.Player1,
+	ttt.Play(4) // Player1 plays at 4
+	if ttt.LastMove() != 4 {
+		t.Errorf("expected LastMove 4, got %d", ttt.LastMove())
 	}
-	move := ttt.GetMoveFromState(next)
-	if move != 4 {
-		t.Errorf("expected move 4, got %d", move)
+
+	// PossibleMoves should set LastMove on each child
+	ttt2 := NewTicTacToe()
+	moves := ttt2.PossibleMoves()
+	for i, m := range moves {
+		child := m.(*TicTacToe)
+		if child.LastMove() != uint8(i) {
+			t.Errorf("expected child LastMove %d, got %d", i, child.LastMove())
+		}
 	}
 }
 

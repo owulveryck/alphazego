@@ -2,9 +2,9 @@ package mcts
 
 import "math"
 
-// PUCT calcule le score Polynomial Upper Confidence Trees pour ce noeud.
+// puct calcule le score Polynomial Upper Confidence Trees pour ce noeud.
 // Cette formule est utilisee dans AlphaZero pour la selection, en remplacement
-// de [MCTSNode.UCB1]. Elle integre la probabilite a priori P(s,a) fournie par le
+// de ucb1. Elle integre la probabilite a priori P(s,a) fournie par le
 // policy network pour guider l'exploration vers les coups les plus prometteurs.
 //
 // Formule : Q(s,a) + C_puct * P(s,a) * sqrt(N(parent)) / (1 + N(s,a))
@@ -12,7 +12,7 @@ import "math"
 // Contrairement a UCB1, les noeuds non visites recoivent un score fini
 // proportionnel a leur prior, permettant un elagage implicite des coups
 // juges peu prometteurs par le reseau.
-func (n *MCTSNode) PUCT() float64 {
+func (n *mctsNode) puct() float64 {
 	if n.visits == 0 {
 		if n.parent == nil {
 			return n.prior

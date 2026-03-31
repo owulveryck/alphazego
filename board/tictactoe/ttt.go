@@ -13,6 +13,8 @@
 package tictactoe
 
 import (
+	"fmt"
+
 	"github.com/owulveryck/alphazego/board"
 )
 
@@ -22,33 +24,27 @@ const (
 )
 
 // TicTacToe represents the state of a tic-tac-toe game.
-// It implements [board.State] and [board.Playable].
+// It implements [board.State].
 type TicTacToe struct {
 	board      []uint8
 	PlayerTurn board.PlayerID
+	lastMove   uint8
 }
 
 // ID returns a unique identifier for this board state.
 // The ID is the board cells concatenated with the current player byte,
-// producing a 10-byte slice.
-func (tictactoe *TicTacToe) ID() []byte {
+// producing a 10-character string.
+func (tictactoe *TicTacToe) ID() string {
 	id := make([]byte, BoardSize+1)
 	copy(id, tictactoe.board)
 	id[BoardSize] = byte(tictactoe.PlayerTurn)
-	return id
+	return string(id)
 }
 
-// GetMoveFromState compares the current board with another state and returns
-// the position (0-8) where the boards differ. This identifies which move was
-// played to transition from the current state to s.
-func (tictactoe *TicTacToe) GetMoveFromState(s board.State) board.Move {
-	next := s.(*TicTacToe)
-	for i := 0; i < len(next.board); i++ {
-		if next.board[i] != tictactoe.board[i] {
-			return uint8(i)
-		}
-	}
-	return 0
+// LastMove retourne la position (0-8) du dernier coup joue.
+// Pour l'etat initial, retourne 0 (non significatif).
+func (tictactoe *TicTacToe) LastMove() uint8 {
+	return tictactoe.lastMove
 }
 
 // NewTicTacToe creates a new tic-tac-toe game with an empty board.
@@ -62,9 +58,22 @@ func NewTicTacToe() *TicTacToe {
 
 // Play places the current player's mark at position p (0-8)
 // and switches the turn to the other player.
-func (t *TicTacToe) Play(p board.Move) {
+// It returns an error if the position is out of bounds, already occupied,
+// or the game is already over.
+func (t *TicTacToe) Play(p uint8) error {
+	if p >= BoardSize {
+		return fmt.Errorf("position %d hors limites (0-%d)", p, BoardSize-1)
+	}
+	if t.board[p] != 0 {
+		return fmt.Errorf("position %d deja occupee", p)
+	}
+	if t.Evaluate() != board.NoPlayer {
+		return fmt.Errorf("la partie est terminee")
+	}
 	t.board[p] = uint8(t.PlayerTurn)
+	t.lastMove = p
 	t.PlayerTurn = 3 - t.PlayerTurn
+	return nil
 }
 
 // CurrentPlayer returns the player whose turn it is to play.
@@ -131,6 +140,7 @@ func (t *TicTacToe) PossibleMoves() []board.State {
 			games = append(games, &TicTacToe{
 				board:      game,
 				PlayerTurn: 3 - t.PlayerTurn,
+				lastMove:   uint8(i),
 			})
 		}
 	}

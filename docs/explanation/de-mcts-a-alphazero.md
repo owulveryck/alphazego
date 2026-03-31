@@ -61,10 +61,10 @@ Avec PUCT, un noeud non visite a un score **proportionnel a son prior**. Un coup
 Le code actuel (`mcts/expand.go`) ajoute un enfant sans aucune information a priori :
 
 ```go
-child := &MCTSNode{
+child := &mctsNode{
     state:    move,
     parent:   node,
-    children: []*MCTSNode{},
+    children: []*mctsNode{},
 }
 ```
 
@@ -85,7 +85,7 @@ policy, value := evaluator.Evaluate(node.state)
 possibleMoves := node.state.PossibleMoves()
 
 for i, move := range possibleMoves {
-    child := &MCTSNode{
+    child := &mctsNode{
         state: move,
         parent: node,
         prior: policy[i],  // ← nouveau champ
@@ -105,7 +105,7 @@ On backpropage ensuite `value` directement (pas de rollout).
 Le code actuel (`mcts/simulate.go`) joue des coups aleatoires jusqu'a la fin :
 
 ```go
-func (node *MCTSNode) Simulate() board.PlayerID {
+func (node *mctsNode) simulate() board.PlayerID {
     currentState := node.state
     for currentState.Evaluate() == board.NoPlayer {
         possibleMoves := currentState.PossibleMoves()
@@ -119,16 +119,16 @@ Pour le morpion (profondeur max 9), c'est rapide et raisonnablement informatif. 
 
 ### Remplacement par le value network
 
-Dans AlphaZero, `Simulate()` disparait entierement. La valeur `v` retournee par le reseau lors de l'expansion est directement utilisee pour la backpropagation :
+Dans AlphaZero, `simulate()` disparait entierement. La valeur `v` retournee par le reseau lors de l'expansion est directement utilisee pour la backpropagation :
 
 ```go
 // Avant (MCTS pur) :
-result := nodeToSimulate.Simulate()       // rollout aleatoire → board.PlayerID (1, 2, ou 3)
-nodeToSimulate.Backpropagate(result)
+result := nodeToSimulate.simulate()       // rollout aleatoire → board.PlayerID (1, 2, ou 3)
+nodeToSimulate.backpropagate(result)
 
 // Apres (AlphaZero) :
 // Le reseau a deja retourne 'value' lors de l'expansion
-nodeToSimulate.BackpropagateValue(value)   // value ∈ [-1, 1]
+nodeToSimulate.backpropagateValue(value)   // value ∈ [-1, 1]
 ```
 
 **Note sur AlphaGo original** (2016) : il utilisait un **melange** des deux :
@@ -146,7 +146,7 @@ avec `λ = 0.5`. AlphaGo Zero (2017) a montre que le rollout n'apporte rien quan
 Le code actuel propage un resultat discret (1 = Player1 gagne, 2 = Player2, 3 = nul) :
 
 ```go
-func (n *MCTSNode) Backpropagate(result board.PlayerID) {
+func (n *mctsNode) backpropagate(result board.PlayerID) {
     n.visits++
     playerWhoMovedHere := n.state.PreviousPlayer()
     if result == playerWhoMovedHere {
@@ -155,7 +155,7 @@ func (n *MCTSNode) Backpropagate(result board.PlayerID) {
         n.wins += 0.5
     }
     if n.parent != nil {
-        n.parent.Backpropagate(result)
+        n.parent.backpropagate(result)
     }
 }
 ```
@@ -165,7 +165,7 @@ func (n *MCTSNode) Backpropagate(result board.PlayerID) {
 La valeur `v ∈ [-1, 1]` est continue. Elle est exprimee **du point de vue du joueur courant** au noeud evalue. Pour rester coherent avec la convention du MCTS pur (ou `wins` est stocke du point de vue du joueur qui a effectue le coup menant a ce noeud), la valeur est d'abord inversee, puis alternee a chaque niveau :
 
 ```go
-func (node *MCTSNode) BackpropagateValue(value float64) {
+func (node *mctsNode) backpropagateValue(value float64) {
     // Inverser : passer de la perspective du joueur courant
     // a celle du joueur qui a joue le coup (= PreviousPlayer)
     value = -value
@@ -192,7 +192,7 @@ L'inversion initiale garantit que `Q(child) = wins/visits` represente la valeur 
    if not node.is_terminal():
        policy, value = neural_network(node.state)    ← appel reseau unique
        for each legal move:
-           create child with prior = policy[move]     ← ExpandAll(policy)
+           create child with prior = policy[move]     ← expandAll(policy)
 
 3. PAS DE SIMULATION
    (la value du reseau remplace le rollout)

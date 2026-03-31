@@ -13,10 +13,10 @@ import (
 
 func TestPUCT_UnvisitedWithParent(t *testing.T) {
 	m := &MCTS{cpuct: 1.5}
-	parent := &MCTSNode{visits: 100, mcts: m}
-	child := &MCTSNode{visits: 0, prior: 0.3, parent: parent, mcts: m}
+	parent := &mctsNode{visits: 100, mcts: m}
+	child := &mctsNode{visits: 0, prior: 0.3, parent: parent, mcts: m}
 
-	score := child.PUCT()
+	score := child.puct()
 	// C_puct * P * sqrt(N_parent) = 1.5 * 0.3 * sqrt(100) = 1.5 * 0.3 * 10 = 4.5
 	expected := 1.5 * 0.3 * math.Sqrt(100)
 	if math.Abs(score-expected) > 1e-9 {
@@ -26,9 +26,9 @@ func TestPUCT_UnvisitedWithParent(t *testing.T) {
 
 func TestPUCT_UnvisitedRoot(t *testing.T) {
 	m := &MCTS{cpuct: 1.5}
-	root := &MCTSNode{visits: 0, prior: 0.5, parent: nil, mcts: m}
+	root := &mctsNode{visits: 0, prior: 0.5, parent: nil, mcts: m}
 
-	score := root.PUCT()
+	score := root.puct()
 	if math.Abs(score-0.5) > 1e-9 {
 		t.Errorf("expected prior 0.5 for unvisited root, got %f", score)
 	}
@@ -36,10 +36,10 @@ func TestPUCT_UnvisitedRoot(t *testing.T) {
 
 func TestPUCT_VisitedWithParent(t *testing.T) {
 	m := &MCTS{cpuct: 2.0}
-	parent := &MCTSNode{visits: 100, mcts: m}
-	child := &MCTSNode{visits: 10, wins: 6, prior: 0.4, parent: parent, mcts: m}
+	parent := &mctsNode{visits: 100, mcts: m}
+	child := &mctsNode{visits: 10, wins: 6, prior: 0.4, parent: parent, mcts: m}
 
-	score := child.PUCT()
+	score := child.puct()
 	q := 6.0 / 10.0
 	exploration := 2.0 * 0.4 * math.Sqrt(100) / (1 + 10)
 	expected := q + exploration
@@ -50,9 +50,9 @@ func TestPUCT_VisitedWithParent(t *testing.T) {
 
 func TestPUCT_VisitedRoot(t *testing.T) {
 	m := &MCTS{cpuct: 1.0}
-	root := &MCTSNode{visits: 10, wins: 5, parent: nil, mcts: m}
+	root := &mctsNode{visits: 10, wins: 5, parent: nil, mcts: m}
 
-	score := root.PUCT()
+	score := root.puct()
 	if math.Abs(score-0.5) > 1e-9 {
 		t.Errorf("expected 0.5 for visited root, got %f", score)
 	}
@@ -60,11 +60,11 @@ func TestPUCT_VisitedRoot(t *testing.T) {
 
 func TestPUCT_HigherPriorGivesHigherScore(t *testing.T) {
 	m := &MCTS{cpuct: 1.0}
-	parent := &MCTSNode{visits: 100, mcts: m}
-	lowPrior := &MCTSNode{visits: 0, prior: 0.1, parent: parent, mcts: m}
-	highPrior := &MCTSNode{visits: 0, prior: 0.9, parent: parent, mcts: m}
+	parent := &mctsNode{visits: 100, mcts: m}
+	lowPrior := &mctsNode{visits: 0, prior: 0.1, parent: parent, mcts: m}
+	highPrior := &mctsNode{visits: 0, prior: 0.9, parent: parent, mcts: m}
 
-	if lowPrior.PUCT() >= highPrior.PUCT() {
+	if lowPrior.puct() >= highPrior.puct() {
 		t.Error("expected higher prior to give higher PUCT score")
 	}
 }
@@ -72,18 +72,18 @@ func TestPUCT_HigherPriorGivesHigherScore(t *testing.T) {
 // --- BackpropagateValue Tests ---
 
 func TestBackpropagateValue_SignInversion(t *testing.T) {
-	root := &MCTSNode{state: tictactoe.NewTicTacToe()}
+	root := &mctsNode{state: tictactoe.NewTicTacToe()}
 	ttt1 := tictactoe.NewTicTacToe()
 	ttt1.Play(0)
-	child := &MCTSNode{state: ttt1, parent: root}
+	child := &mctsNode{state: ttt1, parent: root}
 	ttt2 := tictactoe.NewTicTacToe()
 	ttt2.Play(0)
 	ttt2.Play(1)
-	grandchild := &MCTSNode{state: ttt2, parent: child}
+	grandchild := &mctsNode{state: ttt2, parent: child}
 
 	// value=0.8 from grandchild.CurrentPlayer()'s perspective
 	// BackpropagateValue negates first to store from "player who moved here" perspective
-	grandchild.BackpropagateValue(0.8)
+	grandchild.backpropagateValue(0.8)
 
 	// grandchild: initial negate → wins += -0.8 (from opponent's perspective = player who moved here)
 	if math.Abs(grandchild.wins-(-0.8)) > 1e-9 {
@@ -100,12 +100,12 @@ func TestBackpropagateValue_SignInversion(t *testing.T) {
 }
 
 func TestBackpropagateValue_UpdatesVisits(t *testing.T) {
-	root := &MCTSNode{state: tictactoe.NewTicTacToe()}
+	root := &mctsNode{state: tictactoe.NewTicTacToe()}
 	ttt1 := tictactoe.NewTicTacToe()
 	ttt1.Play(0)
-	child := &MCTSNode{state: ttt1, parent: root}
+	child := &mctsNode{state: ttt1, parent: root}
 
-	child.BackpropagateValue(1.0)
+	child.backpropagateValue(1.0)
 
 	if child.visits != 1 {
 		t.Errorf("expected child visits=1, got %f", child.visits)
@@ -128,13 +128,13 @@ func TestBackpropagateValue_UpdatesVisits(t *testing.T) {
 func TestExpandAll_CreatesAllChildren(t *testing.T) {
 	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
-	node := m.GetOrCreateNode(ttt, nil)
+	node := m.getOrCreateNode(ttt, nil)
 
 	policy := make([]float64, 9)
 	for i := range policy {
 		policy[i] = 1.0 / 9.0
 	}
-	node.ExpandAll(policy)
+	node.expandAll(policy)
 
 	if len(node.children) != 9 {
 		t.Errorf("expected 9 children, got %d", len(node.children))
@@ -144,10 +144,10 @@ func TestExpandAll_CreatesAllChildren(t *testing.T) {
 func TestExpandAll_AssignsPriors(t *testing.T) {
 	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
-	node := m.GetOrCreateNode(ttt, nil)
+	node := m.getOrCreateNode(ttt, nil)
 
 	policy := []float64{0.5, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05}
-	node.ExpandAll(policy)
+	node.expandAll(policy)
 
 	for i, child := range node.children {
 		if math.Abs(child.prior-policy[i]) > 1e-9 {
@@ -165,15 +165,15 @@ func TestExpandAll_AssignsPriors(t *testing.T) {
 func TestExpandAll_IsFullyExpanded(t *testing.T) {
 	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
-	node := m.GetOrCreateNode(ttt, nil)
+	node := m.getOrCreateNode(ttt, nil)
 
 	policy := make([]float64, 9)
 	for i := range policy {
 		policy[i] = 1.0 / 9.0
 	}
-	node.ExpandAll(policy)
+	node.expandAll(policy)
 
-	if !node.IsFullyExpanded() {
+	if !node.isFullyExpanded() {
 		t.Error("expected fully expanded after ExpandAll")
 	}
 }
@@ -184,19 +184,19 @@ func TestSelectChildUCB_UsesPUCTWithEvaluator(t *testing.T) {
 	eval := &uniformEvaluator{}
 	m := NewAlphaMCTS(eval, 1.0)
 	ttt := tictactoe.NewTicTacToe()
-	node := m.GetOrCreateNode(ttt, nil)
+	node := m.getOrCreateNode(ttt, nil)
 	node.visits = 100
 
 	// Create two children with different priors
 	ttt1 := tictactoe.NewTicTacToe()
 	ttt1.Play(0)
-	child1 := &MCTSNode{state: ttt1, parent: node, prior: 0.1, visits: 0, mcts: m}
+	child1 := &mctsNode{state: ttt1, parent: node, prior: 0.1, visits: 0, mcts: m}
 	ttt2 := tictactoe.NewTicTacToe()
 	ttt2.Play(4)
-	child2 := &MCTSNode{state: ttt2, parent: node, prior: 0.9, visits: 0, mcts: m}
-	node.children = []*MCTSNode{child1, child2}
+	child2 := &mctsNode{state: ttt2, parent: node, prior: 0.9, visits: 0, mcts: m}
+	node.children = []*mctsNode{child1, child2}
 
-	best := node.SelectChildUCB()
+	best := node.selectChildUCB()
 	if best != child2 {
 		t.Error("expected child with higher prior to be selected with PUCT")
 	}
@@ -242,7 +242,7 @@ func TestRunMCTS_WithEvaluator_BlocksWin(t *testing.T) {
 
 	result := m.RunMCTS(ttt, 5000)
 
-	move := board.State(ttt).(board.Playable).GetMoveFromState(result)
+	move := result.LastMove()
 	if move != 2 {
 		t.Errorf("expected AlphaMCTS to block at position 2, got move %d", move)
 	}
@@ -260,7 +260,7 @@ func TestRunMCTS_WithEvaluator_TakesWin(t *testing.T) {
 
 	result := m.RunMCTS(ttt, 5000)
 
-	move := board.State(ttt).(board.Playable).GetMoveFromState(result)
+	move := result.LastMove()
 	if move != 2 {
 		t.Errorf("expected AlphaMCTS to win at position 2, got move %d", move)
 	}

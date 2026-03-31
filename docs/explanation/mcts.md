@@ -40,8 +40,8 @@ Dans le code (`mcts/mcts.go`) :
 
 ```go
 node := root
-for !node.IsTerminal() && node.IsFullyExpanded() {
-    node = node.SelectChildUCB()
+for !node.isTerminal() && node.isFullyExpanded() {
+    node = node.selectChildUCB()
 }
 ```
 
@@ -52,7 +52,7 @@ Quand on atteint un noeud qui n'est pas completement expanse, on ajoute **un seu
 Dans le code (`mcts/expand.go`) :
 
 ```go
-func (node *MCTSNode) Expand() *MCTSNode {
+func (node *mctsNode) expand() *mctsNode {
     // Trouve le premier coup pas encore expanse
     // Cree un nouveau noeud enfant
     // L'ajoute a node.children
@@ -69,7 +69,7 @@ Depuis le noeud nouvellement cree, on joue des **coups aleatoires** jusqu'a la f
 Dans le code (`mcts/simulate.go`) :
 
 ```go
-func (node *MCTSNode) Simulate() board.PlayerID {
+func (node *mctsNode) simulate() board.PlayerID {
     currentState := node.state
     for currentState.Evaluate() == board.NoPlayer {
         possibleMoves := currentState.PossibleMoves()

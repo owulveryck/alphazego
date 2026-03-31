@@ -94,18 +94,21 @@ $$ \text{UCB1} = \underbrace{\frac{W}{N}}_{\text{exploitation}} + \underbrace{C 
 ```
 alphazego/
 ├── board/
-│   ├── interfaces.go          # Interfaces du jeu (State, Playable)
+│   ├── interfaces.go          # Interfaces generiques (State, Evaluator, Tensorizable)
 │   └── tictactoe/
 │       ├── ttt.go             # Implementation du morpion
 │       ├── console.go         # Affichage du plateau
 │       └── cmd/main.go        # Petit programme jouable en console
 ├── mcts/
-│   ├── mcts.go                # Boucle principale du MCTS (RunMCTS)
-│   ├── node.go                # Structure MCTSNode + methodes utilitaires
-│   ├── ucb1.go                # Calcul du score UCB1
+│   ├── doc.go                 # Documentation du package
+│   ├── mcts.go                # Boucle principale (RunMCTS, NewMCTS, NewAlphaMCTS)
+│   ├── node.go                # Noeud interne + methodes utilitaires
+│   ├── ucb1.go                # Formule UCB1 (MCTS pur)
+│   ├── puct.go                # Formule PUCT (AlphaZero)
 │   ├── expand.go              # Phase d'expansion
 │   ├── simulate.go            # Phase de simulation (rollout)
 │   └── backpropagate.go       # Phase de retropropagation
+├── docs/                      # Documentation Divio (explanation, reference, how-to, tutorials)
 └── main.go                    # Programme principal (humain vs MCTS)
 ```
 
@@ -119,7 +122,8 @@ type State interface {
     PreviousPlayer() PlayerID      // Quel joueur a effectue le dernier coup ?
     Evaluate() PlayerID            // Le gagnant, NoPlayer (en cours), ou DrawResult (nul)
     PossibleMoves() []State        // Quels sont les etats atteignables ?
-    ID() []byte                    // Identifiant unique de l'etat
+    ID() string                    // Identifiant unique de l'etat
+    LastMove() uint8               // Le coup qui a mene a cet etat
 }
 ```
 
@@ -143,25 +147,31 @@ Chaque case vaut `0` (vide), `1` (joueur 1 / X) ou `2` (joueur 2 / O). L'alterna
 type TicTacToe struct {
     board      []uint8        // 9 cases
     PlayerTurn board.PlayerID // 1 ou 2
+    lastMove   uint8          // coup qui a mene a cet etat
 }
 
-func (t *TicTacToe) Play(p board.Move) {
+func (t *TicTacToe) Play(p uint8) error {
+    // Valide bornes, occupation, et fin de partie
     t.board[p] = uint8(t.PlayerTurn)
+    t.lastMove = p
     t.PlayerTurn = 3 - t.PlayerTurn
+    return nil
 }
 ```
 
 ### Le noeud MCTS
 
-Chaque noeud de l'arbre represente une position de jeu et stocke les statistiques accumulees :
+Chaque noeud de l'arbre represente une position de jeu et stocke les statistiques accumulees. Les noeuds sont internes au package `mcts` (type `mctsNode` non exporte) — l'API publique se limite a `NewMCTS()`, `NewAlphaMCTS()` et `RunMCTS()` :
 
 ```go
-type MCTSNode struct {
+// Structure interne (non exportee)
+type mctsNode struct {
     state    board.State      // La position de jeu
-    parent   *MCTSNode        // Le noeud parent (nil pour la racine)
-    children []*MCTSNode      // Les noeuds enfants (coups explores)
+    parent   *mctsNode        // Le noeud parent (nil pour la racine)
+    children []*mctsNode      // Les noeuds enfants (coups explores)
     wins     float64          // Victoires observees
     visits   float64          // Nombre de visites
+    prior    float64          // Prior du policy network (AlphaZero)
     mcts     *MCTS            // Reference vers l'instance MCTS
 }
 ```
@@ -174,19 +184,19 @@ La boucle de selection dans `RunMCTS` descend dans l'arbre tant que le noeud cou
 
 ```go
 node := root
-for !node.IsTerminal() && node.IsFullyExpanded() {
-    node = node.SelectChildUCB()
+for !node.isTerminal() && node.isFullyExpanded() {
+    node = node.selectChildUCB()
 }
 ```
 
-`SelectChildUCB` choisit l'enfant avec le meilleur score UCB1 parmi les enfants immediats. La methode est **non recursive** : c'est la boucle ci-dessus qui gere la descente dans l'arbre.
+`selectChildUCB` choisit l'enfant avec le meilleur score UCB1 (ou PUCT en mode AlphaZero) parmi les enfants immediats. La methode est **non recursive** : c'est la boucle ci-dessus qui gere la descente dans l'arbre.
 
 ```go
-func (n *MCTSNode) SelectChildUCB() *MCTSNode {
+func (n *mctsNode) selectChildUCB() *mctsNode {
     bestScore := math.Inf(-1)
-    var bestChild *MCTSNode
+    var bestChild *mctsNode
     for _, child := range n.children {
-        score := child.UCB1()
+        score := child.ucb1() // ou child.puct() en mode AlphaZero
         if score > bestScore {
             bestScore = score
             bestChild = child
@@ -199,42 +209,42 @@ func (n *MCTSNode) SelectChildUCB() *MCTSNode {
 Le score UCB1 est calcule dans `ucb1.go`. Un noeud jamais visite retourne `+Inf` pour etre explore en priorite :
 
 ```go
-func (n *MCTSNode) UCB1() float64 {
+func (n *mctsNode) ucb1() float64 {
     if n.visits == 0 {
         return math.Inf(1)
     }
     C := math.Sqrt(2)
-    avgReward := n.wins / float64(n.visits)
+    avgReward := n.wins / n.visits
     if n.parent == nil {
         return avgReward
     }
-    return avgReward + C*math.Sqrt(math.Log(float64(n.parent.visits))/float64(n.visits))
+    return avgReward + C*math.Sqrt(math.Log(n.parent.visits)/n.visits)
 }
 ```
 
 Les methodes utilitaires :
-- `IsTerminal()` : verifie si `Evaluate()` retourne autre chose que `NoPlayer` (partie finie)
-- `IsFullyExpanded()` : verifie si le nombre d'enfants est egal au nombre de coups possibles
+- `isTerminal()` : verifie si `Evaluate()` retourne autre chose que `NoPlayer` (partie finie)
+- `isFullyExpanded()` : verifie si le nombre d'enfants est egal au nombre de coups possibles
 
 ### 2. Expansion (`expand.go`)
 
-`Expand` ajoute **un seul** nouvel enfant a chaque appel. Il determine les coups non encore explores en comparant les `ID` des enfants existants avec ceux des coups possibles :
+`expand` ajoute **un seul** nouvel enfant a chaque appel. Il determine les coups non encore explores en comparant les `ID` des enfants existants avec ceux des coups possibles :
 
 ```go
-func (node *MCTSNode) Expand() *MCTSNode {
+func (node *mctsNode) expand() *mctsNode {
     possibleMoves := node.state.PossibleMoves()
 
     existingIDs := make(map[string]bool)
     for _, child := range node.children {
-        existingIDs[string(child.state.ID())] = true
+        existingIDs[child.state.ID()] = true
     }
 
     for _, move := range possibleMoves {
-        if !existingIDs[string(move.ID())] {
-            child := &MCTSNode{
+        if !existingIDs[move.ID()] {
+            child := &mctsNode{
                 state:    move,
                 parent:   node,
-                children: []*MCTSNode{},
+                children: []*mctsNode{},
                 mcts:     node.mcts,
             }
             node.children = append(node.children, child)
@@ -249,10 +259,10 @@ func (node *MCTSNode) Expand() *MCTSNode {
 
 ### 3. Simulation (`simulate.go`)
 
-`Simulate` joue une partie aleatoire depuis l'etat du noeud jusqu'a la fin. Les coups sont choisis au hasard parmi les coups possibles :
+`simulate` joue une partie aleatoire depuis l'etat du noeud jusqu'a la fin. Les coups sont choisis au hasard parmi les coups possibles :
 
 ```go
-func (node *MCTSNode) Simulate() board.PlayerID {
+func (node *mctsNode) simulate() board.PlayerID {
     currentState := node.state
     for currentState.Evaluate() == board.NoPlayer {
         possibleMoves := currentState.PossibleMoves()
@@ -262,7 +272,7 @@ func (node *MCTSNode) Simulate() board.PlayerID {
 }
 ```
 
-`Simulate` ne modifie jamais l'etat du noeud : elle travaille sur des copies locales creees par `PossibleMoves()`.
+`simulate` ne modifie jamais l'etat du noeud : elle travaille sur des copies locales creees par `PossibleMoves()`.
 
 ### 4. Retropropagation (`backpropagate.go`)
 
@@ -271,7 +281,7 @@ Apres la simulation, on remonte le resultat du noeud simule jusqu'a la racine. A
 Le point subtil : `CurrentPlayer()` retourne le joueur dont c'est le tour (celui qui va jouer), pas celui qui vient de jouer. Le joueur qui a amene la partie dans cet etat est `PreviousPlayer()`. Cela permet au moteur de fonctionner quel que soit le nombre de joueurs.
 
 ```go
-func (node *MCTSNode) Backpropagate(result board.PlayerID) {
+func (node *mctsNode) backpropagate(result board.PlayerID) {
     for n := node; n != nil; n = n.parent {
         n.visits += 1
 
@@ -294,8 +304,8 @@ Les matchs nuls comptent pour 0.5, ce qui les place entre une victoire (1.0) et 
 Apres toutes les iterations, le MCTS choisit le coup correspondant a l'enfant de la racine qui a recu le **plus de visites** (pas le plus de victoires). Le nombre de visites est un indicateur plus fiable que le ratio de victoires car il reflete la confiance globale de l'algorithme.
 
 ```go
-func (n *MCTSNode) SelectBestMove() *MCTSNode {
-    var bestChild *MCTSNode
+func (n *mctsNode) selectBestMove() *mctsNode {
+    var bestChild *mctsNode
     bestVisits := float64(-1)
     for _, child := range n.children {
         if child.visits > bestVisits {

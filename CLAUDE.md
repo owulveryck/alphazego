@@ -7,7 +7,7 @@ Implementation d'AlphaZero en Go, from scratch. Le jeu de reference est le morpi
 ```
 alphazego/
 ├── board/
-│   ├── interfaces.go              # Interfaces generiques (State, Evaluator, Tensorizable, Playable)
+│   ├── interfaces.go              # Interfaces generiques (State, Evaluator, Tensorizable)
 │   └── tictactoe/
 │       ├── ttt.go                 # Implementation du morpion (State + Tensorizable)
 │       ├── console.go             # Affichage ANSI du plateau
@@ -17,14 +17,14 @@ alphazego/
 ├── mcts/
 │   ├── doc.go                     # Documentation du package
 │   ├── mcts.go                    # Boucle principale RunMCTS, NewMCTS, NewAlphaMCTS
-│   ├── node.go                    # MCTSNode, IsTerminal, SelectChildUCB, SelectBestMove
+│   ├── node.go                    # mctsNode (interne), isTerminal, selectChildUCB, selectBestMove
 │   ├── ucb1.go                    # Formule UCB1 (MCTS pur)
 │   ├── puct.go                    # Formule PUCT (AlphaZero)
-│   ├── expand.go                  # Expansion (Expand un-par-un, ExpandAll avec priors)
+│   ├── expand.go                  # Expansion (expand un-par-un, expandAll avec priors)
 │   ├── simulate.go                # Rollout aleatoire (MCTS pur)
 │   ├── backpropagate.go           # Retropropagation (discrete et continue)
 │   ├── mcts_test.go               # Tests unitaires
-│   ├── puct_test.go               # Tests PUCT, BackpropagateValue, ExpandAll, AlphaMCTS
+│   ├── puct_test.go               # Tests PUCT, backpropagateValue, expandAll, AlphaMCTS
 │   └── example_test.go            # Exemples testables (godoc)
 ├── docs/                          # Documentation Divio (explanation, reference, how-to, tutorials)
 ├── main.go                        # Programme principal (humain vs IA)
