@@ -5,15 +5,17 @@ Cette documentation suit la [structure Divio](https://docs.divio.com/documentati
 ## Comprendre (Explanation)
 
 - [Un framework generique de decision](explanation/framework-generique.md) -- Pourquoi State/PossibleMoves/Evaluate ne sont pas specifiques aux jeux
+- [Qu'est-ce qu'un Agent ?](explanation/agent.md) -- Le decideur generique : identifiant, convention Agent=Result, et support 1/2/N joueurs
 - [L'algorithme MCTS](explanation/mcts.md) -- Monte Carlo Tree Search : intuition, phases, et pourquoi il fonctionne
 - [AlphaGo et les reseaux de neurones](explanation/alphago-et-reseaux-de-neurones.md) -- Comment AlphaGo utilise la convolution pour guider la recherche
 - [De MCTS a AlphaZero](explanation/de-mcts-a-alphazero.md) -- PUCT, suppression des rollouts, et integration du reseau dans l'arbre
 
 ## Reference
 
+- [Agent et Result](reference/agent-et-result.md) -- Types, constantes, conventions et exemples d'implementation
 - [Formules mathematiques](reference/formules.md) -- UCB1, PUCT, UCT : definitions et derivations
 - [Architecture du reseau de neurones](reference/architecture-reseau.md) -- Tenseurs d'entree, blocs residuels, tetes policy/value
-- [Interfaces Go pour le reseau](reference/interfaces-evaluator.md) -- Specification des interfaces `Evaluator` et `Tensorizable`
+- [Interfaces Go pour le reseau](reference/interfaces-evaluator.md) -- Specification des interfaces `State`, `Evaluator` et `Tensorizable`
 
 ## Guides pratiques (How-to)
 
