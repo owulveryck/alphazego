@@ -12,7 +12,7 @@ func TestNewTicTacToe(t *testing.T) {
 		t.Errorf("expected Player1 to start, got %d", ttt.PlayerTurn)
 	}
 	for i, cell := range ttt.board {
-		if cell != board.EmptyPlace {
+		if cell != 0 {
 			t.Errorf("expected empty cell at %d, got %d", i, cell)
 		}
 	}
@@ -21,14 +21,14 @@ func TestNewTicTacToe(t *testing.T) {
 func TestPlay(t *testing.T) {
 	ttt := NewTicTacToe()
 	ttt.Play(0)
-	if ttt.board[0] != board.Player1 {
+	if ttt.board[0] != uint8(board.Player1) {
 		t.Errorf("expected Player1 at position 0, got %d", ttt.board[0])
 	}
 	if ttt.PlayerTurn != board.Player2 {
 		t.Errorf("expected Player2 turn after Player1 plays, got %d", ttt.PlayerTurn)
 	}
 	ttt.Play(4)
-	if ttt.board[4] != board.Player2 {
+	if ttt.board[4] != uint8(board.Player2) {
 		t.Errorf("expected Player2 at position 4, got %d", ttt.board[4])
 	}
 	if ttt.PlayerTurn != board.Player1 {
@@ -54,7 +54,7 @@ func TestID(t *testing.T) {
 		t.Errorf("expected ID length %d, got %d", BoardSize+1, len(id))
 	}
 	// Last byte should be the current player
-	if id[BoardSize] != board.Player1 {
+	if id[BoardSize] != byte(board.Player1) {
 		t.Errorf("expected last byte to be Player1, got %d", id[BoardSize])
 	}
 
@@ -69,8 +69,8 @@ func TestID(t *testing.T) {
 
 func TestEvaluate_GameOn(t *testing.T) {
 	ttt := NewTicTacToe()
-	if ttt.Evaluate() != board.GameOn {
-		t.Errorf("expected GameOn for empty board, got %d", ttt.Evaluate())
+	if ttt.Evaluate() != board.NoPlayer {
+		t.Errorf("expected NoPlayer for empty board, got %d", ttt.Evaluate())
 	}
 }
 
@@ -79,8 +79,8 @@ func TestEvaluate_Player1WinsRow(t *testing.T) {
 		board:      []uint8{1, 1, 1, 0, 0, 0, 0, 0, 0},
 		PlayerTurn: board.Player2,
 	}
-	if ttt.Evaluate() != board.Player1Wins {
-		t.Errorf("expected Player1Wins for top row, got %d", ttt.Evaluate())
+	if ttt.Evaluate() != board.Player1 {
+		t.Errorf("expected Player1 wins for top row, got %d", ttt.Evaluate())
 	}
 }
 
@@ -89,8 +89,8 @@ func TestEvaluate_Player2WinsColumn(t *testing.T) {
 		board:      []uint8{2, 0, 0, 2, 0, 0, 2, 0, 0},
 		PlayerTurn: board.Player1,
 	}
-	if ttt.Evaluate() != board.Player2Wins {
-		t.Errorf("expected Player2Wins for left column, got %d", ttt.Evaluate())
+	if ttt.Evaluate() != board.Player2 {
+		t.Errorf("expected Player2 wins for left column, got %d", ttt.Evaluate())
 	}
 }
 
@@ -99,8 +99,8 @@ func TestEvaluate_Player1WinsDiagonal(t *testing.T) {
 		board:      []uint8{1, 0, 0, 0, 1, 0, 0, 0, 1},
 		PlayerTurn: board.Player2,
 	}
-	if ttt.Evaluate() != board.Player1Wins {
-		t.Errorf("expected Player1Wins for diagonal, got %d", ttt.Evaluate())
+	if ttt.Evaluate() != board.Player1 {
+		t.Errorf("expected Player1 wins for diagonal, got %d", ttt.Evaluate())
 	}
 }
 
@@ -109,8 +109,8 @@ func TestEvaluate_Player1WinsAntiDiagonal(t *testing.T) {
 		board:      []uint8{0, 0, 1, 0, 1, 0, 1, 0, 0},
 		PlayerTurn: board.Player2,
 	}
-	if ttt.Evaluate() != board.Player1Wins {
-		t.Errorf("expected Player1Wins for anti-diagonal, got %d", ttt.Evaluate())
+	if ttt.Evaluate() != board.Player1 {
+		t.Errorf("expected Player1 wins for anti-diagonal, got %d", ttt.Evaluate())
 	}
 }
 
@@ -122,8 +122,8 @@ func TestEvaluate_Draw(t *testing.T) {
 		board:      []uint8{1, 2, 1, 1, 1, 2, 2, 1, 2},
 		PlayerTurn: board.Player1,
 	}
-	if ttt.Evaluate() != board.Draw {
-		t.Errorf("expected Draw, got %d", ttt.Evaluate())
+	if ttt.Evaluate() != board.DrawResult {
+		t.Errorf("expected DrawResult, got %d", ttt.Evaluate())
 	}
 }
 
@@ -262,16 +262,16 @@ func TestEvaluate_AllWinningPositions(t *testing.T) {
 	tests := []struct {
 		name   string
 		board  []uint8
-		winner board.Result
+		winner board.PlayerID
 	}{
-		{"row0-p1", []uint8{1, 1, 1, 0, 0, 0, 0, 0, 0}, board.Player1Wins},
-		{"row1-p1", []uint8{0, 0, 0, 1, 1, 1, 0, 0, 0}, board.Player1Wins},
-		{"row2-p1", []uint8{0, 0, 0, 0, 0, 0, 1, 1, 1}, board.Player1Wins},
-		{"col0-p2", []uint8{2, 0, 0, 2, 0, 0, 2, 0, 0}, board.Player2Wins},
-		{"col1-p2", []uint8{0, 2, 0, 0, 2, 0, 0, 2, 0}, board.Player2Wins},
-		{"col2-p2", []uint8{0, 0, 2, 0, 0, 2, 0, 0, 2}, board.Player2Wins},
-		{"diag-p2", []uint8{2, 0, 0, 0, 2, 0, 0, 0, 2}, board.Player2Wins},
-		{"anti-p2", []uint8{0, 0, 2, 0, 2, 0, 2, 0, 0}, board.Player2Wins},
+		{"row0-p1", []uint8{1, 1, 1, 0, 0, 0, 0, 0, 0}, board.Player1},
+		{"row1-p1", []uint8{0, 0, 0, 1, 1, 1, 0, 0, 0}, board.Player1},
+		{"row2-p1", []uint8{0, 0, 0, 0, 0, 0, 1, 1, 1}, board.Player1},
+		{"col0-p2", []uint8{2, 0, 0, 2, 0, 0, 2, 0, 0}, board.Player2},
+		{"col1-p2", []uint8{0, 2, 0, 0, 2, 0, 0, 2, 0}, board.Player2},
+		{"col2-p2", []uint8{0, 0, 2, 0, 0, 2, 0, 0, 2}, board.Player2},
+		{"diag-p2", []uint8{2, 0, 0, 0, 2, 0, 0, 0, 2}, board.Player2},
+		{"anti-p2", []uint8{0, 0, 2, 0, 2, 0, 2, 0, 0}, board.Player2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

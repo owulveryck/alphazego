@@ -115,15 +115,15 @@ Le MCTS ne connait pas les regles du morpion. Il manipule des **interfaces** def
 
 ```go
 type State interface {
-    CurrentPlayer() Agent       // Quel agent doit agir ?
-    PreviousPlayer() Agent      // Quel agent a effectue le dernier coup ?
-    Evaluate() Result           // Le probleme est-il resolu ? Quelle issue ?
-    PossibleMoves() []State     // Quels sont les etats atteignables ?
-    ID() []byte                 // Identifiant unique de l'etat
+    CurrentPlayer() PlayerID       // Quel joueur doit agir ?
+    PreviousPlayer() PlayerID      // Quel joueur a effectue le dernier coup ?
+    Evaluate() PlayerID            // Le gagnant, NoPlayer (en cours), ou DrawResult (nul)
+    PossibleMoves() []State        // Quels sont les etats atteignables ?
+    ID() []byte                    // Identifiant unique de l'etat
 }
 ```
 
-Cette interface est **generique** : elle ne presuppose ni un jeu de plateau, ni un nombre fixe de joueurs. Tout probleme de decision sequentiel a un ou plusieurs agents peut etre modelise ainsi -- jeux, negociations, planification, etc. `PreviousPlayer()` permet au moteur MCTS de savoir qui a joue le dernier coup sans connaitre la logique de tour. Le morpion est un premier exemple simple (deux joueurs en alternance).
+Cette interface est **generique** : elle ne presuppose ni un jeu de plateau, ni un nombre fixe de joueurs. Tout probleme de decision sequentiel a un ou plusieurs decideurs peut etre modelise ainsi -- jeux, negociations, planification, etc. `PreviousPlayer()` permet au moteur MCTS de savoir qui a joue le dernier coup sans connaitre la logique de tour. `Evaluate()` retourne directement le `PlayerID` du gagnant (pas de type `Result` separe) : `NoPlayer` (0) si le jeu est en cours, `DrawResult` (-1) en cas de match nul. Le morpion est un premier exemple simple (deux joueurs en alternance).
 
 ### Le morpion
 
@@ -141,12 +141,12 @@ Chaque case vaut `0` (vide), `1` (joueur 1 / X) ou `2` (joueur 2 / O). L'alterna
 
 ```go
 type TicTacToe struct {
-    board      []uint8    // 9 cases
-    PlayerTurn uint8      // 1 ou 2
+    board      []uint8        // 9 cases
+    PlayerTurn board.PlayerID // 1 ou 2
 }
 
 func (t *TicTacToe) Play(p board.Move) {
-    t.board[p] = t.PlayerTurn
+    t.board[p] = uint8(t.PlayerTurn)
     t.PlayerTurn = 3 - t.PlayerTurn
 }
 ```
@@ -213,7 +213,7 @@ func (n *MCTSNode) UCB1() float64 {
 ```
 
 Les methodes utilitaires :
-- `IsTerminal()` : verifie si `Evaluate()` retourne autre chose que `GameOn` (partie finie)
+- `IsTerminal()` : verifie si `Evaluate()` retourne autre chose que `NoPlayer` (partie finie)
 - `IsFullyExpanded()` : verifie si le nombre d'enfants est egal au nombre de coups possibles
 
 ### 2. Expansion (`expand.go`)
@@ -252,9 +252,9 @@ func (node *MCTSNode) Expand() *MCTSNode {
 `Simulate` joue une partie aleatoire depuis l'etat du noeud jusqu'a la fin. Les coups sont choisis au hasard parmi les coups possibles :
 
 ```go
-func (node *MCTSNode) Simulate() board.Result {
+func (node *MCTSNode) Simulate() board.PlayerID {
     currentState := node.state
-    for currentState.Evaluate() == board.GameOn {
+    for currentState.Evaluate() == board.NoPlayer {
         possibleMoves := currentState.PossibleMoves()
         currentState = possibleMoves[rand.Intn(len(possibleMoves))]
     }
@@ -271,14 +271,14 @@ Apres la simulation, on remonte le resultat du noeud simule jusqu'a la racine. A
 Le point subtil : `CurrentPlayer()` retourne le joueur dont c'est le tour (celui qui va jouer), pas celui qui vient de jouer. Le joueur qui a amene la partie dans cet etat est `PreviousPlayer()`. Cela permet au moteur de fonctionner quel que soit le nombre de joueurs.
 
 ```go
-func (node *MCTSNode) Backpropagate(result board.Result) {
+func (node *MCTSNode) Backpropagate(result board.PlayerID) {
     for n := node; n != nil; n = n.parent {
         n.visits += 1
 
         playerWhoMovedHere := n.state.PreviousPlayer()
         if result == playerWhoMovedHere {
             n.wins += 1
-        } else if result == board.Draw {
+        } else if result == board.DrawResult {
             n.wins += 0.5
         }
     }

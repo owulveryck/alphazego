@@ -16,33 +16,36 @@ const (
 // ANSI colors: red for Player1 (X) and blue for Player2 (O).
 // It also displays whose turn it is.
 func (tictactoe *TicTacToe) String() string {
-	players := map[board.Agent]string{
-		board.EmptyPlace: " ",
-		board.Player1:    reset + red + "X" + reset,
-		board.Player2:    reset + blue + "O" + reset,
+	symbols := map[board.PlayerID]string{
+		board.NoPlayer: " ",
+		board.Player1:  reset + red + "X" + reset,
+		board.Player2:  reset + blue + "O" + reset,
+	}
+	cellSymbol := func(i int) string {
+		return symbols[board.PlayerID(tictactoe.board[i])]
 	}
 	var b strings.Builder
-	b.WriteString("Current player: " + players[tictactoe.PlayerTurn] + "\n")
+	b.WriteString("Current player: " + symbols[tictactoe.PlayerTurn] + "\n")
 	b.WriteString(" ┌───┬───┬───┐\n")
-	b.WriteString(" │ " + players[tictactoe.board[0]])
+	b.WriteString(" │ " + cellSymbol(0))
 	b.WriteString(" │ ")
-	b.WriteString(players[tictactoe.board[1]])
+	b.WriteString(cellSymbol(1))
 	b.WriteString(" │ ")
-	b.WriteString(players[tictactoe.board[2]])
+	b.WriteString(cellSymbol(2))
 	b.WriteString(" │\n")
 	b.WriteString(" ├───┼───┼───┤\n")
-	b.WriteString(" │ " + players[tictactoe.board[3]])
+	b.WriteString(" │ " + cellSymbol(3))
 	b.WriteString(" │ ")
-	b.WriteString(players[tictactoe.board[4]])
+	b.WriteString(cellSymbol(4))
 	b.WriteString(" │ ")
-	b.WriteString(players[tictactoe.board[5]])
+	b.WriteString(cellSymbol(5))
 	b.WriteString(" │\n")
 	b.WriteString(" ├───┼───┼───┤\n")
-	b.WriteString(" │ " + players[tictactoe.board[6]])
+	b.WriteString(" │ " + cellSymbol(6))
 	b.WriteString(" │ ")
-	b.WriteString(players[tictactoe.board[7]])
+	b.WriteString(cellSymbol(7))
 	b.WriteString(" │ ")
-	b.WriteString(players[tictactoe.board[8]])
+	b.WriteString(cellSymbol(8))
 	b.WriteString(" │\n")
 	b.WriteString(" └───┴───┴───┘\n")
 	return b.String()

@@ -55,11 +55,10 @@ func TestIsTerminal_Won(t *testing.T) {
 }
 
 func TestIsTerminal_Draw(t *testing.T) {
-	// Draw: X O X / X X O / O X O → play sequence 0,1,2,5,3,6,4,8,7 doesn't work directly
-	// Let's use a sequence that creates a draw: 4,0,2,6,3,5,1,7,8
+	// Draw: 4,0,2,6,3,5,1,7,8
 	ttt := playMoves(4, 0, 2, 6, 3, 5, 1, 7, 8)
 	node := &MCTSNode{state: ttt}
-	if ttt.Evaluate() != board.Draw {
+	if ttt.Evaluate() != board.DrawResult {
 		// If this particular sequence doesn't draw, that's fine - just test what we get
 		t.Skipf("sequence didn't produce a draw, got result %d", ttt.Evaluate())
 	}
@@ -205,7 +204,7 @@ func TestSimulate_ReturnsTerminalResult(t *testing.T) {
 
 	for i := 0; i < 20; i++ {
 		result := node.Simulate()
-		if result != board.Player1Wins && result != board.Player2Wins && result != board.Draw {
+		if result != board.Player1 && result != board.Player2 && result != board.DrawResult {
 			t.Errorf("expected terminal result, got %d", result)
 		}
 	}
@@ -216,8 +215,8 @@ func TestSimulate_AlreadyTerminal(t *testing.T) {
 	node := &MCTSNode{state: ttt}
 
 	result := node.Simulate()
-	if result != board.Player1Wins {
-		t.Errorf("expected Player1Wins, got %d", result)
+	if result != board.Player1 {
+		t.Errorf("expected Player1, got %d", result)
 	}
 }
 
@@ -235,7 +234,7 @@ func TestBackpropagate_UpdatesVisits(t *testing.T) {
 		parent: root,
 	}
 
-	child.Backpropagate(board.Player1Wins)
+	child.Backpropagate(board.Player1)
 
 	if child.visits != 1 {
 		t.Errorf("expected child visits=1, got %f", child.visits)
@@ -259,13 +258,13 @@ func TestBackpropagate_CreditsCorrectPlayer(t *testing.T) {
 		parent: root,
 	}
 
-	child.Backpropagate(board.Player1Wins)
+	child.Backpropagate(board.Player1)
 
-	// At child: playerWhoMovedHere = 3 - Player2 = Player1. Result=Player1Wins → win
+	// At child: PreviousPlayer = Player1. Result=Player1 → win
 	if child.wins != 1 {
 		t.Errorf("expected child wins=1 (Player1 moved here and won), got %f", child.wins)
 	}
-	// At root: playerWhoMovedHere = 3 - Player1 = Player2. Result=Player1Wins → no win
+	// At root: PreviousPlayer = Player2. Result=Player1 → no win
 	if root.wins != 0 {
 		t.Errorf("expected root wins=0, got %f", root.wins)
 	}
@@ -283,13 +282,13 @@ func TestBackpropagate_Player2Wins(t *testing.T) {
 		parent: root,
 	}
 
-	child.Backpropagate(board.Player2Wins)
+	child.Backpropagate(board.Player2)
 
-	// At child: playerWhoMovedHere = Player1. Result=Player2Wins → no win
+	// At child: PreviousPlayer = Player1. Result=Player2 → no win
 	if child.wins != 0 {
 		t.Errorf("expected child wins=0, got %f", child.wins)
 	}
-	// At root: playerWhoMovedHere = Player2. Result=Player2Wins → win
+	// At root: PreviousPlayer = Player2. Result=Player2 → win
 	if root.wins != 1 {
 		t.Errorf("expected root wins=1, got %f", root.wins)
 	}
@@ -307,7 +306,7 @@ func TestBackpropagate_Draw(t *testing.T) {
 		parent: root,
 	}
 
-	child.Backpropagate(board.Draw)
+	child.Backpropagate(board.DrawResult)
 
 	if child.wins != 0.5 {
 		t.Errorf("expected child wins=0.5 for draw, got %f", child.wins)
@@ -329,7 +328,7 @@ func TestBackpropagate_DeepChain(t *testing.T) {
 	ttt2.Play(1)
 	grandchild := &MCTSNode{state: ttt2, parent: child}
 
-	grandchild.Backpropagate(board.Player1Wins)
+	grandchild.Backpropagate(board.Player1)
 
 	if grandchild.visits != 1 || child.visits != 1 || root.visits != 1 {
 		t.Error("expected all nodes to have 1 visit")
@@ -395,8 +394,6 @@ func TestRunMCTS_ReturnsValidState(t *testing.T) {
 
 func TestRunMCTS_BlocksWin(t *testing.T) {
 	// Player2's turn. Player1 has positions 0,1 - about to win at 2.
-	// Sequence: P1 plays 0, P2 plays 3, P1 plays 1, P2 plays 4
-	// Board: [1,1,0,2,2,0,0,0,0], Player2's turn
 	ttt := playMoves(0, 3, 1, 4)
 
 	m := NewMCTS()
@@ -409,14 +406,6 @@ func TestRunMCTS_BlocksWin(t *testing.T) {
 }
 
 func TestRunMCTS_TakesWin(t *testing.T) {
-	// Player1's turn. Player1 has positions 0,1 - can win at 2.
-	// Sequence: P1 plays 0, P2 plays 3, P1 plays 1, P2 plays 4, now P1 plays
-	// Wait, after P2 plays 4, it's P1's turn. Board: [1,1,0,2,2,0,0,0,0]
-	// But this is P2's turn based on the sequence above... let me recalculate.
-	// P1(0), P2(3), P1(1), P2(4) → 4 moves → P1's turn
-	// Board: [1,1,0,2,2,0,0,0,0]
-	// Actually: Play(0)=P1→P2, Play(3)=P2→P1, Play(1)=P1→P2, Play(4)=P2→P1
-	// So it IS P1's turn. P1 at 0,1 can win at 2.
 	ttt := tictactoe.NewTicTacToe()
 	ttt.Play(0) // P1
 	ttt.Play(3) // P2
@@ -436,7 +425,7 @@ func TestRunMCTS_TakesWin(t *testing.T) {
 func TestRunMCTS_TerminalState(t *testing.T) {
 	// Player1 wins: 0,3,1,4,2
 	ttt := playMoves(0, 3, 1, 4, 2)
-	if ttt.Evaluate() == board.GameOn {
+	if ttt.Evaluate() == board.NoPlayer {
 		t.Fatal("expected terminal state")
 	}
 
@@ -462,7 +451,7 @@ func TestRunMCTS_FullGame(t *testing.T) {
 	ttt := tictactoe.NewTicTacToe()
 
 	maxMoves := 9
-	for i := 0; i < maxMoves && ttt.Evaluate() == board.GameOn; i++ {
+	for i := 0; i < maxMoves && ttt.Evaluate() == board.NoPlayer; i++ {
 		next := m.RunMCTS(ttt, 500)
 		if next == ttt {
 			t.Fatal("MCTS returned same state for non-terminal game")
@@ -472,7 +461,7 @@ func TestRunMCTS_FullGame(t *testing.T) {
 	}
 
 	result := ttt.Evaluate()
-	if result == board.GameOn {
+	if result == board.NoPlayer {
 		t.Error("expected game to end")
 	}
 }
@@ -480,41 +469,40 @@ func TestRunMCTS_FullGame(t *testing.T) {
 // --- Three-player mock state (validates N-player Backpropagate) ---
 
 // threePlayerState est un etat mock a 3 joueurs en round-robin.
-// Les joueurs sont 1, 2, 3. Le tour suivant est (current % 3) + 1.
 type threePlayerState struct {
-	current  board.Agent
-	previous board.Agent
-	result   board.Result
+	current  board.PlayerID
+	previous board.PlayerID
+	result   board.PlayerID
 	id       string
 }
 
-func (s *threePlayerState) CurrentPlayer() board.Agent   { return s.current }
-func (s *threePlayerState) PreviousPlayer() board.Agent  { return s.previous }
-func (s *threePlayerState) Evaluate() board.Result       { return s.result }
-func (s *threePlayerState) PossibleMoves() []board.State { return nil }
-func (s *threePlayerState) ID() board.ID                 { return []byte(s.id) }
+func (s *threePlayerState) CurrentPlayer() board.PlayerID  { return s.current }
+func (s *threePlayerState) PreviousPlayer() board.PlayerID { return s.previous }
+func (s *threePlayerState) Evaluate() board.PlayerID       { return s.result }
+func (s *threePlayerState) PossibleMoves() []board.State   { return nil }
+func (s *threePlayerState) ID() board.ID                   { return []byte(s.id) }
 
 func TestBackpropagate_ThreePlayers(t *testing.T) {
-	// Simule une chaine de 3 noeuds : joueur 1 → joueur 2 → joueur 3
-	// avec un resultat ou le joueur 1 gagne (Result = 1).
-	root := &MCTSNode{state: &threePlayerState{current: 1, previous: 3, result: board.GameOn, id: "root"}}
-	child := &MCTSNode{state: &threePlayerState{current: 2, previous: 1, result: board.GameOn, id: "child"}, parent: root}
-	grandchild := &MCTSNode{state: &threePlayerState{current: 3, previous: 2, result: board.Result(1), id: "gchild"}, parent: child}
+	// Simule une chaine de 3 noeuds : joueur 10 → joueur 11 → joueur 12
+	// avec un resultat ou le joueur 10 gagne (Result = 10).
+	root := &MCTSNode{state: &threePlayerState{current: 10, previous: 12, result: board.NoPlayer, id: "root"}}
+	child := &MCTSNode{state: &threePlayerState{current: 11, previous: 10, result: board.NoPlayer, id: "child"}, parent: root}
+	grandchild := &MCTSNode{state: &threePlayerState{current: 12, previous: 11, result: board.PlayerID(10), id: "gchild"}, parent: child}
 
-	// Le joueur 1 gagne
-	grandchild.Backpropagate(board.Result(1))
+	// Le joueur 10 gagne
+	grandchild.Backpropagate(board.PlayerID(10))
 
-	// grandchild: PreviousPlayer = 2, result = 1 → pas de victoire pour le joueur 2
+	// grandchild: PreviousPlayer = 11, result = 10 → pas de victoire pour le joueur 11
 	if grandchild.wins != 0 {
-		t.Errorf("expected grandchild wins=0 (player 2 moved here, player 1 won), got %f", grandchild.wins)
+		t.Errorf("expected grandchild wins=0 (player 11 moved here, player 10 won), got %f", grandchild.wins)
 	}
-	// child: PreviousPlayer = 1, result = 1 → victoire pour le joueur 1
+	// child: PreviousPlayer = 10, result = 10 → victoire pour le joueur 10
 	if child.wins != 1 {
-		t.Errorf("expected child wins=1 (player 1 moved here and won), got %f", child.wins)
+		t.Errorf("expected child wins=1 (player 10 moved here and won), got %f", child.wins)
 	}
-	// root: PreviousPlayer = 3, result = 1 → pas de victoire pour le joueur 3
+	// root: PreviousPlayer = 12, result = 10 → pas de victoire pour le joueur 12
 	if root.wins != 0 {
-		t.Errorf("expected root wins=0 (player 3 moved here, player 1 won), got %f", root.wins)
+		t.Errorf("expected root wins=0 (player 12 moved here, player 10 won), got %f", root.wins)
 	}
 
 	// Toutes les visites doivent etre 1
@@ -524,14 +512,10 @@ func TestBackpropagate_ThreePlayers(t *testing.T) {
 }
 
 func TestBackpropagate_ThreePlayers_Draw(t *testing.T) {
-	// Note : board.Draw vaut 3, ce qui entrerait en collision avec l'Agent 3.
-	// Pour un jeu a 3+ joueurs, l'implementation doit utiliser des valeurs de
-	// Result qui ne se chevauchent pas avec les identifiants d'agents.
-	// Ici on utilise des agents 10, 11, 12 pour eviter toute collision.
-	root := &MCTSNode{state: &threePlayerState{current: 10, previous: 12, result: board.GameOn, id: "root"}}
-	child := &MCTSNode{state: &threePlayerState{current: 11, previous: 10, result: board.GameOn, id: "child"}, parent: root}
+	root := &MCTSNode{state: &threePlayerState{current: 10, previous: 12, result: board.NoPlayer, id: "root"}}
+	child := &MCTSNode{state: &threePlayerState{current: 11, previous: 10, result: board.NoPlayer, id: "child"}, parent: root}
 
-	child.Backpropagate(board.Draw)
+	child.Backpropagate(board.DrawResult)
 
 	// Tous les noeuds recoivent 0.5 pour un match nul
 	if child.wins != 0.5 {

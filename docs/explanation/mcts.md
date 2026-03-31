@@ -69,9 +69,9 @@ Depuis le noeud nouvellement cree, on joue des **coups aleatoires** jusqu'a la f
 Dans le code (`mcts/simulate.go`) :
 
 ```go
-func (node *MCTSNode) Simulate() board.Result {
+func (node *MCTSNode) Simulate() board.PlayerID {
     currentState := node.state
-    for currentState.Evaluate() == board.GameOn {
+    for currentState.Evaluate() == board.NoPlayer {
         possibleMoves := currentState.PossibleMoves()
         currentState = possibleMoves[rand.Intn(len(possibleMoves))]
     }
@@ -97,7 +97,7 @@ Dans le code (`mcts/backpropagate.go`) :
 playerWhoMovedHere := n.state.PreviousPlayer()
 if result == playerWhoMovedHere {
     n.wins += 1
-} else if result == board.Draw {
+} else if result == board.DrawResult {
     n.wins += 0.5
 }
 ```

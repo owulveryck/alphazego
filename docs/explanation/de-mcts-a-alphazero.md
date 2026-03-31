@@ -105,9 +105,9 @@ On backpropage ensuite `value` directement (pas de rollout).
 Le code actuel (`mcts/simulate.go`) joue des coups aleatoires jusqu'a la fin :
 
 ```go
-func (node *MCTSNode) Simulate() board.Result {
+func (node *MCTSNode) Simulate() board.PlayerID {
     currentState := node.state
-    for currentState.Evaluate() == board.GameOn {
+    for currentState.Evaluate() == board.NoPlayer {
         possibleMoves := currentState.PossibleMoves()
         currentState = possibleMoves[rand.Intn(len(possibleMoves))]
     }
@@ -123,7 +123,7 @@ Dans AlphaZero, `Simulate()` disparait entierement. La valeur `v` retournee par 
 
 ```go
 // Avant (MCTS pur) :
-result := nodeToSimulate.Simulate()       // rollout aleatoire → board.Result (1, 2, ou 3)
+result := nodeToSimulate.Simulate()       // rollout aleatoire → board.PlayerID (1, 2, ou 3)
 nodeToSimulate.Backpropagate(result)
 
 // Apres (AlphaZero) :
@@ -146,12 +146,12 @@ avec `λ = 0.5`. AlphaGo Zero (2017) a montre que le rollout n'apporte rien quan
 Le code actuel propage un resultat discret (1 = Player1 gagne, 2 = Player2, 3 = nul) :
 
 ```go
-func (n *MCTSNode) Backpropagate(result board.Result) {
+func (n *MCTSNode) Backpropagate(result board.PlayerID) {
     n.visits++
     playerWhoMovedHere := n.state.PreviousPlayer()
     if result == playerWhoMovedHere {
         n.wins += 1
-    } else if result == board.Draw {
+    } else if result == board.DrawResult {
         n.wins += 0.5
     }
     if n.parent != nil {

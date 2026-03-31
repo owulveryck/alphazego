@@ -1,79 +1,57 @@
-# Agent et Result : types et conventions
+# PlayerID : type et conventions
 
-## Types
+## Type
 
-### Agent
-
-```go
-type Agent = uint8
-```
-
-Alias de `uint8`. Identifie un decideur dans un probleme de decision sequentiel.
-
-### Result
+### PlayerID
 
 ```go
-type Result = uint8
+type PlayerID int
 ```
 
-Alias de `uint8`. Represente l'issue de l'evaluation d'un etat.
+Type distinct base sur `int`. Identifie un decideur dans un probleme de decision sequentiel. Sert aussi de resultat : `Evaluate()` retourne directement le `PlayerID` du gagnant.
 
-### Lien entre Agent et Result
-
-La convention fondamentale du framework est :
-
-> **`Result(a)` signifie que l'agent `a` a gagne.**
-
-Cette convention est formalisee par la fonction `PlayerWins` :
-
-```go
-func PlayerWins(a Agent) Result {
-    return Result(a)
-}
-```
+Il n'y a pas de type `Result` separe : le resultat EST l'identifiant du gagnant.
 
 ## Constantes
 
-### Agents predefinies (2 joueurs)
-
 | Constante | Valeur | Description |
 |-----------|--------|-------------|
-| `Player1` | `1` | Premier agent (X au morpion) |
-| `Player2` | `2` | Second agent (O au morpion) |
+| `NoPlayer` | `0` | Aucun joueur. Jeu en cours, ou case vide. |
+| `DrawResult` | `-1` | Match nul. La partie est terminee sans vainqueur. |
+| `Player1` | `1` | Premier joueur (X au morpion) |
+| `Player2` | `2` | Second joueur (O au morpion) |
 
-### Resultats
+### Pourquoi DrawResult = -1 ?
 
-| Constante | Valeur | Description |
-|-----------|--------|-------------|
-| `GameOn` | `0` | Probleme en cours, pas d'issue terminale |
-| `Player1Wins` | `1` (`= Player1`) | L'agent 1 a atteint son objectif |
-| `Player2Wins` | `2` (`= Player2`) | L'agent 2 a atteint son objectif |
-| `Draw` | `3` | Egalite, aucun agent n'a gagne |
-| `Stalemat` | `4` | Blocage sans vainqueur |
+Avec une valeur negative, `DrawResult` ne peut jamais entrer en collision avec un identifiant de joueur (qui est toujours positif). Un jeu a 3, 4 ou N joueurs peut utiliser les identifiants 1, 2, 3, 4... sans risque de confusion avec le match nul.
 
-### Valeurs reservees
-
-Les valeurs 0 a 4 sont reservees par les constantes ci-dessus. Pour un jeu a N joueurs (N > 2), les identifiants d'agents doivent eviter ces valeurs pour ne pas entrer en collision avec `Draw` (3) ou `Stalemat` (4). Utiliser des valeurs >= 5.
-
-## Methodes de State retournant Agent
+## Methodes de State retournant PlayerID
 
 ```go
 type State interface {
-    CurrentPlayer() Agent      // l'agent dont c'est le tour d'agir
-    PreviousPlayer() Agent     // l'agent qui a effectue le dernier coup
+    CurrentPlayer() PlayerID      // le joueur dont c'est le tour d'agir
+    PreviousPlayer() PlayerID     // le joueur qui a effectue le dernier coup
+    Evaluate() PlayerID           // le gagnant, NoPlayer, ou DrawResult
     // ...
 }
 ```
 
 ### CurrentPlayer
 
-Retourne l'agent qui doit prendre la prochaine decision. A l'etat initial, c'est le premier joueur.
+Retourne le joueur qui doit prendre la prochaine decision. A l'etat initial, c'est le premier joueur.
 
 ### PreviousPlayer
 
-Retourne l'agent qui a effectue le coup menant a cet etat. Permet au moteur MCTS de crediter les victoires au bon agent sans connaitre la logique de tour.
+Retourne le joueur qui a effectue le coup menant a cet etat. Permet au moteur MCTS de crediter les victoires au bon joueur sans connaitre la logique de tour.
 
 Pour l'etat initial (aucun coup joue), le comportement est defini par l'implementation.
+
+### Evaluate
+
+Retourne :
+- `NoPlayer` (0) si le jeu est en cours
+- `DrawResult` (-1) en cas de match nul
+- un `PlayerID` positif si ce joueur a gagne
 
 ## Utilisation dans le MCTS
 
@@ -81,9 +59,9 @@ Pour l'etat initial (aucun coup joue), le comportement est defini par l'implemen
 
 ```go
 playerWhoMovedHere := n.state.PreviousPlayer()
-if result == playerWhoMovedHere {    // Result == Agent → cet agent a gagne
+if result == playerWhoMovedHere {    // le gagnant == celui qui a joue ici
     n.wins += 1
-} else if result == board.Draw {
+} else if result == board.DrawResult {
     n.wins += 0.5
 }
 ```
@@ -95,7 +73,7 @@ playerWhoMovedHere := s.PreviousPlayer()
 if result == playerWhoMovedHere {
     return -1.0   // defaite pour le joueur courant
 }
-if result == board.Draw {
+if result == board.DrawResult {
     return 0.0
 }
 return 1.0        // victoire pour le joueur courant
@@ -106,11 +84,11 @@ return 1.0        // victoire pour le joueur courant
 ### 2 joueurs (morpion)
 
 ```go
-func (t *TicTacToe) CurrentPlayer() board.Agent {
+func (t *TicTacToe) CurrentPlayer() board.PlayerID {
     return t.PlayerTurn
 }
 
-func (t *TicTacToe) PreviousPlayer() board.Agent {
+func (t *TicTacToe) PreviousPlayer() board.PlayerID {
     return 3 - t.PlayerTurn   // alternance stricte : 1↔2
 }
 ```
@@ -118,11 +96,11 @@ func (t *TicTacToe) PreviousPlayer() board.Agent {
 ### 3 joueurs (round-robin)
 
 ```go
-func (s *ThreePlayerGame) CurrentPlayer() board.Agent {
-    return s.current   // valeurs 10, 11, 12 (evitent la collision avec Draw=3)
+func (s *ThreePlayerGame) CurrentPlayer() board.PlayerID {
+    return s.current   // valeurs 10, 11, 12
 }
 
-func (s *ThreePlayerGame) PreviousPlayer() board.Agent {
+func (s *ThreePlayerGame) PreviousPlayer() board.PlayerID {
     return s.previous  // le joueur qui vient de jouer
 }
 ```
@@ -130,6 +108,6 @@ func (s *ThreePlayerGame) PreviousPlayer() board.Agent {
 ### 1 joueur (planification)
 
 ```go
-func (s *Planner) CurrentPlayer() board.Agent  { return 5 }
-func (s *Planner) PreviousPlayer() board.Agent { return 5 }
+func (s *Planner) CurrentPlayer() board.PlayerID  { return 5 }
+func (s *Planner) PreviousPlayer() board.PlayerID { return 5 }
 ```

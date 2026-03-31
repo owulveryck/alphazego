@@ -14,49 +14,48 @@
 // a 2 joueurs (morpion), a 1 joueur (planification) ou a N joueurs
 // (negociation multilaterale) peut etre resolu par le meme moteur.
 //
+// # Types
+//
+// [PlayerID] identifie un decideur (joueur, partie, acteur). C'est un type
+// distinct base sur int. La methode [State.Evaluate] retourne directement un
+// PlayerID : le gagnant si la partie est finie, [NoPlayer] si elle est en
+// cours, ou [DrawResult] en cas de match nul. Il n'y a pas de type Result
+// separe : le resultat EST l'identifiant du gagnant.
+//
 // Pour utiliser ce framework, implementer [State] avec la logique
 // specifique au probleme. L'implementation [tictactoe.TicTacToe] sert
 // d'exemple de reference pour un jeu a deux joueurs.
-//
-// Les types [Agent], [Result] et [ID] sont des alias de types primitifs,
-// volontairement minimalistes pour ne pas imposer de structure aux
-// implementations.
 package board
 
-// Agent identifie un decideur dans le probleme. Dans un jeu de plateau,
+// PlayerID identifie un decideur dans le probleme. Dans un jeu de plateau,
 // c'est un joueur. Dans une negociation, c'est une partie. Dans un probleme
 // de planification, c'est un acteur.
-type Agent = uint8
+//
+// PlayerID est aussi utilise comme resultat de [State.Evaluate] : la valeur
+// retournee est le PlayerID du gagnant, [NoPlayer] si le jeu est en cours,
+// ou [DrawResult] en cas de match nul.
+type PlayerID int
 
 // Move represente une action ou une position. Dans un jeu de plateau,
 // c'est une case. Dans un probleme generique, c'est un identifiant d'action.
 type Move = uint8
-
-// Result represente l'issue de l'evaluation d'un etat.
-type Result = uint8
 
 // ID est un identifiant unique pour un etat. Deux etats identiques
 // (meme configuration, meme agent courant) doivent produire le meme ID.
 type ID = []byte
 
 const (
-	// Player1 est le premier agent (typiquement X au morpion).
-	Player1 Agent = 1
-	// Player2 est le second agent (typiquement O au morpion).
-	Player2 Agent = 2
-	// EmptyPlace represente une position inoccupee.
-	EmptyPlace Move = 0
-	// GameOn indique que le probleme n'est pas encore resolu.
-	GameOn Result = 0
-	// Player1Wins indique que l'agent 1 a atteint son objectif.
-	Player1Wins Result = Player1
-	// Player2Wins indique que l'agent 2 a atteint son objectif.
-	Player2Wins Result = Player2
-	// Draw indique qu'aucun agent n'a atteint son objectif (match nul, impasse).
-	Draw Result = 3
-	// Stalemat indique un blocage : un agent ne peut pas agir,
-	// mais aucune condition de victoire n'est remplie.
-	Stalemat Result = 4
+	// NoPlayer indique qu'aucun joueur n'est concerne. Utilise comme valeur de
+	// retour de [State.Evaluate] pour indiquer que le jeu est en cours, et comme
+	// contenu d'une position vide sur un plateau.
+	NoPlayer PlayerID = 0
+	// DrawResult indique un match nul : la partie est terminee mais aucun
+	// joueur n'a gagne.
+	DrawResult PlayerID = -1
+	// Player1 est le premier joueur (typiquement X au morpion).
+	Player1 PlayerID = 1
+	// Player2 est le second joueur (typiquement O au morpion).
+	Player2 PlayerID = 2
 )
 
 // State represente l'etat d'un probleme de decision sequentiel a un ou
@@ -78,17 +77,19 @@ const (
 //   - Diagnostic : CurrentPlayer = optique (patient/medecin), PossibleMoves = examens/traitements
 //   - Planification : CurrentPlayer = agent, PossibleMoves = actions possibles
 type State interface {
-	// CurrentPlayer retourne l'agent dont c'est le tour d'agir.
-	CurrentPlayer() Agent
-	// PreviousPlayer retourne l'agent qui a effectue le coup menant a cet etat.
+	// CurrentPlayer retourne le joueur dont c'est le tour d'agir.
+	CurrentPlayer() PlayerID
+	// PreviousPlayer retourne le joueur qui a effectue le coup menant a cet etat.
 	// Pour l'etat initial (aucun coup joue), le comportement est defini par
-	// l'implementation (typiquement 0 ou le dernier joueur dans l'ordre de jeu).
+	// l'implementation (typiquement [NoPlayer] ou le dernier joueur dans l'ordre de jeu).
 	// Cette methode permet au moteur MCTS de determiner "qui a joue ici" sans
 	// connaitre la logique de tour (alternance, round-robin, etc.).
-	PreviousPlayer() Agent
-	// Evaluate retourne l'etat courant du probleme : [GameOn] si le probleme
-	// est en cours, ou l'issue terminale ([Player1Wins], [Player2Wins], [Draw]).
-	Evaluate() Result
+	PreviousPlayer() PlayerID
+	// Evaluate retourne l'issue du probleme :
+	//   - [NoPlayer] (0) si le probleme est en cours
+	//   - [DrawResult] (-1) en cas de match nul
+	//   - un PlayerID positif si ce joueur a gagne
+	Evaluate() PlayerID
 	// PossibleMoves retourne tous les etats atteignables depuis l'etat courant
 	// en effectuant une action. Chaque State retourne au prochain agent comme
 	// CurrentPlayer.
@@ -122,14 +123,6 @@ type Evaluator interface {
 	//     1 signifie victoire certaine du joueur courant,
 	//     -1 signifie defaite certaine, 0 signifie match nul.
 	Evaluate(state State) (policy []float64, value float64)
-}
-
-// PlayerWins retourne le [Result] correspondant a la victoire de l'agent donne.
-// Cette fonction formalise la convention Result(a) : pour les agents 1 et 2,
-// cela correspond a [Player1Wins] et [Player2Wins]. Pour N joueurs au-dela
-// de 2, le Result est l'Agent lui-meme.
-func PlayerWins(a Agent) Result {
-	return Result(a)
 }
 
 // Tensorizable est implemente par les etats de jeu qui peuvent etre

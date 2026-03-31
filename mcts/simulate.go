@@ -8,13 +8,13 @@ import (
 
 // Simulate performs a random playthrough from the current game state until a terminal state is reached.
 // It selects moves randomly and advances the game state until it can be evaluated as a win, lose, or draw.
-func (node *MCTSNode) Simulate() board.Result {
+func (node *MCTSNode) Simulate() board.PlayerID {
 	// Start from the current state of the node.
 	currentState := node.state
 
 	// Continue simulating random moves until the game reaches a terminal state.
-	// The game is in a terminal state if it is not in the 'GameOn' state anymore.
-	for currentState.Evaluate() == board.GameOn {
+	// The game is in a terminal state if it is not in the NoPlayer state anymore.
+	for currentState.Evaluate() == board.NoPlayer {
 		possibleMoves := currentState.PossibleMoves() // Get all possible moves from the current state.
 
 		// Randomly select one of the possible moves.

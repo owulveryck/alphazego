@@ -37,7 +37,7 @@ func ExampleTicTacToe_Evaluate_gameOn() {
 	game.Play(4) // O at center
 
 	result := game.Evaluate()
-	fmt.Println("Game still in progress:", result == board.GameOn)
+	fmt.Println("Game still in progress:", result == board.NoPlayer)
 	// Output:
 	// Game still in progress: true
 }
@@ -52,7 +52,7 @@ func ExampleTicTacToe_Evaluate_player1Wins() {
 	game.Play(2) // X wins!
 
 	result := game.Evaluate()
-	fmt.Println("Player1 wins:", result == board.Player1Wins)
+	fmt.Println("Player1 wins:", result == board.Player1)
 	// Output:
 	// Player1 wins: true
 }
@@ -74,7 +74,7 @@ func ExampleTicTacToe_Evaluate_draw() {
 	game.Play(7) // X
 
 	result := game.Evaluate()
-	fmt.Println("Draw:", result == board.Draw)
+	fmt.Println("Draw:", result == board.DrawResult)
 	// Output:
 	// Draw: true
 }
@@ -111,6 +111,23 @@ func ExampleTicTacToe_PossibleMoves_alternation() {
 	// All child states have Player2's turn: true
 }
 
+func ExampleTicTacToe_PreviousPlayer() {
+	game := tictactoe.NewTicTacToe()
+	// Sur un plateau vierge, le joueur courant est Player1 ;
+	// PreviousPlayer retourne Player2 (le "dernier" dans l'alternance).
+	fmt.Println("Previous player (initial):", game.PreviousPlayer())
+
+	game.Play(4) // Player1 joue au centre
+	fmt.Println("Previous player after P1 plays:", game.PreviousPlayer())
+
+	game.Play(0) // Player2 joue en haut a gauche
+	fmt.Println("Previous player after P2 plays:", game.PreviousPlayer())
+	// Output:
+	// Previous player (initial): 2
+	// Previous player after P1 plays: 1
+	// Previous player after P2 plays: 2
+}
+
 func ExampleTicTacToe_GetMoveFromState() {
 	game := tictactoe.NewTicTacToe()
 	game.Play(0) // Player1 at position 0
@@ -142,23 +159,6 @@ func ExampleTicTacToe_ID() {
 	// Output:
 	// Same state, same ID: true
 	// Different state, same ID: false
-}
-
-func ExampleTicTacToe_PreviousPlayer() {
-	game := tictactoe.NewTicTacToe()
-	// Sur un plateau vierge, le joueur courant est Player1 ;
-	// PreviousPlayer retourne Player2 (le "dernier" dans l'alternance).
-	fmt.Println("Previous player (initial):", game.PreviousPlayer())
-
-	game.Play(4) // Player1 joue au centre
-	fmt.Println("Previous player after P1 plays:", game.PreviousPlayer())
-
-	game.Play(0) // Player2 joue en haut a gauche
-	fmt.Println("Previous player after P2 plays:", game.PreviousPlayer())
-	// Output:
-	// Previous player (initial): 2
-	// Previous player after P1 plays: 1
-	// Previous player after P2 plays: 2
 }
 
 func ExampleTicTacToe_CurrentPlayer() {

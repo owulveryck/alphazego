@@ -112,7 +112,7 @@ func (r *RolloutEvaluator) Evaluate(state board.State) ([]float64, float64) {
 
     // Value par rollout aleatoire
     currentState := state
-    for currentState.Evaluate() == board.GameOn {
+    for currentState.Evaluate() == board.NoPlayer {
         possibleMoves := currentState.PossibleMoves()
         currentState = possibleMoves[rand.Intn(len(possibleMoves))]
     }
@@ -121,7 +121,7 @@ func (r *RolloutEvaluator) Evaluate(state board.State) ([]float64, float64) {
     if result == current {
         return policy, 1.0
     }
-    if result == board.Draw {
+    if result == board.DrawResult {
         return policy, 0.0
     }
     return policy, -1.0

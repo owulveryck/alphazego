@@ -1,111 +1,124 @@
-# Qu'est-ce qu'un Agent ?
+# Qu'est-ce qu'un PlayerID ?
 
 ## L'intuition
 
-Un Agent est un **decideur** : une entite qui prend des decisions dans un probleme sequentiel. Le mot "agent" est volontairement generique. Selon le domaine, il designe des choses tres differentes :
+Un `PlayerID` identifie un **decideur** : une entite qui prend des decisions dans un probleme sequentiel. Le mot "joueur" est utilise par convention, mais le concept est plus large. Selon le domaine, il designe des choses tres differentes :
 
-| Domaine | Agent | Exemple concret |
-|---------|-------|-----------------|
+| Domaine | PlayerID designe | Exemple concret |
+|---------|-----------------|-----------------|
 | Jeu de plateau | Un joueur | Joueur X au morpion |
 | Negociation | Une partie | L'acheteur, le vendeur |
 | Diagnostic medical | Un decideur | Le medecin, le patient |
 | Planification | Un acteur | Le planificateur |
 | Verification | Un role | Le systeme, l'attaquant |
 
-Ce que tous ces cas ont en commun : a chaque etape, **un agent agit**, puis le probleme passe a l'etape suivante.
+Ce que tous ces cas ont en commun : a chaque etape, **un decideur agit**, puis le probleme passe a l'etape suivante.
 
-## Agent dans le code
+## PlayerID dans le code
 
-Dans le framework, `Agent` est un simple `uint8`. C'est un identifiant numerique, rien de plus :
+Dans le framework, `PlayerID` est un type distinct base sur `int` :
 
 ```go
-type Agent = uint8
+type PlayerID int
 ```
 
-Ce choix est delibere : un `uint8` est le type le plus leger possible. Il n'impose aucune structure, aucune hierarchie, aucune semantique. C'est a l'implementation de `State` de donner un sens a chaque valeur d'Agent.
+Ce choix est delibere :
 
-## Comment le MCTS utilise les agents
+- **Type distinct** : empeche les confusions avec d'autres `int` du code (le compilateur refuse les melanges)
+- **Valeurs negatives possibles** : `DrawResult = -1` ne peut jamais entrer en collision avec un identifiant de joueur positif
+- **Pas de type Result separe** : `Evaluate()` retourne un `PlayerID` — le gagnant, ou `NoPlayer`/`DrawResult`
 
-Le moteur MCTS ne sait presque rien des agents. Il sait seulement deux choses :
+Les constantes predefinies :
 
-1. **Qui doit agir maintenant ?** → `CurrentPlayer() Agent`
-2. **Qui a agi pour arriver ici ?** → `PreviousPlayer() Agent`
+```go
+const (
+    NoPlayer   PlayerID = 0   // jeu en cours / case vide
+    DrawResult PlayerID = -1  // match nul
+    Player1    PlayerID = 1   // premier joueur
+    Player2    PlayerID = 2   // second joueur
+)
+```
 
-C'est tout. Le MCTS ne connait pas le nombre d'agents, ne sait pas comment ils alternent, et ne sait pas ce que leurs identifiants signifient. Il utilise ces deux informations pour une seule chose : **crediter les victoires au bon agent** lors de la retropropagation.
+## Comment le MCTS utilise les PlayerID
+
+Le moteur MCTS ne sait presque rien des joueurs. Il sait seulement deux choses :
+
+1. **Qui doit agir maintenant ?** → `CurrentPlayer() PlayerID`
+2. **Qui a agi pour arriver ici ?** → `PreviousPlayer() PlayerID`
+
+C'est tout. Le MCTS ne connait pas le nombre de joueurs, ne sait pas comment ils alternent, et ne sait pas ce que leurs identifiants signifient. Il utilise ces deux informations pour une seule chose : **crediter les victoires au bon joueur** lors de la retropropagation.
 
 ```
 Noeud : CurrentPlayer = 2, PreviousPlayer = 1
-        → L'agent 1 a joue le coup menant ici.
-        → Si le resultat final est "Agent 1 gagne",
+        → Le joueur 1 a joue le coup menant ici.
+        → Si Evaluate() retourne Player1,
           ce noeud recoit +1 win.
 ```
 
-## La convention Agent = Result
+## La convention Evaluate = PlayerID du gagnant
 
-Le framework utilise une convention simple pour relier agents et resultats :
+Le framework utilise une convention simple pour relier joueurs et resultats :
 
-> **Quand un agent gagne, le `Result` est egal a l'`Agent`.**
+> **Quand un joueur gagne, `Evaluate()` retourne son `PlayerID`.**
 
-Autrement dit, `Result(a)` signifie "l'agent `a` a gagne". C'est ce que verifie la retropropagation :
+C'est ce que verifie la retropropagation :
 
 ```go
 if result == n.state.PreviousPlayer() {
-    n.wins += 1   // l'agent qui a joue ici a gagne
+    n.wins += 1   // le joueur qui a joue ici a gagne
 }
 ```
 
-Cette convention fonctionne pour n'importe quel nombre d'agents. Que le jeu ait 1, 2 ou 10 agents, la comparaison `result == agent` reste valide.
+Cette convention fonctionne pour n'importe quel nombre de joueurs. Que le jeu ait 1, 2 ou 10 joueurs, la comparaison `result == playerID` reste valide. Et comme `DrawResult = -1`, il n'y a jamais de collision avec un identifiant de joueur.
 
-## Un agent, deux agents, N agents
+## Un joueur, deux joueurs, N joueurs
 
-### 2 agents (cas de reference)
+### 2 joueurs (cas de reference)
 
-Le morpion est le cas classique. Deux agents alternent : quand l'un joue, c'est au tour de l'autre. La logique de tour est triviale : `PreviousPlayer = 3 - CurrentPlayer` (puisque `3 - 1 = 2` et `3 - 2 = 1`).
+Le morpion est le cas classique. Deux joueurs alternent : quand l'un joue, c'est au tour de l'autre. La logique de tour est triviale : `PreviousPlayer = 3 - CurrentPlayer` (puisque `3 - 1 = 2` et `3 - 2 = 1`).
 
-Dans ce cas, le jeu est **adversarial** : ce qui est bon pour un agent est mauvais pour l'autre. Le MCTS exploite cette propriete dans `BackpropagateValue` (chemin AlphaZero) en inversant le signe de la valeur a chaque niveau de l'arbre.
+Dans ce cas, le jeu est **adversarial** : ce qui est bon pour un joueur est mauvais pour l'autre. Le MCTS exploite cette propriete dans `BackpropagateValue` (chemin AlphaZero) en inversant le signe de la valeur a chaque niveau de l'arbre.
 
-### 1 agent
+### 1 joueur
 
-Un probleme a un seul agent (planification, optimisation) est modelisable : l'unique agent explore un arbre de decisions. `CurrentPlayer()` et `PreviousPlayer()` retournent toujours le meme agent. Le MCTS explore l'arbre normalement, et la retropropagation credite toujours le meme agent.
+Un probleme a un seul joueur (planification, optimisation) est modelisable : l'unique joueur explore un arbre de decisions. `CurrentPlayer()` et `PreviousPlayer()` retournent toujours le meme joueur. Le MCTS explore l'arbre normalement, et la retropropagation credite toujours le meme joueur.
 
-### N agents
+### N joueurs
 
 Pour N > 2, chaque implementation de `State` definit sa propre logique de tour via `PreviousPlayer()`. Le chemin MCTS pur (rollouts + `Backpropagate` discret) fonctionne directement. Le chemin AlphaZero (`BackpropagateValue` avec alternance de signe) est limite a 2 joueurs pour l'instant.
 
-**Attention aux collisions** : les constantes `Draw = 3` et `Stalemat = 4` occupent les valeurs 3 et 4. Si un agent a l'identifiant 3, il est confondu avec un match nul. Pour les jeux a 3+ joueurs, utiliser des identifiants d'agents >= 5.
+## Pourquoi pas une interface Player plus riche ?
 
-## Pourquoi ne pas utiliser une interface plus riche ?
+On pourrait imaginer un type `Player` avec des methodes (nom, couleur, strategie...). Le choix d'un simple `int` nomme est delibere :
 
-On pourrait imaginer un type `Agent` avec des methodes (nom, couleur, strategie...). Le choix d'un simple `uint8` est delibere :
-
-- **Pas de couplage** : le MCTS ne depend d'aucune structure d'agent
-- **Performance** : les comparaisons `result == agent` sont des comparaisons d'entiers
+- **Pas de couplage** : le MCTS ne depend d'aucune structure de joueur
+- **Performance** : les comparaisons `result == playerID` sont des comparaisons d'entiers
 - **Flexibilite** : n'importe quel probleme peut attribuer des identifiants comme il veut
 - **Simplicite** : moins de code, moins de surface d'API, moins de bugs
 
-La richesse semantique (nom du joueur, couleur, strategie) est dans l'implementation de `State`, pas dans le type `Agent` lui-meme.
+La richesse semantique (nom du joueur, couleur, strategie) est dans l'implementation de `State`, pas dans le type `PlayerID` lui-meme.
 
-## `board.Agent` vs agent agentique
+## `board.PlayerID` vs agent agentique
 
-Le mot "agent" a deux sens qui se superposent dans ce projet :
+Le mot "agent" a deux sens qui se superposent dans les projets de recherche en IA :
 
-| | `board.Agent` | Agent agentique |
+| | `board.PlayerID` | Agent agentique |
 |---|---|---|
-| **Nature** | Un identifiant (`uint8`) | Un systeme autonome |
+| **Nature** | Un identifiant (`int`) | Un systeme autonome |
 | **Question** | "A qui le tour ?" | "Qui decide ?" |
 | **Exemples** | `Player1 = 1`, `Player2 = 2` | Un humain, un MCTS, un LLM |
 
-Un `board.Agent` est un **role** dans le probleme. Un agent agentique est le **systeme** qui occupe ce role. Le framework ne fait aucune distinction : il voit des roles qui alternent, independamment de ce qui se passe "dans la tete" de chaque role.
+Un `PlayerID` est un **role** dans le probleme. Un agent agentique est le **systeme** qui occupe ce role. Le framework ne fait aucune distinction : il voit des roles qui alternent, independamment de ce qui se passe "dans la tete" de chaque role.
 
 Au morpion par exemple :
 
 ```
 Partie de morpion
 │
-├── Role 1 (board.Agent = 1) ← occupe par : Humain
+├── Role 1 (PlayerID = 1) ← occupe par : Humain
 │   └── decide seul (intuition, reflexion)
 │
-└── Role 2 (board.Agent = 2) ← occupe par : Agent MCTS
+└── Role 2 (PlayerID = 2) ← occupe par : Agent MCTS
     │
     ├── Mecanisme de recherche : MCTS (explore l'arbre)
     │
@@ -114,7 +127,7 @@ Partie de morpion
         └── Value : "est-on bien ou mal parti ?"
 ```
 
-L'humain et le MCTS occupent chacun un `board.Agent`, mais ce sont deux agents agentiques tres differents. L'un reflechit, l'autre calcule. Le framework les traite de maniere identique.
+L'humain et le MCTS occupent chacun un `PlayerID`, mais ce sont deux agents agentiques tres differents. L'un reflechit, l'autre calcule. Le framework les traite de maniere identique.
 
 ## L'Evaluator comme sous-agent
 
@@ -186,13 +199,15 @@ Le MCTS n'apporte pas d'intelligence — il apporte de la **rigueur dans l'explo
 ## Resume
 
 ```
-board.Agent             Un role (identifiant uint8)
-Agent agentique         Un systeme qui occupe un role (humain, MCTS, LLM)
+PlayerID                Un role (identifiant int distinct)
+NoPlayer (0)            Jeu en cours / case vide
+DrawResult (-1)         Match nul (ne collisionne jamais avec un joueur)
+Player1 (1), Player2(2) Joueurs predefinis pour les jeux a 2 joueurs
 CurrentPlayer()         Quel role doit agir ?
 PreviousPlayer()        Quel role a agi pour arriver ici ?
-Result(agent)           Convention : ce role a gagne
+Evaluate() == PlayerID  Ce role a gagne
 Evaluator               Sous-agent qui fournit policy + value
 MCTS                    Orchestrateur qui fournit le mecanisme de recherche
 ```
 
-`board.Agent` est la brique la plus simple du framework : un identifiant que le MCTS manipule sans chercher a comprendre ce qu'il represente. L'intelligence est dans l'`Evaluator`. La recherche est dans le MCTS. Le domaine est dans l'implementation de `State`. Que le probleme soit un jeu de plateau, une negociation, ou un raisonnement par LLM, le mecanisme est le meme.
+`PlayerID` est la brique la plus simple du framework : un identifiant que le MCTS manipule sans chercher a comprendre ce qu'il represente. L'intelligence est dans l'`Evaluator`. La recherche est dans le MCTS. Le domaine est dans l'implementation de `State`. Que le probleme soit un jeu de plateau, une negociation, ou un raisonnement par LLM, le mecanisme est le meme.

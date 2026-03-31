@@ -183,7 +183,7 @@ if !node.IsTerminal() && !node.IsFullyExpanded() {
 }
 ```
 
-La fonction `terminalValue` convertit un `board.Result` discret en valeur continue du point de vue du joueur courant.
+La fonction `terminalValue` convertit un `board.PlayerID` discret en valeur continue du point de vue du joueur courant.
 
 ## Etape 9 : Adapter la backpropagation
 
@@ -204,7 +204,7 @@ func (node *MCTSNode) BackpropagateValue(value float64) {
 }
 ```
 
-L'`Backpropagate(result board.Result)` existant reste inchange pour le chemin MCTS pur.
+L'`Backpropagate(result board.PlayerID)` existant reste inchange pour le chemin MCTS pur.
 
 ## Etape 10 : Implementer l'Evaluator avec ONNX Runtime
 

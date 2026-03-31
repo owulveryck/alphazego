@@ -53,7 +53,7 @@ type MCTSNode struct {
 
 // IsTerminal returns true if this node represents a terminal game state (win, loss, or draw).
 func (n *MCTSNode) IsTerminal() bool {
-	return n.state.Evaluate() != board.GameOn
+	return n.state.Evaluate() != board.NoPlayer
 }
 
 // IsFullyExpanded returns true if all possible moves from this state have been expanded as children.

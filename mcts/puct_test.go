@@ -281,7 +281,7 @@ func TestTerminalValue_Player1Wins(t *testing.T) {
 
 func TestTerminalValue_Draw(t *testing.T) {
 	ttt := playMoves(4, 0, 2, 6, 3, 5, 1, 7, 8)
-	if ttt.Evaluate() != board.Draw {
+	if ttt.Evaluate() != board.DrawResult {
 		t.Skipf("sequence didn't produce a draw, got %d", ttt.Evaluate())
 	}
 	v := terminalValue(ttt)
@@ -325,7 +325,7 @@ func (r *rolloutEvaluator) Evaluate(state board.State) ([]float64, float64) {
 	}
 	// Perform a random rollout to estimate value
 	currentState := state
-	for currentState.Evaluate() == board.GameOn {
+	for currentState.Evaluate() == board.NoPlayer {
 		possibleMoves := currentState.PossibleMoves()
 		currentState = possibleMoves[rand.Intn(len(possibleMoves))]
 	}
@@ -334,7 +334,7 @@ func (r *rolloutEvaluator) Evaluate(state board.State) ([]float64, float64) {
 	if result == current {
 		return policy, 1.0
 	}
-	if result == board.Draw {
+	if result == board.DrawResult {
 		return policy, 0.0
 	}
 	return policy, -1.0

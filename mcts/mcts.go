@@ -50,7 +50,7 @@ func terminalValue(s board.State) float64 {
 		// L'adversaire (qui a joue le dernier coup) a gagne → defaite pour le joueur courant
 		return -1.0
 	}
-	if result == board.Draw {
+	if result == board.DrawResult {
 		return 0.0
 	}
 	// Le joueur courant a gagne (cas rare dans un etat terminal ou c'est a lui de jouer)
