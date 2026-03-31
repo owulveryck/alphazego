@@ -115,14 +115,15 @@ Le MCTS ne connait pas les regles du morpion. Il manipule des **interfaces** def
 
 ```go
 type State interface {
-    CurrentPlayer() Agent       // Qui doit jouer ?
-    Evaluate() Result           // La partie est-elle finie ? Qui a gagne ?
-    PossibleMoves() []State     // Quels sont les coups possibles ?
-    BoardID() []byte            // Identifiant unique de la position
+    CurrentPlayer() Agent       // Quel agent doit agir ?
+    PreviousPlayer() Agent      // Quel agent a effectue le dernier coup ?
+    Evaluate() Result           // Le probleme est-il resolu ? Quelle issue ?
+    PossibleMoves() []State     // Quels sont les etats atteignables ?
+    ID() []byte                 // Identifiant unique de l'etat
 }
 ```
 
-Cela signifie qu'on peut brancher n'importe quel jeu sur le MCTS, a condition qu'il implemente cette interface. Le morpion est un premier exemple simple.
+Cette interface est **generique** : elle ne presuppose ni un jeu de plateau, ni un nombre fixe de joueurs. Tout probleme de decision sequentiel a un ou plusieurs agents peut etre modelise ainsi -- jeux, negociations, planification, etc. `PreviousPlayer()` permet au moteur MCTS de savoir qui a joue le dernier coup sans connaitre la logique de tour. Le morpion est un premier exemple simple (deux joueurs en alternance).
 
 ### Le morpion
 
@@ -217,7 +218,7 @@ Les methodes utilitaires :
 
 ### 2. Expansion (`expand.go`)
 
-`Expand` ajoute **un seul** nouvel enfant a chaque appel. Il determine les coups non encore explores en comparant les `BoardID` des enfants existants avec ceux des coups possibles :
+`Expand` ajoute **un seul** nouvel enfant a chaque appel. Il determine les coups non encore explores en comparant les `ID` des enfants existants avec ceux des coups possibles :
 
 ```go
 func (node *MCTSNode) Expand() *MCTSNode {
@@ -225,11 +226,11 @@ func (node *MCTSNode) Expand() *MCTSNode {
 
     existingIDs := make(map[string]bool)
     for _, child := range node.children {
-        existingIDs[string(child.state.BoardID())] = true
+        existingIDs[string(child.state.ID())] = true
     }
 
     for _, move := range possibleMoves {
-        if !existingIDs[string(move.BoardID())] {
+        if !existingIDs[string(move.ID())] {
             child := &MCTSNode{
                 state:    move,
                 parent:   node,

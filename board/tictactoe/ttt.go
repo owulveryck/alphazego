@@ -28,10 +28,10 @@ type TicTacToe struct {
 	PlayerTurn uint8
 }
 
-// BoardID returns a unique identifier for this board state.
+// ID returns a unique identifier for this board state.
 // The ID is the board cells concatenated with the current player byte,
 // producing a 10-byte slice.
-func (tictactoe *TicTacToe) BoardID() []byte {
+func (tictactoe *TicTacToe) ID() []byte {
 	return append(tictactoe.board, tictactoe.PlayerTurn)
 }
 
@@ -67,6 +67,13 @@ func (t *TicTacToe) Play(p board.Move) {
 // CurrentPlayer returns the player whose turn it is to play.
 func (t *TicTacToe) CurrentPlayer() board.Agent {
 	return t.PlayerTurn
+}
+
+// PreviousPlayer retourne l'agent qui a joue le dernier coup.
+// Au morpion, c'est l'adversaire du joueur courant (alternance stricte a deux joueurs).
+// Pour l'etat initial, retourne Player2 (le "dernier" dans l'ordre de jeu).
+func (t *TicTacToe) PreviousPlayer() board.Agent {
+	return 3 - t.PlayerTurn
 }
 
 // Evaluate checks the board for a winner or draw.
@@ -133,4 +140,45 @@ var winningPositions = [][]uint8{
 	{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, // Rows
 	{0, 3, 6}, {1, 4, 7}, {2, 5, 8}, // Columns
 	{0, 4, 8}, {2, 4, 6}, // Diagonals
+}
+
+// Features retourne l'etat du morpion sous forme de tenseur aplati [3 * 3 * 3] = 27 float32.
+//
+//   - Plan 0 (indices 0-8) : positions du joueur courant (1.0 si occupee, 0.0 sinon)
+//   - Plan 1 (indices 9-17) : positions de l'adversaire
+//   - Plan 2 (indices 18-26) : indicateur du joueur courant (1.0 si Player1, 0.0 si Player2)
+func (t *TicTacToe) Features() []float32 {
+	features := make([]float32, 3*3*3) // [3][3][3]
+	current := t.CurrentPlayer()
+	opponent := 3 - current
+
+	for i := 0; i < BoardSize; i++ {
+		if t.board[i] == current {
+			features[i] = 1.0 // Plan 0 : joueur courant
+		}
+		if t.board[i] == opponent {
+			features[9+i] = 1.0 // Plan 1 : adversaire
+		}
+	}
+
+	// Plan 2 : indicateur du joueur courant
+	val := float32(0.0)
+	if current == board.Player1 {
+		val = 1.0
+	}
+	for i := 18; i < 27; i++ {
+		features[i] = val
+	}
+
+	return features
+}
+
+// FeatureShape retourne les dimensions du tenseur : 3 canaux, plateau 3x3.
+func (t *TicTacToe) FeatureShape() [3]int {
+	return [3]int{3, 3, 3}
+}
+
+// ActionSize retourne le nombre total d'actions possibles au morpion (9 cases).
+func (t *TicTacToe) ActionSize() int {
+	return BoardSize
 }

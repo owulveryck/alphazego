@@ -17,13 +17,49 @@ func NewMCTS() *MCTS {
 }
 
 // MCTS holds the state for the Monte Carlo Tree Search.
+// En mode MCTS pur (cree par [NewMCTS]), le champ evaluator est nil et
+// l'algorithme utilise des rollouts aleatoires avec UCB1.
+// En mode AlphaZero (cree par [NewAlphaMCTS]), l'evaluator fournit policy et
+// value, et la selection utilise PUCT.
 type MCTS struct {
-	inventory map[string]*MCTSNode // Stores nodes by their state BoardID for potential reuse within a search.
+	inventory map[string]*MCTSNode // Stores nodes by their state ID for potential reuse within a search.
+	evaluator board.Evaluator      // nil = MCTS pur, non-nil = AlphaZero
+	cpuct     float64              // constante d'exploration pour PUCT (utilise uniquement avec evaluator)
+}
+
+// NewAlphaMCTS initialise un MCTS guide par un reseau de neurones (style AlphaZero).
+// L'evaluateur fournit une policy (priors) et une value pour chaque position,
+// remplacant les rollouts aleatoires. Le parametre cpuct controle l'exploration
+// dans la formule PUCT (typiquement entre 1.0 et 5.0).
+func NewAlphaMCTS(eval board.Evaluator, cpuct float64) *MCTS {
+	return &MCTS{
+		inventory: make(map[string]*MCTSNode),
+		evaluator: eval,
+		cpuct:     cpuct,
+	}
+}
+
+// terminalValue convertit le resultat d'un etat terminal en valeur continue
+// du point de vue du joueur courant (celui qui est a jouer).
+// Retourne 1.0 si le joueur courant a gagne, -1.0 s'il a perdu, 0.0 pour un nul.
+func terminalValue(s board.State) float64 {
+	result := s.Evaluate()
+	// Le joueur qui a joue le dernier coup
+	playerWhoMovedHere := s.PreviousPlayer()
+	if result == playerWhoMovedHere {
+		// L'adversaire (qui a joue le dernier coup) a gagne → defaite pour le joueur courant
+		return -1.0
+	}
+	if result == board.Draw {
+		return 0.0
+	}
+	// Le joueur courant a gagne (cas rare dans un etat terminal ou c'est a lui de jouer)
+	return 1.0
 }
 
 // GetOrCreateNode retrieves a node from the inventory or creates a new one if it doesn't exist.
 func (m *MCTS) GetOrCreateNode(s board.State, parent *MCTSNode) *MCTSNode {
-	boardID := string(s.BoardID())
+	boardID := string(s.ID())
 	if node, ok := m.inventory[boardID]; ok {
 		// TODO: Potentially update parent if a shorter path is found? Or handle graph structure explicitly.
 		// For now, just return the existing node.
@@ -60,35 +96,40 @@ func (m *MCTS) RunMCTS(s board.State, iterations int) board.State {
 			child := node.SelectChildUCB() // Select best child based on UCB
 			if child == nil {
 				// Should not happen if IsFullyExpanded is true and not terminal, but handle defensively.
-				log.Printf("Warning: SelectChildUCB returned nil for non-terminal, fully expanded node %v", string(node.state.BoardID()))
+				log.Printf("Warning: SelectChildUCB returned nil for non-terminal, fully expanded node %v", string(node.state.ID()))
 				break // Stop traversal for this iteration
 			}
 			node = child
 		}
 
-		// b. Expansion: If the selected node 'node' is not terminal and not fully expanded, expand it by adding one child.
-		var nodeToSimulate *MCTSNode
+		// b. Expansion + Evaluation + Backpropagation
 		if !node.IsTerminal() && !node.IsFullyExpanded() {
-			// Expand creates and returns the new child node
-			expandedNode := node.Expand() // Expand should add the node to m.inventory
-			if expandedNode != nil {
-				nodeToSimulate = expandedNode
+			if m.evaluator != nil {
+				// AlphaZero path: call the evaluator once to get policy + value,
+				// expand all children with priors, backpropagate the value.
+				policy, value := m.evaluator.Evaluate(node.state)
+				node.ExpandAll(policy)
+				node.BackpropagateValue(value)
 			} else {
-				// Expansion failed unexpectedly (e.g., no more valid moves found), simulate from current node.
-				log.Printf("Warning: Expansion failed for non-terminal, non-fully-expanded node %v", string(node.state.BoardID()))
-				nodeToSimulate = node
+				// Pure MCTS path: expand one child, random rollout, backpropagate result.
+				expandedNode := node.Expand()
+				if expandedNode == nil {
+					log.Printf("Warning: Expansion failed for non-terminal, non-fully-expanded node %v", string(node.state.ID()))
+					expandedNode = node
+				}
+				result := expandedNode.Simulate()
+				expandedNode.Backpropagate(result)
 			}
 		} else {
-			// If the node was terminal or already fully expanded (e.g., hit during selection), simulate from it.
-			nodeToSimulate = node
+			// Terminal or fully expanded node.
+			if m.evaluator != nil {
+				value := terminalValue(node.state)
+				node.BackpropagateValue(value)
+			} else {
+				result := node.Simulate()
+				node.Backpropagate(result)
+			}
 		}
-
-		// c. Simulation (Rollout): Simulate a random playout from the 'nodeToSimulate'.
-		// The result should be from the perspective of the player whose turn it is in nodeToSimulate.state.
-		result := nodeToSimulate.Simulate()
-
-		// d. Backpropagation: Update visit counts and win statistics back up the tree from 'nodeToSimulate' to the root.
-		nodeToSimulate.Backpropagate(result)
 	}
 
 	// 3. Select the best move from the root node's children.

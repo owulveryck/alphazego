@@ -41,6 +41,12 @@ type MCTSNode struct {
 	// the search explores a wide range of moves while also concentrating on promising areas.
 	visits float64
 
+	// prior est la probabilite a priori P(s,a) attribuee par le policy network.
+	// En MCTS pur, cette valeur est 0 (non utilisee). En mode AlphaZero,
+	// elle est fixee lors de l'expansion par l'Evaluator et utilisee dans la
+	// formule PUCT pour guider la selection.
+	prior float64
+
 	// mcts holds a reference back to the MCTS instance for inventory access during expansion.
 	mcts *MCTS
 }
@@ -55,12 +61,19 @@ func (n *MCTSNode) IsFullyExpanded() bool {
 	return len(n.children) >= len(n.state.PossibleMoves())
 }
 
-// SelectChildUCB selects the immediate child with the highest UCB1 score.
+// SelectChildUCB selects the immediate child with the highest score.
+// When an [Evaluator] is configured, it uses [MCTSNode.PUCT] (with prior probabilities).
+// Otherwise, it uses [MCTSNode.UCB1] (pure MCTS).
 func (n *MCTSNode) SelectChildUCB() *MCTSNode {
 	bestScore := math.Inf(-1)
 	var bestChild *MCTSNode
 	for _, child := range n.children {
-		score := child.UCB1()
+		var score float64
+		if n.mcts != nil && n.mcts.evaluator != nil {
+			score = child.PUCT()
+		} else {
+			score = child.UCB1()
+		}
 		if score > bestScore {
 			bestScore = score
 			bestChild = child

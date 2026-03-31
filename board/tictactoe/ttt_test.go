@@ -47,11 +47,11 @@ func TestCurrentPlayer(t *testing.T) {
 	}
 }
 
-func TestBoardID(t *testing.T) {
+func TestID(t *testing.T) {
 	ttt := NewTicTacToe()
-	id := ttt.BoardID()
+	id := ttt.ID()
 	if len(id) != BoardSize+1 {
-		t.Errorf("expected BoardID length %d, got %d", BoardSize+1, len(id))
+		t.Errorf("expected ID length %d, got %d", BoardSize+1, len(id))
 	}
 	// Last byte should be the current player
 	if id[BoardSize] != board.Player1 {
@@ -61,9 +61,9 @@ func TestBoardID(t *testing.T) {
 	// Two different states should have different IDs
 	ttt2 := NewTicTacToe()
 	ttt2.Play(0)
-	id2 := ttt2.BoardID()
+	id2 := ttt2.ID()
 	if string(id) == string(id2) {
-		t.Error("expected different BoardIDs for different states")
+		t.Error("expected different IDs for different states")
 	}
 }
 
@@ -180,6 +180,80 @@ func TestToBoardState(t *testing.T) {
 	states := toBoardState(games)
 	if len(states) != 2 {
 		t.Errorf("expected 2 states, got %d", len(states))
+	}
+}
+
+func TestFeatures(t *testing.T) {
+	ttt := NewTicTacToe()
+	features := ttt.Features()
+	if len(features) != 27 {
+		t.Fatalf("expected 27 features, got %d", len(features))
+	}
+	// Empty board: all features should be 0 except plan 2 (player indicator)
+	for i := 0; i < 18; i++ {
+		if features[i] != 0 {
+			t.Errorf("expected 0 at index %d for empty board, got %f", i, features[i])
+		}
+	}
+	// Player1 starts, so plan 2 should be all 1.0
+	for i := 18; i < 27; i++ {
+		if features[i] != 1.0 {
+			t.Errorf("expected 1.0 at index %d (player indicator), got %f", i, features[i])
+		}
+	}
+
+	// After Player1 plays at 0, Player2 plays at 4
+	ttt.Play(0)
+	ttt.Play(4)
+	// Now it's Player1's turn
+	features = ttt.Features()
+	// Plan 0 (current = Player1): position 0 should be 1.0
+	if features[0] != 1.0 {
+		t.Errorf("expected 1.0 at plan0[0] (Player1 piece), got %f", features[0])
+	}
+	// Plan 1 (opponent = Player2): position 4 should be 1.0
+	if features[9+4] != 1.0 {
+		t.Errorf("expected 1.0 at plan1[4] (Player2 piece), got %f", features[9+4])
+	}
+	// Player1's piece should NOT appear in plan 1
+	if features[9+0] != 0 {
+		t.Errorf("expected 0 at plan1[0], got %f", features[9+0])
+	}
+}
+
+func TestFeatures_Player2Turn(t *testing.T) {
+	ttt := NewTicTacToe()
+	ttt.Play(0) // Player1 plays, now Player2's turn
+	features := ttt.Features()
+	// Plan 2: Player2's turn, so indicator should be 0.0
+	for i := 18; i < 27; i++ {
+		if features[i] != 0.0 {
+			t.Errorf("expected 0.0 at index %d (Player2 turn), got %f", i, features[i])
+		}
+	}
+	// Plan 0 (current = Player2): position 0 should be 0 (that's Player1's piece)
+	if features[0] != 0 {
+		t.Errorf("expected 0 at plan0[0] (not current player's piece), got %f", features[0])
+	}
+	// Plan 1 (opponent = Player1): position 0 should be 1.0
+	if features[9+0] != 1.0 {
+		t.Errorf("expected 1.0 at plan1[0] (opponent piece), got %f", features[9+0])
+	}
+}
+
+func TestFeatureShape(t *testing.T) {
+	ttt := NewTicTacToe()
+	shape := ttt.FeatureShape()
+	expected := [3]int{3, 3, 3}
+	if shape != expected {
+		t.Errorf("expected %v, got %v", expected, shape)
+	}
+}
+
+func TestActionSize(t *testing.T) {
+	ttt := NewTicTacToe()
+	if ttt.ActionSize() != 9 {
+		t.Errorf("expected ActionSize 9, got %d", ttt.ActionSize())
 	}
 }
 

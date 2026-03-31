@@ -477,6 +477,71 @@ func TestRunMCTS_FullGame(t *testing.T) {
 	}
 }
 
+// --- Three-player mock state (validates N-player Backpropagate) ---
+
+// threePlayerState est un etat mock a 3 joueurs en round-robin.
+// Les joueurs sont 1, 2, 3. Le tour suivant est (current % 3) + 1.
+type threePlayerState struct {
+	current  board.Agent
+	previous board.Agent
+	result   board.Result
+	id       string
+}
+
+func (s *threePlayerState) CurrentPlayer() board.Agent   { return s.current }
+func (s *threePlayerState) PreviousPlayer() board.Agent  { return s.previous }
+func (s *threePlayerState) Evaluate() board.Result       { return s.result }
+func (s *threePlayerState) PossibleMoves() []board.State { return nil }
+func (s *threePlayerState) ID() board.ID                 { return []byte(s.id) }
+
+func TestBackpropagate_ThreePlayers(t *testing.T) {
+	// Simule une chaine de 3 noeuds : joueur 1 → joueur 2 → joueur 3
+	// avec un resultat ou le joueur 1 gagne (Result = 1).
+	root := &MCTSNode{state: &threePlayerState{current: 1, previous: 3, result: board.GameOn, id: "root"}}
+	child := &MCTSNode{state: &threePlayerState{current: 2, previous: 1, result: board.GameOn, id: "child"}, parent: root}
+	grandchild := &MCTSNode{state: &threePlayerState{current: 3, previous: 2, result: board.Result(1), id: "gchild"}, parent: child}
+
+	// Le joueur 1 gagne
+	grandchild.Backpropagate(board.Result(1))
+
+	// grandchild: PreviousPlayer = 2, result = 1 → pas de victoire pour le joueur 2
+	if grandchild.wins != 0 {
+		t.Errorf("expected grandchild wins=0 (player 2 moved here, player 1 won), got %f", grandchild.wins)
+	}
+	// child: PreviousPlayer = 1, result = 1 → victoire pour le joueur 1
+	if child.wins != 1 {
+		t.Errorf("expected child wins=1 (player 1 moved here and won), got %f", child.wins)
+	}
+	// root: PreviousPlayer = 3, result = 1 → pas de victoire pour le joueur 3
+	if root.wins != 0 {
+		t.Errorf("expected root wins=0 (player 3 moved here, player 1 won), got %f", root.wins)
+	}
+
+	// Toutes les visites doivent etre 1
+	if grandchild.visits != 1 || child.visits != 1 || root.visits != 1 {
+		t.Error("expected all nodes to have 1 visit")
+	}
+}
+
+func TestBackpropagate_ThreePlayers_Draw(t *testing.T) {
+	// Note : board.Draw vaut 3, ce qui entrerait en collision avec l'Agent 3.
+	// Pour un jeu a 3+ joueurs, l'implementation doit utiliser des valeurs de
+	// Result qui ne se chevauchent pas avec les identifiants d'agents.
+	// Ici on utilise des agents 10, 11, 12 pour eviter toute collision.
+	root := &MCTSNode{state: &threePlayerState{current: 10, previous: 12, result: board.GameOn, id: "root"}}
+	child := &MCTSNode{state: &threePlayerState{current: 11, previous: 10, result: board.GameOn, id: "child"}, parent: root}
+
+	child.Backpropagate(board.Draw)
+
+	// Tous les noeuds recoivent 0.5 pour un match nul
+	if child.wins != 0.5 {
+		t.Errorf("expected child wins=0.5 for draw, got %f", child.wins)
+	}
+	if root.wins != 0.5 {
+		t.Errorf("expected root wins=0.5 for draw, got %f", root.wins)
+	}
+}
+
 // --- Helper ---
 
 func playMoves(moves ...uint8) *tictactoe.TicTacToe {

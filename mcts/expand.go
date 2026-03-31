@@ -8,12 +8,12 @@ func (node *MCTSNode) Expand() *MCTSNode {
 	// Build a set of already-expanded board IDs
 	existingIDs := make(map[string]bool)
 	for _, child := range node.children {
-		existingIDs[string(child.state.BoardID())] = true
+		existingIDs[string(child.state.ID())] = true
 	}
 
 	// Find the first untried move and expand it
 	for _, move := range possibleMoves {
-		if !existingIDs[string(move.BoardID())] {
+		if !existingIDs[string(move.ID())] {
 			child := &MCTSNode{
 				state:    move,
 				parent:   node,
@@ -25,4 +25,24 @@ func (node *MCTSNode) Expand() *MCTSNode {
 		}
 	}
 	return nil
+}
+
+// ExpandAll cree des noeuds enfants pour tous les coups possibles,
+// en leur attribuant les priors fournis par le policy network.
+// Cette methode est utilisee par le chemin AlphaZero, ou le reseau
+// retourne une distribution de probabilites sur tous les coups legaux
+// en un seul appel. Les priors doivent etre dans le meme ordre que
+// [board.State.PossibleMoves].
+func (node *MCTSNode) ExpandAll(policy []float64) {
+	possibleMoves := node.state.PossibleMoves()
+	for i, move := range possibleMoves {
+		child := &MCTSNode{
+			state:    move,
+			parent:   node,
+			children: []*MCTSNode{},
+			prior:    policy[i],
+			mcts:     node.mcts,
+		}
+		node.children = append(node.children, child)
+	}
 }

@@ -129,19 +129,36 @@ func ExampleTicTacToe_GetMoveFromState() {
 	// Found move at position: 4
 }
 
-func ExampleTicTacToe_BoardID() {
+func ExampleTicTacToe_ID() {
 	game1 := tictactoe.NewTicTacToe()
 	game2 := tictactoe.NewTicTacToe()
 
-	// Same state produces the same BoardID
-	fmt.Println("Same state, same ID:", string(game1.BoardID()) == string(game2.BoardID()))
+	// Same state produces the same ID
+	fmt.Println("Same state, same ID:", string(game1.ID()) == string(game2.ID()))
 
-	// Different state produces a different BoardID
+	// Different state produces a different ID
 	game2.Play(0)
-	fmt.Println("Different state, same ID:", string(game1.BoardID()) == string(game2.BoardID()))
+	fmt.Println("Different state, same ID:", string(game1.ID()) == string(game2.ID()))
 	// Output:
 	// Same state, same ID: true
 	// Different state, same ID: false
+}
+
+func ExampleTicTacToe_PreviousPlayer() {
+	game := tictactoe.NewTicTacToe()
+	// Sur un plateau vierge, le joueur courant est Player1 ;
+	// PreviousPlayer retourne Player2 (le "dernier" dans l'alternance).
+	fmt.Println("Previous player (initial):", game.PreviousPlayer())
+
+	game.Play(4) // Player1 joue au centre
+	fmt.Println("Previous player after P1 plays:", game.PreviousPlayer())
+
+	game.Play(0) // Player2 joue en haut a gauche
+	fmt.Println("Previous player after P2 plays:", game.PreviousPlayer())
+	// Output:
+	// Previous player (initial): 2
+	// Previous player after P1 plays: 1
+	// Previous player after P2 plays: 2
 }
 
 func ExampleTicTacToe_CurrentPlayer() {

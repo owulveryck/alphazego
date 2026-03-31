@@ -124,6 +124,39 @@ func ExampleMCTS_RunMCTS_fullGame() {
 	// Moves played: true
 }
 
+func ExampleNewAlphaMCTS() {
+	// Create a simple evaluator for testing
+	eval := &exampleEvaluator{}
+
+	// Create an AlphaZero-style MCTS with the evaluator and cpuct=1.5
+	m := mcts.NewAlphaMCTS(eval, 1.5)
+	game := tictactoe.NewTicTacToe()
+
+	// Run MCTS with the evaluator guiding the search
+	bestState := m.RunMCTS(game, 100)
+	fmt.Println("AlphaMCTS result is not nil:", bestState != nil)
+	fmt.Println("Next player after move:", bestState.CurrentPlayer())
+	// Output:
+	// AlphaMCTS result is not nil: true
+	// Next player after move: 2
+}
+
+// exampleEvaluator is a simple evaluator with uniform policy and neutral value.
+type exampleEvaluator struct{}
+
+func (e *exampleEvaluator) Evaluate(state board.State) ([]float64, float64) {
+	moves := state.PossibleMoves()
+	n := len(moves)
+	if n == 0 {
+		return nil, 0.0
+	}
+	policy := make([]float64, n)
+	for i := range policy {
+		policy[i] = 1.0 / float64(n)
+	}
+	return policy, 0.0
+}
+
 func ExampleMCTS_GetOrCreateNode() {
 	m := mcts.NewMCTS()
 	game := tictactoe.NewTicTacToe()
