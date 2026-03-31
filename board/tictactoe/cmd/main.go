@@ -5,24 +5,39 @@ import (
 	"log"
 	"strconv"
 
+	"github.com/owulveryck/alphazego/board"
 	"github.com/owulveryck/alphazego/board/tictactoe"
+	"github.com/owulveryck/alphazego/mcts"
 )
 
 func main() {
 	ttt := tictactoe.NewTicTacToe()
 	var move string
-	for ttt.Evaluate() == 0 {
+	m := mcts.NewMCTS()
+	for ttt.Evaluate() == board.GameOn {
 		fmt.Println(ttt)
-		fmt.Print("Enter your move: ")
+		fmt.Print("Enter your move (0-8): ")
 		fmt.Scan(&move)
-		// Convert string to uint64
-		val, err := strconv.ParseUint(move, 10, 8) // Base 10, and up to 8 bits
+		val, err := strconv.ParseUint(move, 10, 8)
 		if err != nil {
 			log.Fatal(err)
 		}
-		// Convert uint64 to uint8 since
 		ttt.Play(uint8(val))
+		if ttt.Evaluate() != board.GameOn {
+			break
+		}
+		aiState := m.RunMCTS(ttt, 1000)
+		aiMove := board.State(ttt).(board.Playable).GetMoveFromState(aiState)
+		fmt.Printf("L'IA joue en %d\n", aiMove)
+		ttt.Play(aiMove)
 	}
 	fmt.Println(ttt)
-	fmt.Println("result: ", ttt.Evaluate())
+	switch ttt.Evaluate() {
+	case board.Player1Wins:
+		fmt.Println("Vous avez gagne !")
+	case board.Player2Wins:
+		fmt.Println("L'IA a gagne !")
+	case board.Draw:
+		fmt.Println("Match nul !")
+	}
 }

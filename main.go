@@ -14,21 +14,31 @@ func main() {
 	ttt := tictactoe.NewTicTacToe()
 	var move string
 	m := mcts.NewMCTS()
-	for ttt.Evaluate() == 0 {
+	for ttt.Evaluate() == board.GameOn {
 		fmt.Println(ttt)
-		fmt.Print("Enter your move: ")
+		fmt.Print("Enter your move (0-8): ")
 		fmt.Scan(&move)
-		// Convert string to uint64
-		val, err := strconv.ParseUint(move, 10, 8) // Base 10, and up to 8 bits
+		val, err := strconv.ParseUint(move, 10, 8)
 		if err != nil {
 			log.Fatal(err)
 		}
-		// Convert uint64 to uint8 since
 		ttt.Play(uint8(val))
-		ttt.Play(getNextMoveFromMCTS(m, ttt))
-		// Now run the MCTS and change the state
+		if ttt.Evaluate() != board.GameOn {
+			break
+		}
+		aiMove := getNextMoveFromMCTS(m, ttt)
+		fmt.Printf("L'IA joue en %d\n", aiMove)
+		ttt.Play(aiMove)
 	}
 	fmt.Println(ttt)
+	switch ttt.Evaluate() {
+	case board.Player1Wins:
+		fmt.Println("Vous avez gagne !")
+	case board.Player2Wins:
+		fmt.Println("L'IA a gagne !")
+	case board.Draw:
+		fmt.Println("Match nul !")
+	}
 }
 
 func getNextMoveFromMCTS(m *mcts.MCTS, s board.State) board.Move {
