@@ -9,7 +9,7 @@
 //	──┼───┼──
 //	6 | 7 | 8
 //
-// Each cell contains 0 (empty), 1 ([decision.Actor1] / X), or 2 ([decision.Actor2] / O).
+// Each cell contains 0 (empty), 1 (Cross / X), or 2 (Circle / O).
 package tictactoe
 
 import (
@@ -19,8 +19,12 @@ import (
 )
 
 // BoardSize is the number of cells on a tic-tac-toe board (3x3 = 9).
+const BoardSize = 9
+
+// Cross et Circle identifient les deux acteurs du morpion.
 const (
-	BoardSize = 9
+	Cross  decision.ActorID = 1 // X, premier acteur
+	Circle decision.ActorID = 2 // O, second acteur
 )
 
 // TicTacToe represents the state of a tic-tac-toe game.
@@ -52,7 +56,7 @@ func (tictactoe *TicTacToe) LastAction() int {
 // Actor1 goes first.
 func NewTicTacToe() *TicTacToe {
 	return &TicTacToe{
-		actorTurn: decision.Actor1,
+		actorTurn: Cross,
 	}
 }
 
@@ -67,7 +71,7 @@ func (t *TicTacToe) Play(p uint8) error {
 	if t.board[p] != 0 {
 		return fmt.Errorf("position %d déjà occupée", p)
 	}
-	if t.Evaluate() != decision.NoActor {
+	if t.Evaluate() != decision.Undecided {
 		return fmt.Errorf("la partie est terminée")
 	}
 	t.board[p] = uint8(t.actorTurn)
@@ -89,9 +93,9 @@ func (t *TicTacToe) PreviousActor() decision.ActorID {
 }
 
 // Evaluate checks the board for a winner or draw.
-// It returns [decision.NoActor] if the game is still in progress,
+// It returns [decision.Undecided] if the game is still in progress,
 // the winning [decision.ActorID] if an actor has three in a row,
-// or [decision.DrawResult] if all cells are filled with no winner.
+// or [decision.Stalemate] if all cells are filled with no winner.
 func (t *TicTacToe) Evaluate() decision.ActorID {
 	// Check all winning positions: rows, columns, and diagonals
 	for _, position := range winningPositions {
@@ -112,11 +116,11 @@ func (t *TicTacToe) Evaluate() decision.ActorID {
 		}
 	}
 	if draw {
-		return decision.DrawResult
+		return decision.Stalemate
 	}
 
 	// Game can continue
-	return decision.NoActor
+	return decision.Undecided
 }
 
 func toDecisionState(t []*TicTacToe) []decision.State {
@@ -174,7 +178,7 @@ func (t *TicTacToe) Features() []float32 {
 
 	// Plan 2 : indicateur de l'acteur courant
 	val := float32(0.0)
-	if t.actorTurn == decision.Actor1 {
+	if t.actorTurn == Cross {
 		val = 1.0
 	}
 	for i := 18; i < 27; i++ {

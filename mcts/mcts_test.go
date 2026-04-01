@@ -59,7 +59,7 @@ func TestIsTerminal_Draw(t *testing.T) {
 	// Draw: 4,0,2,6,3,5,1,7,8
 	ttt := playMoves(4, 0, 2, 6, 3, 5, 1, 7, 8)
 	node := &mctsNode{state: ttt}
-	if ttt.Evaluate() != decision.DrawResult {
+	if ttt.Evaluate() != decision.Stalemate {
 		// If this particular sequence doesn't draw, that's fine - just test what we get
 		t.Skipf("sequence didn't produce a draw, got result %d", ttt.Evaluate())
 	}
@@ -205,7 +205,7 @@ func TestSimulate_ReturnsTerminalResult(t *testing.T) {
 
 	for i := 0; i < 20; i++ {
 		result := node.simulate()
-		if result != decision.Actor1 && result != decision.Actor2 && result != decision.DrawResult {
+		if result != tictactoe.Cross && result != tictactoe.Circle && result != decision.Stalemate {
 			t.Errorf("expected terminal result, got %d", result)
 		}
 	}
@@ -216,7 +216,7 @@ func TestSimulate_AlreadyTerminal(t *testing.T) {
 	node := &mctsNode{state: ttt}
 
 	result := node.simulate()
-	if result != decision.Actor1 {
+	if result != tictactoe.Cross {
 		t.Errorf("expected Actor1, got %d", result)
 	}
 }
@@ -235,7 +235,7 @@ func TestBackpropagate_UpdatesVisits(t *testing.T) {
 		parent: root,
 	}
 
-	child.backpropagate(decision.Actor1)
+	child.backpropagate(tictactoe.Cross)
 
 	if child.visits != 1 {
 		t.Errorf("expected child visits=1, got %f", child.visits)
@@ -259,7 +259,7 @@ func TestBackpropagate_CreditsCorrectActor(t *testing.T) {
 		parent: root,
 	}
 
-	child.backpropagate(decision.Actor1)
+	child.backpropagate(tictactoe.Cross)
 
 	// At child: PreviousActor = Actor1. Result=Actor1 → win
 	if child.wins != 1 {
@@ -283,7 +283,7 @@ func TestBackpropagate_Actor2Wins(t *testing.T) {
 		parent: root,
 	}
 
-	child.backpropagate(decision.Actor2)
+	child.backpropagate(tictactoe.Circle)
 
 	// At child: PreviousActor = Actor1. Result=Actor2 → no win
 	if child.wins != 0 {
@@ -307,7 +307,7 @@ func TestBackpropagate_Draw(t *testing.T) {
 		parent: root,
 	}
 
-	child.backpropagate(decision.DrawResult)
+	child.backpropagate(decision.Stalemate)
 
 	if child.wins != 0.5 {
 		t.Errorf("expected child wins=0.5 for draw, got %f", child.wins)
@@ -329,7 +329,7 @@ func TestBackpropagate_DeepChain(t *testing.T) {
 	ttt2.Play(1)
 	grandchild := &mctsNode{state: ttt2, parent: child}
 
-	grandchild.backpropagate(decision.Actor1)
+	grandchild.backpropagate(tictactoe.Cross)
 
 	if grandchild.visits != 1 || child.visits != 1 || root.visits != 1 {
 		t.Error("expected all nodes to have 1 visit")
@@ -388,7 +388,7 @@ func TestRunMCTS_ReturnsValidState(t *testing.T) {
 	if result == nil {
 		t.Fatal("expected non-nil result state")
 	}
-	if result.CurrentActor() != decision.Actor2 {
+	if result.CurrentActor() != tictactoe.Circle {
 		t.Errorf("expected Actor2's turn after MCTS move, got %d", result.CurrentActor())
 	}
 }
@@ -426,7 +426,7 @@ func TestRunMCTS_TakesWin(t *testing.T) {
 func TestRunMCTS_TerminalState(t *testing.T) {
 	// Actor1 wins: 0,3,1,4,2
 	ttt := playMoves(0, 3, 1, 4, 2)
-	if ttt.Evaluate() == decision.NoActor {
+	if ttt.Evaluate() == decision.Undecided {
 		t.Fatal("expected terminal state")
 	}
 
@@ -452,7 +452,7 @@ func TestRunMCTS_FullGame(t *testing.T) {
 	ttt := tictactoe.NewTicTacToe()
 
 	maxMoves := 9
-	for i := 0; i < maxMoves && ttt.Evaluate() == decision.NoActor; i++ {
+	for i := 0; i < maxMoves && ttt.Evaluate() == decision.Undecided; i++ {
 		next := m.RunMCTS(ttt, 500)
 		if next == ttt {
 			t.Fatal("MCTS returned same state for non-terminal game")
@@ -462,7 +462,7 @@ func TestRunMCTS_FullGame(t *testing.T) {
 	}
 
 	result := ttt.Evaluate()
-	if result == decision.NoActor {
+	if result == decision.Undecided {
 		t.Error("expected game to end")
 	}
 }
@@ -486,8 +486,8 @@ func (s *threeActorState) ID() string                      { return s.id }
 func TestBackpropagate_ThreeActors(t *testing.T) {
 	// Simule une chaîne de 3 nœuds : acteur 10 → acteur 11 → acteur 12
 	// avec un résultat où l'acteur 10 gagne (Result = 10).
-	root := &mctsNode{state: &threeActorState{current: 10, previous: 12, result: decision.NoActor, id: "root"}}
-	child := &mctsNode{state: &threeActorState{current: 11, previous: 10, result: decision.NoActor, id: "child"}, parent: root}
+	root := &mctsNode{state: &threeActorState{current: 10, previous: 12, result: decision.Undecided, id: "root"}}
+	child := &mctsNode{state: &threeActorState{current: 11, previous: 10, result: decision.Undecided, id: "child"}, parent: root}
 	grandchild := &mctsNode{state: &threeActorState{current: 12, previous: 11, result: decision.ActorID(10), id: "gchild"}, parent: child}
 
 	// L'acteur 10 gagne
@@ -513,10 +513,10 @@ func TestBackpropagate_ThreeActors(t *testing.T) {
 }
 
 func TestBackpropagate_ThreeActors_Draw(t *testing.T) {
-	root := &mctsNode{state: &threeActorState{current: 10, previous: 12, result: decision.NoActor, id: "root"}}
-	child := &mctsNode{state: &threeActorState{current: 11, previous: 10, result: decision.NoActor, id: "child"}, parent: root}
+	root := &mctsNode{state: &threeActorState{current: 10, previous: 12, result: decision.Undecided, id: "root"}}
+	child := &mctsNode{state: &threeActorState{current: 11, previous: 10, result: decision.Undecided, id: "child"}, parent: root}
 
-	child.backpropagate(decision.DrawResult)
+	child.backpropagate(decision.Stalemate)
 
 	// Tous les nœuds reçoivent 0.5 pour un match nul
 	if child.wins != 0.5 {

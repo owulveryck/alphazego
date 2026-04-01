@@ -110,7 +110,7 @@ func ExampleMCTS_RunMCTS_fullGame() {
 
 	// Let MCTS play both sides until the game ends
 	moves := 0
-	for game.Evaluate() == decision.NoActor {
+	for game.Evaluate() == decision.Undecided {
 		bestState := m.RunMCTS(game, 500)
 		move := bestState.(board.ActionRecorder).LastAction()
 		game.Play(uint8(move))
@@ -118,7 +118,7 @@ func ExampleMCTS_RunMCTS_fullGame() {
 	}
 
 	result := game.Evaluate()
-	fmt.Println("Game finished:", result != decision.NoActor)
+	fmt.Println("Game finished:", result != decision.Undecided)
 	fmt.Println("Moves played:", moves >= 5 && moves <= 9) // Min 5 moves for a win, max 9
 	// Output:
 	// Game finished: true

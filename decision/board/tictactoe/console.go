@@ -13,13 +13,13 @@ const (
 )
 
 // String returns a human-readable representation of the board using
-// ANSI colors: red for Actor1 (X) and blue for Actor2 (O).
+// ANSI colors: red for Cross (X) and blue for Circle (O).
 // It also displays whose turn it is.
 func (tictactoe *TicTacToe) String() string {
 	symbols := map[decision.ActorID]string{
-		decision.NoActor: " ",
-		decision.Actor1:  reset + red + "X" + reset,
-		decision.Actor2:  reset + blue + "O" + reset,
+		decision.Undecided: " ",
+		Cross:              reset + red + "X" + reset,
+		Circle:             reset + blue + "O" + reset,
 	}
 	cellSymbol := func(i int) string {
 		return symbols[decision.ActorID(tictactoe.board[i])]

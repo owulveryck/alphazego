@@ -19,7 +19,7 @@ func (node *mctsNode) backpropagate(result decision.ActorID) {
 		actorWhoMovedHere := n.state.PreviousActor()
 		if result == actorWhoMovedHere {
 			n.wins += 1
-		} else if result == decision.DrawResult {
+		} else if result == decision.Stalemate {
 			n.wins += 0.5
 		}
 	}

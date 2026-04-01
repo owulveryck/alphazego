@@ -15,7 +15,7 @@ func main() {
 	ttt := tictactoe.NewTicTacToe()
 	var move string
 	m := mcts.NewMCTS()
-	for ttt.Evaluate() == decision.NoActor {
+	for ttt.Evaluate() == decision.Undecided {
 		fmt.Println(ttt)
 		fmt.Print("Enter your move (0-8): ")
 		fmt.Scan(&move)
@@ -27,7 +27,7 @@ func main() {
 			fmt.Println("Coup invalide :", err)
 			continue
 		}
-		if ttt.Evaluate() != decision.NoActor {
+		if ttt.Evaluate() != decision.Undecided {
 			break
 		}
 		aiMove := getNextMoveFromMCTS(m, ttt)
@@ -38,11 +38,11 @@ func main() {
 	}
 	fmt.Println(ttt)
 	switch ttt.Evaluate() {
-	case decision.Actor1:
+	case tictactoe.Cross:
 		fmt.Println("Vous avez gagné !")
-	case decision.Actor2:
+	case tictactoe.Circle:
 		fmt.Println("L'IA a gagné !")
-	case decision.DrawResult:
+	case decision.Stalemate:
 		fmt.Println("Match nul !")
 	}
 }

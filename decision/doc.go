@@ -17,8 +17,8 @@
 //
 // [ActorID] identifie un décideur (joueur, partie, acteur). C'est un type
 // distinct basé sur int. La méthode [State.Evaluate] retourne directement un
-// ActorID : le gagnant si le problème est résolu, [NoActor] s'il est en
-// cours, ou [DrawResult] en cas de match nul. Il n'y a pas de type Result
+// ActorID : le gagnant si le problème est résolu, [Undecided] s'il est en
+// cours, ou [Stalemate] en cas d'impasse. Il n'y a pas de type Result
 // séparé : le résultat EST l'identifiant du gagnant.
 //
 // Pour utiliser ce framework, implémenter [State] avec la logique

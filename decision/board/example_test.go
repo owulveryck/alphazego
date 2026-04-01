@@ -8,6 +8,12 @@ import (
 	"github.com/owulveryck/alphazego/mcts"
 )
 
+// Constantes locales pour les acteurs de cet exemple.
+const (
+	actor1 decision.ActorID = 1
+	actor2 decision.ActorID = 2
+)
+
 // ttt est une implémentation minimale de [decision.State] et
 // [board.ActionRecorder] pour le morpion.
 // Elle illustre les champs nécessaires : le plateau, l'acteur
@@ -17,7 +23,7 @@ import (
 // l'affectation d'un tableau copie les données automatiquement,
 // ce qui simplifie [decision.State.PossibleMoves].
 type ttt struct {
-	cells      [9]uint8         // 0=vide, 1=Actor1, 2=Actor2
+	cells      [9]uint8         // 0=vide, 1=acteur1, 2=acteur2
 	turn       decision.ActorID // acteur dont c'est le tour
 	lastAction int              // action qui a produit cet état
 }
@@ -49,17 +55,17 @@ func (t *ttt) Evaluate() decision.ActorID {
 	}
 	for _, c := range t.cells {
 		if c == 0 {
-			return decision.NoActor
+			return decision.Undecided
 		}
 	}
-	return decision.DrawResult
+	return decision.Stalemate
 }
 
 // PossibleMoves retourne un état par case vide.
 // Chaque enfant est une copie indépendante grâce au tableau [9]uint8 :
 // l'affectation child.cells = t.cells copie les 9 octets.
 func (t *ttt) PossibleMoves() []decision.State {
-	if t.Evaluate() != decision.NoActor {
+	if t.Evaluate() != decision.Undecided {
 		return nil // état terminal : aucun coup
 	}
 	var moves []decision.State
@@ -86,7 +92,7 @@ func (t *ttt) PossibleMoves() []decision.State {
 //
 // Voir le type ttt dans le code source pour l'implémentation complète.
 func Example() {
-	game := &ttt{turn: decision.Actor1}
+	game := &ttt{turn: actor1}
 
 	// Connecter au MCTS : une seule ligne
 	m := mcts.NewMCTS()
@@ -106,7 +112,7 @@ func Example() {
 // n'impose pas de notion d'action ; [board.ActionRecorder] est une commodité
 // pour les jeux de plateau où l'on veut connaître le coup joué.
 func Example_actionRecorder() {
-	game := &ttt{turn: decision.Actor1}
+	game := &ttt{turn: actor1}
 	m := mcts.NewMCTS()
 
 	bestState := m.RunMCTS(game, 1000)
@@ -123,10 +129,10 @@ func Example_actionRecorder() {
 
 // Cet exemple montre une partie complète MCTS vs MCTS.
 func Example_fullGame() {
-	game := &ttt{turn: decision.Actor1}
+	game := &ttt{turn: actor1}
 	m := mcts.NewMCTS()
 
-	for game.Evaluate() == decision.NoActor {
+	for game.Evaluate() == decision.Undecided {
 		bestState := m.RunMCTS(game, 500)
 		move := bestState.(board.ActionRecorder).LastAction()
 		// Appliquer le coup
@@ -136,7 +142,7 @@ func Example_fullGame() {
 	}
 
 	result := game.Evaluate()
-	fmt.Println("Game finished:", result != decision.NoActor)
+	fmt.Println("Game finished:", result != decision.Undecided)
 	// Output:
 	// Game finished: true
 }

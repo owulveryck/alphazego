@@ -230,7 +230,7 @@ func TestRunMCTS_WithEvaluator_ReturnsValidState(t *testing.T) {
 	if result == nil {
 		t.Fatal("expected non-nil result state")
 	}
-	if result.CurrentActor() != decision.Actor2 {
+	if result.CurrentActor() != tictactoe.Circle {
 		t.Errorf("expected Actor2's turn after MCTS move, got %d", result.CurrentActor())
 	}
 }
@@ -282,7 +282,7 @@ func TestTerminalValue_Actor1Wins(t *testing.T) {
 
 func TestTerminalValue_Draw(t *testing.T) {
 	ttt := playMoves(4, 0, 2, 6, 3, 5, 1, 7, 8)
-	if ttt.Evaluate() != decision.DrawResult {
+	if ttt.Evaluate() != decision.Stalemate {
 		t.Skipf("sequence didn't produce a draw, got %d", ttt.Evaluate())
 	}
 	v := terminalValue(ttt)
@@ -326,7 +326,7 @@ func (r *rolloutEvaluator) Evaluate(state decision.State) ([]float64, float64) {
 	}
 	// Perform a random rollout to estimate value
 	currentState := state
-	for currentState.Evaluate() == decision.NoActor {
+	for currentState.Evaluate() == decision.Undecided {
 		possibleMoves := currentState.PossibleMoves()
 		currentState = possibleMoves[rand.Intn(len(possibleMoves))]
 	}
@@ -335,7 +335,7 @@ func (r *rolloutEvaluator) Evaluate(state decision.State) ([]float64, float64) {
 	if result == current {
 		return policy, 1.0
 	}
-	if result == decision.DrawResult {
+	if result == decision.Stalemate {
 		return policy, 0.0
 	}
 	return policy, -1.0

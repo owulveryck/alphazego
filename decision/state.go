@@ -5,22 +5,18 @@ package decision
 // de planification, c'est un acteur.
 //
 // ActorID est aussi utilisé comme résultat de [State.Evaluate] : la valeur
-// retournée est l'ActorID du gagnant, [NoActor] si le problème est en cours,
-// ou [DrawResult] en cas de match nul.
+// retournée est l'ActorID du gagnant, [Undecided] si le problème est en cours,
+// ou [Stalemate] en cas de match nul.
 type ActorID int
 
 const (
-	// NoActor indique qu'aucun acteur n'est concerné. Utilisé comme valeur de
-	// retour de [State.Evaluate] pour indiquer que le problème est en cours,
-	// et comme contenu d'une position vide sur un plateau.
-	NoActor ActorID = 0
-	// DrawResult indique un match nul : le problème est terminé mais aucun
-	// acteur n'a gagné.
-	DrawResult ActorID = -1
-	// Actor1 est le premier acteur (typiquement X au morpion).
-	Actor1 ActorID = 1
-	// Actor2 est le second acteur (typiquement O au morpion).
-	Actor2 ActorID = 2
+	// Undecided indique que le problème est en cours : aucune issue n'a encore
+	// été déterminée. Utilisé comme valeur de retour de [State.Evaluate] et
+	// comme contenu d'une position vide sur un plateau.
+	Undecided ActorID = 0
+	// Stalemate indique que le problème est terminé sans gagnant (match nul,
+	// impasse, absence de solution).
+	Stalemate ActorID = -1
 )
 
 // State représente l'état d'un problème de décision séquentiel à un ou
@@ -50,7 +46,7 @@ const (
 //   - Chaque état retourné par [State.PossibleMoves] doit avoir
 //     [State.CurrentActor] défini sur l'acteur suivant.
 //   - [State.PossibleMoves] retourne un slice vide (ou nil) quand
-//     [State.Evaluate] != [NoActor] : un état terminal n'a pas d'actions.
+//     [State.Evaluate] != [Undecided] : un état terminal n'a pas d'actions.
 //   - [State.ID] doit être déterministe et inclure l'acteur courant.
 //     Même configuration + acteur différent = ID différent.
 //
@@ -74,12 +70,12 @@ type State interface {
 	PreviousActor() ActorID
 
 	// Evaluate retourne l'issue du problème :
-	//   - [NoActor] (0) si le problème est en cours
-	//   - [DrawResult] (-1) en cas de match nul
+	//   - [Undecided] (0) si le problème est en cours
+	//   - [Stalemate] (-1) en cas de match nul
 	//   - un ActorID positif si cet acteur a gagné
 	//
 	// Le moteur MCTS appelle cette méthode à chaque nœud pour détecter
-	// les états terminaux. Un état où Evaluate != NoActor ne doit pas
+	// les états terminaux. Un état où Evaluate != Undecided ne doit pas
 	// avoir d'actions possibles (PossibleMoves retourne nil ou vide).
 	Evaluate() ActorID
 
@@ -94,7 +90,7 @@ type State interface {
 	// Si l'implémentation satisfait aussi [board.ActionRecorder], chaque état enfant
 	// doit avoir LastAction() défini sur l'action qui a produit cet état.
 	//
-	// Retourne nil ou un slice vide si Evaluate() != [NoActor].
+	// Retourne nil ou un slice vide si Evaluate() != [Undecided].
 	//
 	// Astuce : utiliser un tableau fixe ([N]uint8) au lieu d'un slice ([]uint8)
 	// pour le plateau rend la copie automatique par simple affectation.

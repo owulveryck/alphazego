@@ -38,7 +38,7 @@ func ExampleTicTacToe_Evaluate_gameOn() {
 	game.Play(4) // O at center
 
 	result := game.Evaluate()
-	fmt.Println("Game still in progress:", result == decision.NoActor)
+	fmt.Println("Game still in progress:", result == decision.Undecided)
 	// Output:
 	// Game still in progress: true
 }
@@ -53,7 +53,7 @@ func ExampleTicTacToe_Evaluate_actor1Wins() {
 	game.Play(2) // X wins!
 
 	result := game.Evaluate()
-	fmt.Println("Actor1 wins:", result == decision.Actor1)
+	fmt.Println("Actor1 wins:", result == tictactoe.Cross)
 	// Output:
 	// Actor1 wins: true
 }
@@ -75,7 +75,7 @@ func ExampleTicTacToe_Evaluate_draw() {
 	game.Play(7) // X
 
 	result := game.Evaluate()
-	fmt.Println("Draw:", result == decision.DrawResult)
+	fmt.Println("Draw:", result == decision.Stalemate)
 	// Output:
 	// Draw: true
 }
@@ -102,7 +102,7 @@ func ExampleTicTacToe_PossibleMoves_alternation() {
 
 	// Each child state has the other actor's turn
 	for _, m := range moves {
-		if m.CurrentActor() != decision.Actor2 {
+		if m.CurrentActor() != tictactoe.Circle {
 			fmt.Println("ERROR: expected Actor2's turn in child state")
 			return
 		}
