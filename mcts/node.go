@@ -3,7 +3,7 @@ package mcts
 import (
 	"math"
 
-	"github.com/owulveryck/alphazego/board"
+	"github.com/owulveryck/alphazego/decision"
 )
 
 // mctsNode represents a single node in the Monte Carlo Tree Search (MCTS) algorithm.
@@ -12,10 +12,10 @@ import (
 // of the tree is formed by parent and child relationships between nodes, enabling the
 // navigation and expansion of the search tree as the algorithm progresses.
 type mctsNode struct {
-	// state holds the current game state that this node represents.
-	// The game state includes all necessary information to continue play or simulation
-	// from this point, such as the board configuration, the player whose turn it is, etc.
-	state board.State
+	// state holds the current state that this node represents.
+	// The state includes all necessary information to continue play or simulation
+	// from this point, such as the board configuration, the actor whose turn it is, etc.
+	state decision.State
 
 	// parent is a pointer to the parent node in the search tree. The root node of the tree
 	// will have a nil parent. This link is used to traverse back up the tree during the
@@ -23,7 +23,7 @@ type mctsNode struct {
 	parent *mctsNode
 
 	// children is a slice of pointers to the child nodes of this node. Each child represents
-	// a possible future game state that can be reached from the current state. The children
+	// a possible future state that can be reached from the current state. The children
 	// are the result of expanding the search tree by exploring the outcomes of possible moves
 	// from the current state.
 	children []*mctsNode
@@ -51,9 +51,9 @@ type mctsNode struct {
 	mcts *MCTS
 }
 
-// isTerminal returns true if this node represents a terminal game state (win, loss, or draw).
+// isTerminal returns true if this node represents a terminal state (win, loss, or draw).
 func (n *mctsNode) isTerminal() bool {
-	return n.state.Evaluate() != board.NoPlayer
+	return n.state.Evaluate() != decision.NoActor
 }
 
 // isFullyExpanded returns true if all possible moves from this state have been expanded as children.

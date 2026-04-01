@@ -19,39 +19,39 @@ Ce mecanisme fonctionne pour **tout probleme** ou :
 
 ## L'interface State : un contrat minimal
 
-L'interface `board.State` capture exactement ces quatre proprietes :
+L'interface `decision.State` capture exactement ces quatre proprietes :
 
 ```go
 type State interface {
-    CurrentPlayer() PlayerID    // Quel agent doit agir ?
-    PreviousPlayer() PlayerID   // Quel agent a effectue le dernier coup ?
-    Evaluate() PlayerID         // L'etat est-il terminal ? Quelle issue ?
-    PossibleMoves() []State     // Quels etats sont atteignables ?
-    ID() string                 // Identifiant unique de cet etat
-    LastMove() uint8            // Quel coup a mene a cet etat ?
+    CurrentActor() ActorID    // Quel agent doit agir ?
+    PreviousActor() ActorID   // Quel agent a effectue la derniere action ?
+    Evaluate() ActorID        // L'etat est-il terminal ? Quelle issue ?
+    PossibleMoves() []State   // Quels etats sont atteignables ?
+    ID() string               // Identifiant unique de cet etat
 }
 ```
 
-Malgre les noms herites des jeux (`Player`, `Moves`), chaque methode a une signification generique :
+Les noms sont generiques (`Actor`, `Moves`) et chaque methode a une signification adaptable a tout domaine :
 
 | Methode | Jeu de plateau | Negociation | Diagnostic medical | Composition musicale |
 |---------|---------------|-------------|-------------------|---------------------|
-| `CurrentPlayer()` | Joueur actif | Partie qui propose | Decideur (patient/medecin) | Compositeur/critique |
-| `PreviousPlayer()` | Joueur precedent | Partie qui vient de proposer | Dernier decideur | Dernier contributeur |
+| `CurrentActor()` | Joueur actif | Partie qui propose | Decideur (patient/medecin) | Compositeur/critique |
+| `PreviousActor()` | Joueur precedent | Partie qui vient de proposer | Dernier decideur | Dernier contributeur |
 | `Evaluate()` | Victoire/nul/en cours | Accord/blocage/en cours | Guerison/echec/en cours | Piece terminee/en cours |
 | `PossibleMoves()` | Coups legaux | Propositions possibles | Examens/traitements | Notes/accords possibles |
 | `ID()` | Position du plateau | Etat de la negociation | Dossier patient | Partition en cours |
-| `LastMove()` | Coup joue | Derniere proposition | Dernier examen/traitement | Derniere note ajoutee |
 
 ## Le morpion comme implementation de reference
 
-Le morpion (`board/tictactoe`) n'est pas le framework -- c'est **une** implementation de `State` :
+Le morpion (`decision/board/tictactoe`) n'est pas le framework -- c'est **une** implementation de `State` :
 
 ```
-board/
-├── interfaces.go        ← le contrat generique (State, Evaluator, Tensorizable)
-└── tictactoe/
-    └── ttt.go           ← une implementation concrete pour le morpion
+decision/
+├── state.go              ← le contrat generique (State, ActorID)
+└── board/
+    ├── board.go           ← les abstractions plateau (Boarder, ActionRecorder, Tensorizable)
+    └── tictactoe/
+        └── ttt.go         ← une implementation concrete pour le morpion
 ```
 
 Pour resoudre un autre probleme, il suffit d'implementer `State` avec la logique specifique au domaine. Le moteur MCTS (`mcts/`) fonctionne avec n'importe quelle implementation.
@@ -62,7 +62,7 @@ Pour resoudre un autre probleme, il suffit d'implementer `State` avec la logique
 
 ```
 State = etat du patient (symptomes, traitements en cours, resultats d'examens)
-CurrentPlayer() = le decideur (alternance medecin/maladie comme adversaire)
+CurrentActor() = le decideur (alternance medecin/maladie comme adversaire)
 PossibleMoves() = examens prescriptibles, traitements disponibles
 Evaluate() = guerison, aggravation, ou en cours
 ID() = hash du dossier medical courant
@@ -74,7 +74,7 @@ L'adversaire ici est la maladie : on modelise l'incertitude comme un agent adver
 
 ```
 State = etat des offres et contre-offres
-CurrentPlayer() = quelle partie negocie
+CurrentActor() = quelle partie negocie
 PossibleMoves() = propositions possibles (conceder, exiger, bluffer)
 Evaluate() = accord trouve, rupture, ou en cours
 ID() = hash de l'historique des offres
@@ -86,7 +86,7 @@ Le MCTS simule des scenarios de negociation pour trouver la strategie qui maximi
 
 ```
 State = texte genere jusqu'ici + contexte
-CurrentPlayer() = le generateur (ou alternance generateur/critique)
+CurrentActor() = le generateur (ou alternance generateur/critique)
 PossibleMoves() = tokens ou blocs de code possibles
 Evaluate() = qualite du texte final (coherence, correction)
 ID() = hash du texte courant
@@ -96,42 +96,41 @@ C'est l'idee derriere les modeles de raisonnement actuels : au lieu de generer d
 
 ## De deux agents a N agents
 
-### L'abstraction : `PreviousPlayer()`
+### L'abstraction : `PreviousActor()`
 
-Le moteur MCTS n'a pas besoin de connaitre le nombre de joueurs. Il a besoin de savoir **qui a effectue le coup menant a un etat donne**. C'est le role de `PreviousPlayer()` :
+Le moteur MCTS n'a pas besoin de connaitre le nombre d'acteurs. Il a besoin de savoir **qui a effectue l'action menant a un etat donne**. C'est le role de `PreviousActor()` :
 
 ```go
 type State interface {
-    CurrentPlayer() PlayerID    // Qui doit agir maintenant ?
-    PreviousPlayer() PlayerID   // Qui a agi pour arriver ici ?
-    Evaluate() PlayerID         // L'etat est-il terminal ?
-    PossibleMoves() []State     // Quels etats sont atteignables ?
-    ID() string                 // Identifiant unique
-    LastMove() uint8            // Quel coup a mene ici ?
+    CurrentActor() ActorID    // Qui doit agir maintenant ?
+    PreviousActor() ActorID   // Qui a agi pour arriver ici ?
+    Evaluate() ActorID        // L'etat est-il terminal ?
+    PossibleMoves() []State   // Quels etats sont atteignables ?
+    ID() string               // Identifiant unique
 }
 ```
 
 Chaque implementation de `State` encapsule sa propre logique de tour :
 
-| Nombre de joueurs | Logique de `PreviousPlayer()` |
+| Nombre d'acteurs | Logique de `PreviousActor()` |
 |-------------------|-------------------------------|
-| 2 joueurs (morpion) | `3 - CurrentPlayer()` |
-| 3 joueurs (round-robin) | `(CurrentPlayer() + 1) % 3 + 1` (le precedent) |
-| 1 joueur (planification) | Toujours le meme agent |
+| 2 acteurs (morpion) | `3 - CurrentActor()` |
+| 3 acteurs (round-robin) | `(CurrentActor() + 1) % 3 + 1` (le precedent) |
+| 1 acteur (planification) | Toujours le meme agent |
 
-Le moteur MCTS utilise `PreviousPlayer()` dans la backpropagation pour crediter les victoires au bon agent, sans aucune arithmetique codee en dur.
+Le moteur MCTS utilise `PreviousActor()` dans la backpropagation pour crediter les victoires au bon agent, sans aucune arithmetique codee en dur.
 
-### Le chemin MCTS pur : N joueurs immediatement
+### Le chemin MCTS pur : N acteurs immediatement
 
-La backpropagation fonctionne pour N joueurs : a chaque noeud, elle verifie si le resultat terminal correspond a l'agent qui a joue le coup (`result == PreviousPlayer()`). Si oui, elle credite une victoire. Sinon, elle ne credite rien (ou 0.5 pour un match nul).
+La backpropagation fonctionne pour N acteurs : a chaque noeud, elle verifie si le resultat terminal correspond a l'agent qui a effectue l'action (`result == PreviousActor()`). Si oui, elle credite une victoire. Sinon, elle ne credite rien (ou 0.5 pour un match nul).
 
-### Le chemin AlphaZero : deux joueurs pour l'instant
+### Le chemin AlphaZero : deux acteurs pour l'instant
 
-La backpropagation AlphaZero utilise l'alternance de signe (`value = -value`), qui suppose un jeu a **somme nulle a deux joueurs**. Pour generaliser a N joueurs, il faudrait que l'evaluateur retourne un vecteur de N valeurs (une par joueur) au lieu d'un scalaire. C'est une evolution future.
+La backpropagation AlphaZero utilise l'alternance de signe (`value = -value`), qui suppose un jeu a **somme nulle a deux acteurs**. Pour generaliser a N acteurs, il faudrait que l'evaluateur retourne un vecteur de N valeurs (une par acteur) au lieu d'un scalaire. C'est une evolution future.
 
 ### La contrainte sur les constantes
 
-`Evaluate()` retourne directement un `PlayerID` : le gagnant si la partie est finie, `NoPlayer` (0) si elle est en cours, ou `DrawResult` (-1) en cas de match nul. Il n'y a pas de type `Result` separe. Pour un jeu a 3+ joueurs, il suffit d'utiliser des `PlayerID` distincts (3, 4, ...) ; `DrawResult` (-1) ne peut pas entrer en collision.
+`Evaluate()` retourne directement un `ActorID` : le gagnant si le probleme est resolu, `NoActor` (0) si il est en cours, ou `DrawResult` (-1) en cas de match nul. Il n'y a pas de type `Result` separe. Pour un probleme a 3+ acteurs, il suffit d'utiliser des `ActorID` distincts (3, 4, ...) ; `DrawResult` (-1) ne peut pas entrer en collision.
 
 ### Cas d'usage selon le nombre d'agents
 
@@ -164,7 +163,7 @@ L'Evaluator est le point d'injection de la **connaissance du domaine**. Le MCTS 
 ```
 Framework generique          Implementation concrete
 ─────────────────            ─────────────────────
-board.State                  tictactoe.TicTacToe
+decision.State               tictactoe.TicTacToe
 mcts.Evaluator               rolloutEvaluator, ONNXEvaluator, ...
 board.Tensorizable           tictactoe.Features(), ...
 mcts.MCTS                    (moteur, agnostique au domaine)

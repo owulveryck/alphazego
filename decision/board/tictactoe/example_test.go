@@ -3,32 +3,33 @@ package tictactoe_test
 import (
 	"fmt"
 
-	"github.com/owulveryck/alphazego/board"
-	"github.com/owulveryck/alphazego/board/tictactoe"
+	"github.com/owulveryck/alphazego/decision"
+	"github.com/owulveryck/alphazego/decision/board"
+	"github.com/owulveryck/alphazego/decision/board/tictactoe"
 )
 
 func ExampleNewTicTacToe() {
 	game := tictactoe.NewTicTacToe()
-	fmt.Println("Current player:", game.CurrentPlayer())
+	fmt.Println("Current actor:", game.CurrentActor())
 	fmt.Println("Game result:", game.Evaluate())
 	// Output:
-	// Current player: 1
+	// Current actor: 1
 	// Game result: 0
 }
 
 func ExampleTicTacToe_Play() {
 	game := tictactoe.NewTicTacToe()
 
-	// Player1 plays at center (position 4)
+	// Actor1 plays at center (position 4)
 	game.Play(4)
-	fmt.Println("After Player1 plays at 4, current player:", game.CurrentPlayer())
+	fmt.Println("After Actor1 plays at 4, current actor:", game.CurrentActor())
 
-	// Player2 plays at top-left (position 0)
+	// Actor2 plays at top-left (position 0)
 	game.Play(0)
-	fmt.Println("After Player2 plays at 0, current player:", game.CurrentPlayer())
+	fmt.Println("After Actor2 plays at 0, current actor:", game.CurrentActor())
 	// Output:
-	// After Player1 plays at 4, current player: 2
-	// After Player2 plays at 0, current player: 1
+	// After Actor1 plays at 4, current actor: 2
+	// After Actor2 plays at 0, current actor: 1
 }
 
 func ExampleTicTacToe_Evaluate_gameOn() {
@@ -37,14 +38,14 @@ func ExampleTicTacToe_Evaluate_gameOn() {
 	game.Play(4) // O at center
 
 	result := game.Evaluate()
-	fmt.Println("Game still in progress:", result == board.NoPlayer)
+	fmt.Println("Game still in progress:", result == decision.NoActor)
 	// Output:
 	// Game still in progress: true
 }
 
-func ExampleTicTacToe_Evaluate_player1Wins() {
+func ExampleTicTacToe_Evaluate_actor1Wins() {
 	game := tictactoe.NewTicTacToe()
-	// Player1 takes the top row: 0, 1, 2
+	// Actor1 takes the top row: 0, 1, 2
 	game.Play(0) // X
 	game.Play(3) // O
 	game.Play(1) // X
@@ -52,9 +53,9 @@ func ExampleTicTacToe_Evaluate_player1Wins() {
 	game.Play(2) // X wins!
 
 	result := game.Evaluate()
-	fmt.Println("Player1 wins:", result == board.Player1)
+	fmt.Println("Actor1 wins:", result == decision.Actor1)
 	// Output:
-	// Player1 wins: true
+	// Actor1 wins: true
 }
 
 func ExampleTicTacToe_Evaluate_draw() {
@@ -74,7 +75,7 @@ func ExampleTicTacToe_Evaluate_draw() {
 	game.Play(7) // X
 
 	result := game.Evaluate()
-	fmt.Println("Draw:", result == board.DrawResult)
+	fmt.Println("Draw:", result == decision.DrawResult)
 	// Output:
 	// Draw: true
 }
@@ -96,48 +97,49 @@ func ExampleTicTacToe_PossibleMoves() {
 }
 
 func ExampleTicTacToe_PossibleMoves_alternation() {
-	game := tictactoe.NewTicTacToe() // Player1's turn
+	game := tictactoe.NewTicTacToe() // Actor1's turn
 	moves := game.PossibleMoves()
 
-	// Each child state has the other player's turn
+	// Each child state has the other actor's turn
 	for _, m := range moves {
-		if m.CurrentPlayer() != board.Player2 {
-			fmt.Println("ERROR: expected Player2's turn in child state")
+		if m.CurrentActor() != decision.Actor2 {
+			fmt.Println("ERROR: expected Actor2's turn in child state")
 			return
 		}
 	}
-	fmt.Println("All child states have Player2's turn: true")
+	fmt.Println("All child states have Actor2's turn: true")
 	// Output:
-	// All child states have Player2's turn: true
+	// All child states have Actor2's turn: true
 }
 
-func ExampleTicTacToe_PreviousPlayer() {
+func ExampleTicTacToe_PreviousActor() {
 	game := tictactoe.NewTicTacToe()
-	// Sur un plateau vierge, le joueur courant est Player1 ;
-	// PreviousPlayer retourne Player2 (le "dernier" dans l'alternance).
-	fmt.Println("Previous player (initial):", game.PreviousPlayer())
+	// Sur un plateau vierge, l'acteur courant est Actor1 ;
+	// PreviousActor retourne Actor2 (le "dernier" dans l'alternance).
+	fmt.Println("Previous actor (initial):", game.PreviousActor())
 
-	game.Play(4) // Player1 joue au centre
-	fmt.Println("Previous player after P1 plays:", game.PreviousPlayer())
+	game.Play(4) // Actor1 joue au centre
+	fmt.Println("Previous actor after A1 plays:", game.PreviousActor())
 
-	game.Play(0) // Player2 joue en haut a gauche
-	fmt.Println("Previous player after P2 plays:", game.PreviousPlayer())
+	game.Play(0) // Actor2 joue en haut a gauche
+	fmt.Println("Previous actor after A2 plays:", game.PreviousActor())
 	// Output:
-	// Previous player (initial): 2
-	// Previous player after P1 plays: 1
-	// Previous player after P2 plays: 2
+	// Previous actor (initial): 2
+	// Previous actor after A1 plays: 1
+	// Previous actor after A2 plays: 2
 }
 
-func ExampleTicTacToe_LastMove() {
+func ExampleTicTacToe_LastAction() {
 	game := tictactoe.NewTicTacToe()
-	game.Play(0) // Player1 at position 0
-	// Now it's Player2's turn. Each possible next state knows its LastMove.
+	game.Play(0) // Actor1 at position 0
+	// Now it's Actor2's turn. Each possible next state knows its LastAction.
 
 	moves := game.PossibleMoves()
 	// Find the state where position 4 was played
 	for _, next := range moves {
-		if next.LastMove() == 4 {
-			fmt.Println("Found move at position:", next.LastMove())
+		s := next.(*tictactoe.TicTacToe)
+		if s.LastAction() == 4 {
+			fmt.Println("Found move at position:", s.LastAction())
 			break
 		}
 	}
@@ -160,16 +162,16 @@ func ExampleTicTacToe_ID() {
 	// Different state, same ID: false
 }
 
-func ExampleTicTacToe_CurrentPlayer() {
+func ExampleTicTacToe_CurrentActor() {
 	game := tictactoe.NewTicTacToe()
-	fmt.Println("First player:", game.CurrentPlayer())
+	fmt.Println("First actor:", game.CurrentActor())
 	game.Play(0)
-	fmt.Println("Second player:", game.CurrentPlayer())
+	fmt.Println("Second actor:", game.CurrentActor())
 	game.Play(1)
-	fmt.Println("Back to first:", game.CurrentPlayer())
+	fmt.Println("Back to first:", game.CurrentActor())
 	// Output:
-	// First player: 1
-	// Second player: 2
+	// First actor: 1
+	// Second actor: 2
 	// Back to first: 1
 }
 
@@ -184,3 +186,6 @@ func ExampleTicTacToe_String() {
 	// Output:
 	// Board contains grid: true
 }
+
+// Verify that TicTacToe implements Boarder (State + ActionRecorder).
+var _ board.Boarder = (*tictactoe.TicTacToe)(nil)

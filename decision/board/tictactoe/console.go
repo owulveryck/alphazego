@@ -3,7 +3,7 @@ package tictactoe
 import (
 	"strings"
 
-	"github.com/owulveryck/alphazego/board"
+	"github.com/owulveryck/alphazego/decision"
 )
 
 const (
@@ -13,19 +13,19 @@ const (
 )
 
 // String returns a human-readable representation of the board using
-// ANSI colors: red for Player1 (X) and blue for Player2 (O).
+// ANSI colors: red for Actor1 (X) and blue for Actor2 (O).
 // It also displays whose turn it is.
 func (tictactoe *TicTacToe) String() string {
-	symbols := map[board.PlayerID]string{
-		board.NoPlayer: " ",
-		board.Player1:  reset + red + "X" + reset,
-		board.Player2:  reset + blue + "O" + reset,
+	symbols := map[decision.ActorID]string{
+		decision.NoActor: " ",
+		decision.Actor1:  reset + red + "X" + reset,
+		decision.Actor2:  reset + blue + "O" + reset,
 	}
 	cellSymbol := func(i int) string {
-		return symbols[board.PlayerID(tictactoe.board[i])]
+		return symbols[decision.ActorID(tictactoe.board[i])]
 	}
 	var b strings.Builder
-	b.WriteString("Current player: " + symbols[tictactoe.PlayerTurn] + "\n")
+	b.WriteString("Current actor: " + symbols[tictactoe.ActorTurn] + "\n")
 	b.WriteString(" ┌───┬───┬───┐\n")
 	b.WriteString(" │ " + cellSymbol(0))
 	b.WriteString(" │ ")

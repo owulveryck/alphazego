@@ -1,6 +1,6 @@
 # Tutoriel : Le morpion pas a pas
 
-Dans ce tutoriel, vous allez construire un morpion (tic-tac-toe) jouable contre une IA MCTS, en implementant l'interface `board.State` de zero.
+Dans ce tutoriel, vous allez construire un morpion (tic-tac-toe) jouable contre une IA MCTS, en implementant l'interface `decision.State` de zero.
 
 ## Ce que vous allez construire
 
@@ -8,7 +8,7 @@ Dans ce tutoriel, vous allez construire un morpion (tic-tac-toe) jouable contre 
 - Une IA basee sur le MCTS (Monte Carlo Tree Search)
 - Une boucle de jeu interactive dans le terminal
 
-Le code final correspond a l'implementation dans `board/tictactoe/` et `main.go`.
+Le code final correspond a l'implementation dans `decision/board/tictactoe/` et `main.go`.
 
 ## Prerequis
 
@@ -32,35 +32,35 @@ Le morpion est une grille 3x3 = 9 cases :
 6 | 7 | 8
 ```
 
-Chaque case contient `0` (vide), `1` (Player1 / X) ou `2` (Player2 / O).
+Chaque case contient `0` (vide), `1` (Actor1 / X) ou `2` (Actor2 / O).
 
 Definissez le struct et le constructeur :
 
 ```go
 package morpion
 
-import "github.com/owulveryck/alphazego/board"
+import "github.com/owulveryck/alphazego/decision"
 
 const BoardSize = 9
 
 type Morpion struct {
     board      []uint8
-    playerTurn board.PlayerID
-    lastMove   uint8
+    actorTurn  decision.ActorID
+    lastAction int
 }
 
 func New() *Morpion {
     return &Morpion{
-        board:      make([]uint8, BoardSize),
-        playerTurn: board.Player1,
+        board:     make([]uint8, BoardSize),
+        actorTurn: decision.Actor1,
     }
 }
 ```
 
 Trois champs :
 - `board` : les 9 cases du plateau
-- `playerTurn` : qui doit jouer (alternance Player1/Player2)
-- `lastMove` : le coup qui a mene a cet etat (necessaire pour l'interface `State`)
+- `actorTurn` : qui doit jouer (alternance Actor1/Actor2)
+- `lastAction` : l'action qui a mene a cet etat (pour l'interface `ActionRecorder`)
 
 ## Etape 2 : `Evaluate()` — detecter la fin de partie
 
@@ -73,47 +73,47 @@ var winningPositions = [][]uint8{
     {0, 4, 8}, {2, 4, 6},             // diagonales
 }
 
-func (m *Morpion) Evaluate() board.PlayerID {
+func (m *Morpion) Evaluate() decision.ActorID {
     for _, pos := range winningPositions {
         if m.board[pos[0]] != 0 &&
             m.board[pos[0]] == m.board[pos[1]] &&
             m.board[pos[1]] == m.board[pos[2]] {
-            return board.PlayerID(m.board[pos[0]])
+            return decision.ActorID(m.board[pos[0]])
         }
     }
     // Match nul si toutes les cases sont occupees
     for _, cell := range m.board {
         if cell == 0 {
-            return board.NoPlayer // partie en cours
+            return decision.NoActor // partie en cours
         }
     }
-    return board.DrawResult
+    return decision.DrawResult
 }
 ```
 
 **Verification** : ecrivez un test pour valider les cas courants.
 
 ```go
-func TestEvaluate_Player1Wins(t *testing.T) {
+func TestEvaluate_Actor1Wins(t *testing.T) {
     m := New()
     // X en haut : positions 0, 1, 2
     m.board[0], m.board[1], m.board[2] = 1, 1, 1
-    if m.Evaluate() != board.Player1 {
-        t.Error("Player1 devrait gagner avec la ligne du haut")
+    if m.Evaluate() != decision.Actor1 {
+        t.Error("Actor1 devrait gagner avec la ligne du haut")
     }
 }
 
 func TestEvaluate_Draw(t *testing.T) {
     m := New()
     m.board = []uint8{1, 2, 1, 1, 1, 2, 2, 1, 2}
-    if m.Evaluate() != board.DrawResult {
+    if m.Evaluate() != decision.DrawResult {
         t.Error("devrait etre un match nul")
     }
 }
 
 func TestEvaluate_InProgress(t *testing.T) {
     m := New()
-    if m.Evaluate() != board.NoPlayer {
+    if m.Evaluate() != decision.NoActor {
         t.Error("plateau vide = partie en cours")
     }
 }
@@ -125,23 +125,23 @@ go test -v ./...
 
 ## Etape 3 : `PossibleMoves()` — generer les etats fils
 
-C'est la methode la plus importante pour le MCTS. Elle retourne un `[]board.State` ou chaque element est un plateau avec un coup en plus.
+C'est la methode la plus importante pour le MCTS. Elle retourne un `[]decision.State` ou chaque element est un plateau avec un coup en plus.
 
 **Regle critique** : ne jamais modifier `m.board` directement. Chaque etat fils doit etre une copie independante.
 
 ```go
-func (m *Morpion) PossibleMoves() []board.State {
-    var moves []board.State
+func (m *Morpion) PossibleMoves() []decision.State {
+    var moves []decision.State
     for i := 0; i < BoardSize; i++ {
         if m.board[i] == 0 {
             // Copier le plateau
             newBoard := make([]uint8, BoardSize)
             copy(newBoard, m.board)
-            newBoard[i] = uint8(m.playerTurn)
+            newBoard[i] = uint8(m.actorTurn)
             moves = append(moves, &Morpion{
                 board:      newBoard,
-                playerTurn: 3 - m.playerTurn,
-                lastMove:   uint8(i),
+                actorTurn:  3 - m.actorTurn,
+                lastAction: i,
             })
         }
     }
@@ -151,33 +151,33 @@ func (m *Morpion) PossibleMoves() []board.State {
 
 Points importants :
 - On copie le slice avec `copy()` — sans cela, tous les etats partagent le meme tableau
-- On alterne le joueur avec `3 - m.playerTurn` (1↔2)
-- On enregistre `lastMove` pour que `LastMove()` fonctionne
+- On alterne l'acteur avec `3 - m.actorTurn` (1↔2)
+- On enregistre `lastAction` pour que `LastAction()` fonctionne (interface `ActionRecorder`)
 
 ## Etape 4 : Les autres methodes de State
 
 ```go
-func (m *Morpion) CurrentPlayer() board.PlayerID {
-    return m.playerTurn
+func (m *Morpion) CurrentActor() decision.ActorID {
+    return m.actorTurn
 }
 
-func (m *Morpion) PreviousPlayer() board.PlayerID {
-    return 3 - m.playerTurn
+func (m *Morpion) PreviousActor() decision.ActorID {
+    return 3 - m.actorTurn
 }
 
 func (m *Morpion) ID() string {
     id := make([]byte, BoardSize+1)
     copy(id, m.board)
-    id[BoardSize] = byte(m.playerTurn)
+    id[BoardSize] = byte(m.actorTurn)
     return string(id)
 }
 
-func (m *Morpion) LastMove() uint8 {
-    return m.lastMove
+func (m *Morpion) LastAction() int {
+    return m.lastAction
 }
 ```
 
-L'`ID()` encode le plateau + le joueur courant en une chaine de 10 octets. C'est suffisant pour identifier de maniere unique chaque position.
+L'`ID()` encode le plateau + l'acteur courant en une chaine de 10 octets. C'est suffisant pour identifier de maniere unique chaque position.
 
 ## Etape 5 : Premier test MCTS
 
@@ -189,15 +189,15 @@ func TestMCTS_FullGame(t *testing.T) {
     game := New()
 
     moves := 0
-    for game.Evaluate() == board.NoPlayer {
+    for game.Evaluate() == decision.NoActor {
         bestState := m.RunMCTS(game, 500)
-        move := bestState.LastMove()
-        game.board[move] = uint8(game.playerTurn) // appliquer le coup
-        game.playerTurn = 3 - game.playerTurn
+        move := bestState.(board.ActionRecorder).LastAction()
+        game.board[move] = uint8(game.actorTurn) // appliquer le coup
+        game.actorTurn = 3 - game.actorTurn
         moves++
     }
 
-    if game.Evaluate() == board.NoPlayer {
+    if game.Evaluate() == decision.NoActor {
         t.Error("la partie devrait etre terminee")
     }
     if moves < 5 || moves > 9 {
@@ -222,12 +222,12 @@ func (m *Morpion) Play(p uint8) error {
     if m.board[p] != 0 {
         return fmt.Errorf("position %d deja occupee", p)
     }
-    if m.Evaluate() != board.NoPlayer {
+    if m.Evaluate() != decision.NoActor {
         return fmt.Errorf("la partie est terminee")
     }
-    m.board[p] = uint8(m.playerTurn)
-    m.lastMove = p
-    m.playerTurn = 3 - m.playerTurn
+    m.board[p] = uint8(m.actorTurn)
+    m.lastAction = int(p)
+    m.actorTurn = 3 - m.actorTurn
     return nil
 }
 ```
@@ -272,7 +272,8 @@ import (
     "log"
     "strconv"
 
-    "github.com/owulveryck/alphazego/board"
+    "github.com/owulveryck/alphazego/decision"
+    "github.com/owulveryck/alphazego/decision/board"
     "github.com/owulveryck/alphazego/mcts"
 )
 
@@ -280,7 +281,7 @@ func main() {
     game := morpion.New()
     m := mcts.NewMCTS()
 
-    for game.Evaluate() == board.NoPlayer {
+    for game.Evaluate() == decision.NoActor {
         fmt.Println(game)
 
         // Tour de l'humain
@@ -298,25 +299,25 @@ func main() {
         }
 
         // Verifier si la partie est finie
-        if game.Evaluate() != board.NoPlayer {
+        if game.Evaluate() != decision.NoActor {
             break
         }
 
         // Tour de l'IA
         bestState := m.RunMCTS(game, 1000)
-        aiMove := bestState.LastMove()
+        aiMove := bestState.(board.ActionRecorder).LastAction()
         fmt.Printf("L'IA joue en %d\n", aiMove)
-        game.Play(aiMove)
+        game.Play(uint8(aiMove))
     }
 
     // Resultat
     fmt.Println(game)
     switch game.Evaluate() {
-    case board.Player1:
+    case decision.Actor1:
         fmt.Println("Vous avez gagne !")
-    case board.Player2:
+    case decision.Actor2:
         fmt.Println("L'IA a gagne !")
-    case board.DrawResult:
+    case decision.DrawResult:
         fmt.Println("Match nul !")
     }
 }

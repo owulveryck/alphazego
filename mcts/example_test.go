@@ -3,8 +3,9 @@ package mcts_test
 import (
 	"fmt"
 
-	"github.com/owulveryck/alphazego/board"
-	"github.com/owulveryck/alphazego/board/tictactoe"
+	"github.com/owulveryck/alphazego/decision"
+	"github.com/owulveryck/alphazego/decision/board"
+	"github.com/owulveryck/alphazego/decision/board/tictactoe"
 	"github.com/owulveryck/alphazego/mcts"
 )
 
@@ -24,10 +25,10 @@ func ExampleMCTS_RunMCTS() {
 
 	// The result is a new state with one move played
 	fmt.Println("Best state is not nil:", bestState != nil)
-	fmt.Println("Next player after MCTS move:", bestState.CurrentPlayer())
+	fmt.Println("Next actor after MCTS move:", bestState.CurrentActor())
 	// Output:
 	// Best state is not nil: true
-	// Next player after MCTS move: 2
+	// Next actor after MCTS move: 2
 }
 
 func ExampleMCTS_RunMCTS_extractMove() {
@@ -38,7 +39,7 @@ func ExampleMCTS_RunMCTS_extractMove() {
 	bestState := m.RunMCTS(game, 1000)
 
 	// Extract the actual move number (0-8) from the state change
-	move := bestState.LastMove()
+	move := bestState.(board.ActionRecorder).LastAction()
 	fmt.Println("MCTS chose a valid position:", move >= 0 && move <= 8)
 	// Output:
 	// MCTS chose a valid position: true
@@ -48,8 +49,8 @@ func ExampleMCTS_RunMCTS_takesWin() {
 	m := mcts.NewMCTS()
 	game := tictactoe.NewTicTacToe()
 
-	// Set up a board where Player1 can win at position 2:
-	// X X _ | Player1's turn
+	// Set up a board where Actor1 can win at position 2:
+	// X X _ | Actor1's turn
 	// O _ _
 	// _ _ O
 	game.Play(0) // X
@@ -59,7 +60,7 @@ func ExampleMCTS_RunMCTS_takesWin() {
 
 	// MCTS should find the winning move
 	bestState := m.RunMCTS(game, 5000)
-	move := bestState.LastMove()
+	move := bestState.(board.ActionRecorder).LastAction()
 	fmt.Println("MCTS plays winning move at position 2:", move == 2)
 	// Output:
 	// MCTS plays winning move at position 2: true
@@ -69,17 +70,17 @@ func ExampleMCTS_RunMCTS_blocksOpponent() {
 	m := mcts.NewMCTS()
 	game := tictactoe.NewTicTacToe()
 
-	// Set up a board where Player1 threatens to win at position 2:
-	// X X _ | Player2's turn
+	// Set up a board where Actor1 threatens to win at position 2:
+	// X X _ | Actor2's turn
 	// _ _ _
 	// _ _ O
 	game.Play(0) // X
 	game.Play(8) // O
 	game.Play(1) // X
 
-	// MCTS (playing as Player2) should block at position 2
+	// MCTS (playing as Actor2) should block at position 2
 	bestState := m.RunMCTS(game, 5000)
-	move := bestState.LastMove()
+	move := bestState.(board.ActionRecorder).LastAction()
 	fmt.Println("MCTS blocks at position 2:", move == 2)
 	// Output:
 	// MCTS blocks at position 2: true
@@ -89,7 +90,7 @@ func ExampleMCTS_RunMCTS_terminalState() {
 	m := mcts.NewMCTS()
 	game := tictactoe.NewTicTacToe()
 
-	// Play until Player1 wins
+	// Play until Actor1 wins
 	game.Play(0) // X
 	game.Play(3) // O
 	game.Play(1) // X
@@ -109,15 +110,15 @@ func ExampleMCTS_RunMCTS_fullGame() {
 
 	// Let MCTS play both sides until the game ends
 	moves := 0
-	for game.Evaluate() == board.NoPlayer {
+	for game.Evaluate() == decision.NoActor {
 		bestState := m.RunMCTS(game, 500)
-		move := bestState.LastMove()
-		game.Play(move)
+		move := bestState.(board.ActionRecorder).LastAction()
+		game.Play(uint8(move))
 		moves++
 	}
 
 	result := game.Evaluate()
-	fmt.Println("Game finished:", result != board.NoPlayer)
+	fmt.Println("Game finished:", result != decision.NoActor)
 	fmt.Println("Moves played:", moves >= 5 && moves <= 9) // Min 5 moves for a win, max 9
 	// Output:
 	// Game finished: true
@@ -135,16 +136,16 @@ func ExampleNewAlphaMCTS() {
 	// Run MCTS with the evaluator guiding the search
 	bestState := m.RunMCTS(game, 100)
 	fmt.Println("AlphaMCTS result is not nil:", bestState != nil)
-	fmt.Println("Next player after move:", bestState.CurrentPlayer())
+	fmt.Println("Next actor after move:", bestState.CurrentActor())
 	// Output:
 	// AlphaMCTS result is not nil: true
-	// Next player after move: 2
+	// Next actor after move: 2
 }
 
 // exampleEvaluator is a simple evaluator with uniform policy and neutral value.
 type exampleEvaluator struct{}
 
-func (e *exampleEvaluator) Evaluate(state board.State) ([]float64, float64) {
+func (e *exampleEvaluator) Evaluate(state decision.State) ([]float64, float64) {
 	moves := state.PossibleMoves()
 	n := len(moves)
 	if n == 0 {

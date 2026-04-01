@@ -12,23 +12,23 @@ Guide pour creer une implementation de l'interface `mcts.Evaluator`, qui permet 
 ```go
 // dans mcts/evaluator.go
 type Evaluator interface {
-    Evaluate(state board.State) (policy []float64, value float64)
+    Evaluate(state decision.State) (policy []float64, value float64)
 }
 ```
 
-L'`Evaluator` est appele par `RunMCTS` a chaque expansion de noeud. Il recoit un etat de jeu et doit retourner :
+L'`Evaluator` est appele par `RunMCTS` a chaque expansion de noeud. Il recoit un etat et doit retourner :
 
 | Retour | Description | Contraintes |
 |--------|-------------|-------------|
-| `policy` | Probabilite a priori de chaque coup legal | Meme ordre que `state.PossibleMoves()`, somme = 1.0 |
-| `value` | Estimation de victoire pour le joueur courant | Dans [-1, 1]. +1 = victoire certaine, -1 = defaite |
+| `policy` | Probabilite a priori de chaque action legale | Meme ordre que `state.PossibleMoves()`, somme = 1.0 |
+| `value` | Estimation de victoire pour l'acteur courant | Dans [-1, 1]. +1 = victoire certaine, -1 = defaite |
 
 ## Etape 1 : Definir la structure
 
 ```go
 package evaluator
 
-import "github.com/owulveryck/alphazego/board"
+import "github.com/owulveryck/alphazego/decision"
 
 type MonEvaluator struct {
     // champs internes : modele charge, session, etc.
@@ -40,8 +40,8 @@ type MonEvaluator struct {
 Le corps de `Evaluate` suit toujours le meme schema :
 
 ```go
-func (e *MonEvaluator) Evaluate(state board.State) ([]float64, float64) {
-    // 1. Obtenir les coups legaux
+func (e *MonEvaluator) Evaluate(state decision.State) ([]float64, float64) {
+    // 1. Obtenir les actions legales
     moves := state.PossibleMoves()
     n := len(moves)
     if n == 0 {
@@ -76,7 +76,7 @@ Policy uniforme et value neutre. Utile pour verifier que le chemin AlphaZero fon
 ```go
 type UniformEvaluator struct{}
 
-func (u *UniformEvaluator) Evaluate(state board.State) ([]float64, float64) {
+func (u *UniformEvaluator) Evaluate(state decision.State) ([]float64, float64) {
     moves := state.PossibleMoves()
     n := len(moves)
     if n == 0 {
@@ -97,7 +97,7 @@ Policy uniforme, mais value estimee par un rollout aleatoire. Cela fournit un vr
 ```go
 type RolloutEvaluator struct{}
 
-func (r *RolloutEvaluator) Evaluate(state board.State) ([]float64, float64) {
+func (r *RolloutEvaluator) Evaluate(state decision.State) ([]float64, float64) {
     moves := state.PossibleMoves()
     n := len(moves)
     if n == 0 {
@@ -112,16 +112,16 @@ func (r *RolloutEvaluator) Evaluate(state board.State) ([]float64, float64) {
 
     // Value par rollout aleatoire
     currentState := state
-    for currentState.Evaluate() == board.NoPlayer {
+    for currentState.Evaluate() == decision.NoActor {
         possibleMoves := currentState.PossibleMoves()
         currentState = possibleMoves[rand.Intn(len(possibleMoves))]
     }
     result := currentState.Evaluate()
-    current := state.CurrentPlayer()
+    current := state.CurrentActor()
     if result == current {
         return policy, 1.0
     }
-    if result == board.DrawResult {
+    if result == decision.DrawResult {
         return policy, 0.0
     }
     return policy, -1.0
@@ -146,7 +146,7 @@ func NewONNXEvaluator(modelPath string, actionSize int) (*ONNXEvaluator, error) 
     return &ONNXEvaluator{session: session, actionSize: actionSize}, nil
 }
 
-func (e *ONNXEvaluator) Evaluate(state board.State) ([]float64, float64) {
+func (e *ONNXEvaluator) Evaluate(state decision.State) ([]float64, float64) {
     moves := state.PossibleMoves()
     n := len(moves)
     if n == 0 {
@@ -165,8 +165,8 @@ func (e *ONNXEvaluator) Evaluate(state board.State) ([]float64, float64) {
     // 3. Extraire la policy brute (sur tout l'espace d'action)
     rawPolicy := outputs[0].Float64s() // taille = actionSize
 
-    // 4. Masquer les coups illegaux et normaliser
-    //    La policy retournee ne doit contenir que les coups legaux,
+    // 4. Masquer les actions illegales et normaliser
+    //    La policy retournee ne doit contenir que les actions legales,
     //    dans le meme ordre que state.PossibleMoves().
     policy := filterLegalMoves(state, rawPolicy)
 
@@ -176,16 +176,16 @@ func (e *ONNXEvaluator) Evaluate(state board.State) ([]float64, float64) {
     return policy, value
 }
 
-// filterLegalMoves extrait les probabilites des coups legaux
+// filterLegalMoves extrait les probabilites des actions legales
 // depuis le vecteur brut du reseau et les normalise.
-func filterLegalMoves(state board.State, rawPolicy []float64) []float64 {
+func filterLegalMoves(state decision.State, rawPolicy []float64) []float64 {
     moves := state.PossibleMoves()
     policy := make([]float64, len(moves))
     sum := 0.0
 
     for i, move := range moves {
         // Identifier l'index de l'action dans l'espace complet
-        action := move.LastMove()
+        action := move.(board.ActionRecorder).LastAction()
         p := math.Exp(rawPolicy[action]) // softmax sur les logits
         policy[i] = p
         sum += p
@@ -210,18 +210,18 @@ m := mcts.NewAlphaMCTS(eval, 1.5)
 
 // Jouer un coup
 bestState := m.RunMCTS(currentState, 800)
-move := bestState.LastMove()
+move := bestState.(board.ActionRecorder).LastAction()
 ```
 
 ## Points de vigilance
 
 ### Ordre de la policy
 
-`policy[i]` doit correspondre a `state.PossibleMoves()[i]`. Si le reseau produit un vecteur sur tout l'espace d'action (ex: 9 cases pour le morpion), il faut filtrer et reordonner pour ne garder que les coups legaux.
+`policy[i]` doit correspondre a `state.PossibleMoves()[i]`. Si le reseau produit un vecteur sur tout l'espace d'action (ex: 9 cases pour le morpion), il faut filtrer et reordonner pour ne garder que les actions legales.
 
 ### Perspective de la value
 
-`value` est du point de vue de `state.CurrentPlayer()`. Si le joueur courant est en position de gagner, `value` doit etre positif. Le MCTS se charge de l'inversion de signe lors de la backpropagation.
+`value` est du point de vue de `state.CurrentActor()`. Si l'acteur courant est en position de gagner, `value` doit etre positif. Le MCTS se charge de l'inversion de signe lors de la backpropagation.
 
 ### Thread-safety
 

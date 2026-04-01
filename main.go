@@ -5,8 +5,9 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/owulveryck/alphazego/board"
-	"github.com/owulveryck/alphazego/board/tictactoe"
+	"github.com/owulveryck/alphazego/decision"
+	"github.com/owulveryck/alphazego/decision/board"
+	"github.com/owulveryck/alphazego/decision/board/tictactoe"
 	"github.com/owulveryck/alphazego/mcts"
 )
 
@@ -14,7 +15,7 @@ func main() {
 	ttt := tictactoe.NewTicTacToe()
 	var move string
 	m := mcts.NewMCTS()
-	for ttt.Evaluate() == board.NoPlayer {
+	for ttt.Evaluate() == decision.NoActor {
 		fmt.Println(ttt)
 		fmt.Print("Enter your move (0-8): ")
 		fmt.Scan(&move)
@@ -26,7 +27,7 @@ func main() {
 			fmt.Println("Coup invalide :", err)
 			continue
 		}
-		if ttt.Evaluate() != board.NoPlayer {
+		if ttt.Evaluate() != decision.NoActor {
 			break
 		}
 		aiMove := getNextMoveFromMCTS(m, ttt)
@@ -37,16 +38,16 @@ func main() {
 	}
 	fmt.Println(ttt)
 	switch ttt.Evaluate() {
-	case board.Player1:
+	case decision.Actor1:
 		fmt.Println("Vous avez gagne !")
-	case board.Player2:
+	case decision.Actor2:
 		fmt.Println("L'IA a gagne !")
-	case board.DrawResult:
+	case decision.DrawResult:
 		fmt.Println("Match nul !")
 	}
 }
 
-func getNextMoveFromMCTS(m *mcts.MCTS, s board.State) uint8 {
+func getNextMoveFromMCTS(m *mcts.MCTS, s decision.State) uint8 {
 	next := m.RunMCTS(s, 1000)
-	return next.LastMove()
+	return uint8(next.(board.ActionRecorder).LastAction())
 }

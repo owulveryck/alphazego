@@ -1,5 +1,5 @@
 // Package mcts implements the Monte Carlo Tree Search algorithm for
-// sequential decision problems with one or more agents.
+// sequential decision problems with one or more actors.
 //
 // MCTS works by repeatedly running four phases — selection, expansion,
 // simulation, and backpropagation — to build a search tree and estimate
@@ -8,13 +8,14 @@
 // # MCTS pur
 //
 // Create an [MCTS] instance with [NewMCTS], then call [MCTS.RunMCTS] with
-// the current game state and a number of iterations:
+// the current state and a number of iterations:
 //
 //	m := mcts.NewMCTS()
 //	bestState := m.RunMCTS(currentState, 1000)
 //
-// The returned state represents the board after the best move found by
-// the algorithm. Use [board.State.LastMove] to extract the actual move played.
+// The returned state represents the result after the best move found by
+// the algorithm. If the state implements [board.ActionRecorder], use
+// LastAction() to extract the actual move played.
 //
 // Each iteration performs:
 //
@@ -45,6 +46,6 @@
 // After all iterations, the child of the root with the most visits is
 // selected as the best move.
 //
-// The algorithm is game-agnostic: it works with any type implementing
-// [board.State].
+// The algorithm is problem-agnostic: it works with any type implementing
+// [decision.State].
 package mcts

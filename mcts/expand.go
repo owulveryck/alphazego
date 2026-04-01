@@ -32,7 +32,7 @@ func (node *mctsNode) expand() *mctsNode {
 // Cette methode est utilisee par le chemin AlphaZero, ou le reseau
 // retourne une distribution de probabilites sur tous les coups legaux
 // en un seul appel. Les priors doivent etre dans le meme ordre que
-// [board.State.PossibleMoves].
+// [decision.State.PossibleMoves].
 func (node *mctsNode) expandAll(policy []float64) {
 	possibleMoves := node.state.PossibleMoves()
 	for i, move := range possibleMoves {

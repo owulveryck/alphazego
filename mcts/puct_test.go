@@ -5,8 +5,9 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/owulveryck/alphazego/board"
-	"github.com/owulveryck/alphazego/board/tictactoe"
+	"github.com/owulveryck/alphazego/decision"
+	"github.com/owulveryck/alphazego/decision/board"
+	"github.com/owulveryck/alphazego/decision/board/tictactoe"
 )
 
 // --- PUCT Tests ---
@@ -81,11 +82,11 @@ func TestBackpropagateValue_SignInversion(t *testing.T) {
 	ttt2.Play(1)
 	grandchild := &mctsNode{state: ttt2, parent: child}
 
-	// value=0.8 from grandchild.CurrentPlayer()'s perspective
-	// BackpropagateValue negates first to store from "player who moved here" perspective
+	// value=0.8 from grandchild.CurrentActor()'s perspective
+	// BackpropagateValue negates first to store from "actor who moved here" perspective
 	grandchild.backpropagateValue(0.8)
 
-	// grandchild: initial negate → wins += -0.8 (from opponent's perspective = player who moved here)
+	// grandchild: initial negate → wins += -0.8 (from opponent's perspective = actor who moved here)
 	if math.Abs(grandchild.wins-(-0.8)) > 1e-9 {
 		t.Errorf("expected grandchild wins=-0.8, got %f", grandchild.wins)
 	}
@@ -229,20 +230,20 @@ func TestRunMCTS_WithEvaluator_ReturnsValidState(t *testing.T) {
 	if result == nil {
 		t.Fatal("expected non-nil result state")
 	}
-	if result.CurrentPlayer() != board.Player2 {
-		t.Errorf("expected Player2's turn after MCTS move, got %d", result.CurrentPlayer())
+	if result.CurrentActor() != decision.Actor2 {
+		t.Errorf("expected Actor2's turn after MCTS move, got %d", result.CurrentActor())
 	}
 }
 
 func TestRunMCTS_WithEvaluator_BlocksWin(t *testing.T) {
 	eval := &rolloutEvaluator{}
 	m := NewAlphaMCTS(eval, 1.0)
-	// Player2's turn. Player1 has positions 0,1 - about to win at 2.
+	// Actor2's turn. Actor1 has positions 0,1 - about to win at 2.
 	ttt := playMoves(0, 3, 1, 4)
 
 	result := m.RunMCTS(ttt, 5000)
 
-	move := result.LastMove()
+	move := result.(board.ActionRecorder).LastAction()
 	if move != 2 {
 		t.Errorf("expected AlphaMCTS to block at position 2, got move %d", move)
 	}
@@ -251,16 +252,16 @@ func TestRunMCTS_WithEvaluator_BlocksWin(t *testing.T) {
 func TestRunMCTS_WithEvaluator_TakesWin(t *testing.T) {
 	eval := &rolloutEvaluator{}
 	m := NewAlphaMCTS(eval, 1.0)
-	// Player1's turn, can win at position 2
+	// Actor1's turn, can win at position 2
 	ttt := tictactoe.NewTicTacToe()
-	ttt.Play(0) // P1
-	ttt.Play(3) // P2
-	ttt.Play(1) // P1
-	ttt.Play(7) // P2
+	ttt.Play(0) // A1
+	ttt.Play(3) // A2
+	ttt.Play(1) // A1
+	ttt.Play(7) // A2
 
 	result := m.RunMCTS(ttt, 5000)
 
-	move := result.LastMove()
+	move := result.(board.ActionRecorder).LastAction()
 	if move != 2 {
 		t.Errorf("expected AlphaMCTS to win at position 2, got move %d", move)
 	}
@@ -268,12 +269,12 @@ func TestRunMCTS_WithEvaluator_TakesWin(t *testing.T) {
 
 // --- terminalValue Tests ---
 
-func TestTerminalValue_Player1Wins(t *testing.T) {
-	// Player1 wins, it's Player2's turn (meaning Player1 just moved)
-	ttt := playMoves(0, 3, 1, 4, 2) // P1 wins top row
+func TestTerminalValue_Actor1Wins(t *testing.T) {
+	// Actor1 wins, it's Actor2's turn (meaning Actor1 just moved)
+	ttt := playMoves(0, 3, 1, 4, 2) // A1 wins top row
 	v := terminalValue(ttt)
-	// CurrentPlayer = Player2, playerWhoMovedHere = Player1, result = Player1Wins
-	// → -1.0 (defaite pour le joueur courant)
+	// CurrentActor = Actor2, actorWhoMovedHere = Actor1, result = Actor1Wins
+	// → -1.0 (defaite pour l'acteur courant)
 	if math.Abs(v-(-1.0)) > 1e-9 {
 		t.Errorf("expected -1.0, got %f", v)
 	}
@@ -281,7 +282,7 @@ func TestTerminalValue_Player1Wins(t *testing.T) {
 
 func TestTerminalValue_Draw(t *testing.T) {
 	ttt := playMoves(4, 0, 2, 6, 3, 5, 1, 7, 8)
-	if ttt.Evaluate() != board.DrawResult {
+	if ttt.Evaluate() != decision.DrawResult {
 		t.Skipf("sequence didn't produce a draw, got %d", ttt.Evaluate())
 	}
 	v := terminalValue(ttt)
@@ -296,7 +297,7 @@ func TestTerminalValue_Draw(t *testing.T) {
 // Utile pour tester que le chemin AlphaZero fonctionne sans signal fort.
 type uniformEvaluator struct{}
 
-func (u *uniformEvaluator) Evaluate(state board.State) ([]float64, float64) {
+func (u *uniformEvaluator) Evaluate(state decision.State) ([]float64, float64) {
 	moves := state.PossibleMoves()
 	n := len(moves)
 	if n == 0 {
@@ -313,7 +314,7 @@ func (u *uniformEvaluator) Evaluate(state board.State) ([]float64, float64) {
 // par rollout aleatoire. Cela fournit un signal reel pour les tests tactiques.
 type rolloutEvaluator struct{}
 
-func (r *rolloutEvaluator) Evaluate(state board.State) ([]float64, float64) {
+func (r *rolloutEvaluator) Evaluate(state decision.State) ([]float64, float64) {
 	moves := state.PossibleMoves()
 	n := len(moves)
 	if n == 0 {
@@ -325,16 +326,16 @@ func (r *rolloutEvaluator) Evaluate(state board.State) ([]float64, float64) {
 	}
 	// Perform a random rollout to estimate value
 	currentState := state
-	for currentState.Evaluate() == board.NoPlayer {
+	for currentState.Evaluate() == decision.NoActor {
 		possibleMoves := currentState.PossibleMoves()
 		currentState = possibleMoves[rand.Intn(len(possibleMoves))]
 	}
 	result := currentState.Evaluate()
-	current := state.CurrentPlayer()
+	current := state.CurrentActor()
 	if result == current {
 		return policy, 1.0
 	}
-	if result == board.DrawResult {
+	if result == decision.DrawResult {
 		return policy, 0.0
 	}
 	return policy, -1.0

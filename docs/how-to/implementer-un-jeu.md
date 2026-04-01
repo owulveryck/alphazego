@@ -1,6 +1,6 @@
 # Comment implementer un nouveau jeu pour le MCTS
 
-Ce guide explique comment implementer l'interface `board.State` pour connecter un jeu (ou tout probleme de decision sequentiel) au moteur MCTS d'AlphaZeGo.
+Ce guide explique comment implementer l'interface `decision.State` pour connecter un jeu (ou tout probleme de decision sequentiel) au moteur MCTS d'AlphaZeGo.
 
 ## Prerequis
 
@@ -13,84 +13,83 @@ Votre struct doit contenir toutes les informations necessaires pour decrire une 
 
 ```go
 type MonJeu struct {
-    plateau    [N]uint8       // representation du plateau
-    joueur     board.PlayerID // joueur dont c'est le tour
-    lastMove   uint8          // coup qui a mene a cet etat
+    plateau    [N]uint8          // representation du plateau
+    acteur     decision.ActorID  // acteur dont c'est le tour
+    lastAction int               // action qui a mene a cet etat (pour ActionRecorder)
 }
 ```
 
-**Important** : le champ `lastMove` est necessaire pour implementer `LastMove()`.
+**Optionnel** : le champ `lastAction` est necessaire si vous implementez `board.ActionRecorder`.
 
-## 2. Implementer `board.State`
+## 2. Implementer `decision.State`
 
-L'interface `State` comporte 6 methodes :
+L'interface `State` comporte 5 methodes :
 
 ```go
 type State interface {
-    CurrentPlayer() PlayerID
-    PreviousPlayer() PlayerID
-    Evaluate() PlayerID
+    CurrentActor() ActorID
+    PreviousActor() ActorID
+    Evaluate() ActorID
     PossibleMoves() []State
     ID() string
-    LastMove() uint8
 }
 ```
 
-### `CurrentPlayer()` et `PreviousPlayer()`
+### `CurrentActor()` et `PreviousActor()`
 
-Pour un jeu a deux joueurs en alternance :
+Pour un jeu a deux acteurs en alternance :
 
 ```go
-func (j *MonJeu) CurrentPlayer() board.PlayerID {
-    return j.joueur
+func (j *MonJeu) CurrentActor() decision.ActorID {
+    return j.acteur
 }
 
-func (j *MonJeu) PreviousPlayer() board.PlayerID {
-    return 3 - j.joueur // alternance : 1↔2
+func (j *MonJeu) PreviousActor() decision.ActorID {
+    return 3 - j.acteur // alternance : 1↔2
 }
 ```
 
-Pour N joueurs en round-robin, adaptez la logique (modulo, etc.).
+Pour N acteurs en round-robin, adaptez la logique (modulo, etc.).
 
 ### `Evaluate()`
 
-Retourne le `PlayerID` du gagnant, `board.DrawResult` pour un nul, ou `board.NoPlayer` si la partie est en cours :
+Retourne l'`ActorID` du gagnant, `decision.DrawResult` pour un nul, ou `decision.NoActor` si la partie est en cours :
 
 ```go
-func (j *MonJeu) Evaluate() board.PlayerID {
+func (j *MonJeu) Evaluate() decision.ActorID {
     // Verifier les conditions de victoire
-    if victoire(board.Player1) {
-        return board.Player1
+    if victoire(decision.Actor1) {
+        return decision.Actor1
     }
-    if victoire(board.Player2) {
-        return board.Player2
+    if victoire(decision.Actor2) {
+        return decision.Actor2
     }
     // Verifier le match nul (plateau plein, etc.)
     if plateauPlein() {
-        return board.DrawResult
+        return decision.DrawResult
     }
-    return board.NoPlayer // partie en cours
+    return decision.NoActor // partie en cours
 }
 ```
 
 ### `PossibleMoves()`
 
-Retourne un slice de `board.State`, chaque element representant un etat apres un coup legal.
+Retourne un slice de `decision.State`, chaque element representant un etat apres un coup legal.
 
 **Regle critique : ne jamais muter le recepteur.** Chaque etat fils doit etre une copie independante.
 
 ```go
-func (j *MonJeu) PossibleMoves() []board.State {
-    var moves []board.State
+func (j *MonJeu) PossibleMoves() []decision.State {
+    var moves []decision.State
     for i := 0; i < N; i++ {
         if j.plateau[i] == 0 { // case vide
             // Copier le plateau
             nouveau := &MonJeu{
-                joueur:   3 - j.joueur,
-                lastMove: uint8(i),
+                acteur:     3 - j.acteur,
+                lastAction: i,
             }
             copy(nouveau.plateau[:], j.plateau[:])
-            nouveau.plateau[i] = uint8(j.joueur)
+            nouveau.plateau[i] = uint8(j.acteur)
             moves = append(moves, nouveau)
         }
     }
@@ -100,28 +99,35 @@ func (j *MonJeu) PossibleMoves() []board.State {
 
 ### `ID()`
 
-Retourne un identifiant unique pour cet etat. Deux etats identiques (meme plateau, meme joueur) doivent retourner le meme ID :
+Retourne un identifiant unique pour cet etat. Deux etats identiques (meme plateau, meme acteur) doivent retourner le meme ID :
 
 ```go
 func (j *MonJeu) ID() string {
     id := make([]byte, N+1)
     copy(id, j.plateau[:])
-    id[N] = byte(j.joueur)
+    id[N] = byte(j.acteur)
     return string(id)
 }
 ```
 
-### `LastMove()`
+## 3. Implementer `ActionRecorder` (optionnel)
 
-Retourne le coup qui a produit cet etat :
+Si vous voulez pouvoir extraire l'action choisie par le MCTS, implementez `board.ActionRecorder` :
 
 ```go
-func (j *MonJeu) LastMove() uint8 {
-    return j.lastMove
+func (j *MonJeu) LastAction() int {
+    return j.lastAction
 }
 ```
 
-## 3. Ajouter `Play()` pour l'interaction humaine
+L'utilisation se fait via une assertion de type :
+
+```go
+bestState := m.RunMCTS(game, 1000)
+move := bestState.(board.ActionRecorder).LastAction()
+```
+
+## 4. Ajouter `Play()` pour l'interaction humaine
 
 `Play()` n'est pas dans l'interface `State` mais est necessaire pour permettre a un humain de jouer :
 
@@ -133,17 +139,17 @@ func (j *MonJeu) Play(position uint8) error {
     if j.plateau[position] != 0 {
         return fmt.Errorf("position %d deja occupee", position)
     }
-    if j.Evaluate() != board.NoPlayer {
+    if j.Evaluate() != decision.NoActor {
         return fmt.Errorf("la partie est terminee")
     }
-    j.plateau[position] = uint8(j.joueur)
-    j.lastMove = position
-    j.joueur = 3 - j.joueur
+    j.plateau[position] = uint8(j.acteur)
+    j.lastAction = int(position)
+    j.acteur = 3 - j.acteur
     return nil
 }
 ```
 
-## 4. Connecter au MCTS
+## 5. Connecter au MCTS
 
 ```go
 m := mcts.NewMCTS()
@@ -151,13 +157,13 @@ game := NewMonJeu() // etat initial
 
 // Trouver le meilleur coup avec 1000 iterations
 bestState := m.RunMCTS(game, 1000)
-move := bestState.LastMove()
+move := bestState.(board.ActionRecorder).LastAction()
 
 // Appliquer le coup
-game.Play(move)
+game.Play(uint8(move))
 ```
 
-## 5. Optionnel : `Tensorizable` pour AlphaZero
+## 6. Optionnel : `Tensorizable` pour AlphaZero
 
 Si vous voulez utiliser un reseau de neurones, implementez `board.Tensorizable` :
 
@@ -169,14 +175,14 @@ func (j *MonJeu) ActionSize() int        { return N }
 
 Voir la [reference des interfaces](../reference/interfaces-evaluator.md) pour les details du contrat.
 
-## 6. Optionnel : `Evaluator` pour une evaluation custom
+## 7. Optionnel : `Evaluator` pour une evaluation custom
 
 Implementez `mcts.Evaluator` pour remplacer les rollouts aleatoires :
 
 ```go
 type MonEvaluateur struct{}
 
-func (e *MonEvaluateur) Evaluate(state board.State) ([]float64, float64) {
+func (e *MonEvaluateur) Evaluate(state decision.State) ([]float64, float64) {
     moves := state.PossibleMoves()
     policy := make([]float64, len(moves))
     // ... calculer les probabilites pour chaque coup ...
@@ -194,7 +200,7 @@ Voir le [how-to Evaluator](implementer-evaluator.md) pour un guide detaille.
 | Erreur | Consequence | Solution |
 |--------|------------|----------|
 | Muter le plateau dans `PossibleMoves()` | Tous les etats partagent le meme tableau | Toujours copier le plateau avant de modifier |
-| Oublier `lastMove` dans `PossibleMoves()` | `LastMove()` retourne 0 pour tous les coups | Affecter `lastMove: uint8(i)` dans chaque etat fils |
-| Collisions d'`ID()` | Le MCTS confond des etats differents | Inclure le joueur courant dans l'ID |
+| Oublier `lastAction` dans `PossibleMoves()` | `LastAction()` retourne 0 pour tous les coups | Affecter `lastAction: i` dans chaque etat fils |
+| Collisions d'`ID()` | Le MCTS confond des etats differents | Inclure l'acteur courant dans l'ID |
 | `Evaluate()` ne detecte pas le nul | Le MCTS boucle indefiniment | Verifier le plateau plein / absence de coups |
 | `Play()` sans validation | Etat incoherent silencieux | Valider bornes, occupation, partie terminee |

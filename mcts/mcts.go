@@ -1,7 +1,7 @@
 package mcts
 
 import (
-	"github.com/owulveryck/alphazego/board"
+	"github.com/owulveryck/alphazego/decision"
 )
 
 // NewMCTS initializes a new MCTS structure.
@@ -38,25 +38,25 @@ func NewAlphaMCTS(eval Evaluator, cpuct float64) *MCTS {
 }
 
 // terminalValue convertit le resultat d'un etat terminal en valeur continue
-// du point de vue du joueur courant (celui qui est a jouer).
-// Retourne 1.0 si le joueur courant a gagne, -1.0 s'il a perdu, 0.0 pour un nul.
-func terminalValue(s board.State) float64 {
+// du point de vue de l'acteur courant (celui qui est a jouer).
+// Retourne 1.0 si l'acteur courant a gagne, -1.0 s'il a perdu, 0.0 pour un nul.
+func terminalValue(s decision.State) float64 {
 	result := s.Evaluate()
-	// Le joueur qui a joue le dernier coup
-	playerWhoMovedHere := s.PreviousPlayer()
-	if result == playerWhoMovedHere {
-		// L'adversaire (qui a joue le dernier coup) a gagne → defaite pour le joueur courant
+	// L'acteur qui a effectue la derniere action
+	actorWhoMovedHere := s.PreviousActor()
+	if result == actorWhoMovedHere {
+		// L'adversaire (qui a joue le dernier coup) a gagne → defaite pour l'acteur courant
 		return -1.0
 	}
-	if result == board.DrawResult {
+	if result == decision.DrawResult {
 		return 0.0
 	}
-	// Le joueur courant a gagne (cas rare dans un etat terminal ou c'est a lui de jouer)
+	// L'acteur courant a gagne (cas rare dans un etat terminal ou c'est a lui de jouer)
 	return 1.0
 }
 
 // getOrCreateNode retrieves a node from the inventory or creates a new one if it doesn't exist.
-func (m *MCTS) getOrCreateNode(s board.State, parent *mctsNode) *mctsNode {
+func (m *MCTS) getOrCreateNode(s decision.State, parent *mctsNode) *mctsNode {
 	boardID := s.ID()
 	if node, ok := m.inventory[boardID]; ok {
 		return node
@@ -73,9 +73,9 @@ func (m *MCTS) getOrCreateNode(s board.State, parent *mctsNode) *mctsNode {
 }
 
 // RunMCTS runs the Monte Carlo Tree Search algorithm for a specified number of iterations.
-// It takes the current game state 's' and the number of iterations 'iterations' as input.
+// It takes the current state 's' and the number of iterations 'iterations' as input.
 // It returns the state resulting from the best move found.
-func (m *MCTS) RunMCTS(s board.State, iterations int) board.State {
+func (m *MCTS) RunMCTS(s decision.State, iterations int) decision.State {
 	root := m.getOrCreateNode(s, nil)
 
 	for i := 0; i < iterations; i++ {

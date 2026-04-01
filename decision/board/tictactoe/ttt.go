@@ -1,5 +1,5 @@
 // Package tictactoe implements a tic-tac-toe game compatible with the
-// [board.State] interface, allowing it to be used with the MCTS engine.
+// [decision.State] interface, allowing it to be used with the MCTS engine.
 //
 // The board is represented as a flat slice of 9 cells (positions 0-8):
 //
@@ -9,13 +9,13 @@
 //	──┼───┼──
 //	6 | 7 | 8
 //
-// Each cell contains 0 (empty), 1 ([board.Player1] / X), or 2 ([board.Player2] / O).
+// Each cell contains 0 (empty), 1 ([decision.Actor1] / X), or 2 ([decision.Actor2] / O).
 package tictactoe
 
 import (
 	"fmt"
 
-	"github.com/owulveryck/alphazego/board"
+	"github.com/owulveryck/alphazego/decision"
 )
 
 // BoardSize is the number of cells on a tic-tac-toe board (3x3 = 9).
@@ -24,40 +24,41 @@ const (
 )
 
 // TicTacToe represents the state of a tic-tac-toe game.
-// It implements [board.State].
+// It implements [decision.State] and [board.ActionRecorder].
 type TicTacToe struct {
 	board      []uint8
-	PlayerTurn board.PlayerID
-	lastMove   uint8
+	ActorTurn  decision.ActorID
+	lastAction int
 }
 
 // ID returns a unique identifier for this board state.
-// The ID is the board cells concatenated with the current player byte,
+// The ID is the board cells concatenated with the current actor byte,
 // producing a 10-character string.
 func (tictactoe *TicTacToe) ID() string {
 	id := make([]byte, BoardSize+1)
 	copy(id, tictactoe.board)
-	id[BoardSize] = byte(tictactoe.PlayerTurn)
+	id[BoardSize] = byte(tictactoe.ActorTurn)
 	return string(id)
 }
 
-// LastMove retourne la position (0-8) du dernier coup joue.
+// LastAction retourne la position (0-8) du dernier coup joue.
 // Pour l'etat initial, retourne 0 (non significatif).
-func (tictactoe *TicTacToe) LastMove() uint8 {
-	return tictactoe.lastMove
+// Implemente [board.ActionRecorder].
+func (tictactoe *TicTacToe) LastAction() int {
+	return tictactoe.lastAction
 }
 
 // NewTicTacToe creates a new tic-tac-toe game with an empty board.
-// Player1 goes first.
+// Actor1 goes first.
 func NewTicTacToe() *TicTacToe {
 	return &TicTacToe{
-		board:      make([]uint8, BoardSize),
-		PlayerTurn: board.Player1,
+		board:     make([]uint8, BoardSize),
+		ActorTurn: decision.Actor1,
 	}
 }
 
-// Play places the current player's mark at position p (0-8)
-// and switches the turn to the other player.
+// Play places the current actor's mark at position p (0-8)
+// and switches the turn to the other actor.
 // It returns an error if the position is out of bounds, already occupied,
 // or the game is already over.
 func (t *TicTacToe) Play(p uint8) error {
@@ -67,39 +68,39 @@ func (t *TicTacToe) Play(p uint8) error {
 	if t.board[p] != 0 {
 		return fmt.Errorf("position %d deja occupee", p)
 	}
-	if t.Evaluate() != board.NoPlayer {
+	if t.Evaluate() != decision.NoActor {
 		return fmt.Errorf("la partie est terminee")
 	}
-	t.board[p] = uint8(t.PlayerTurn)
-	t.lastMove = p
-	t.PlayerTurn = 3 - t.PlayerTurn
+	t.board[p] = uint8(t.ActorTurn)
+	t.lastAction = int(p)
+	t.ActorTurn = 3 - t.ActorTurn
 	return nil
 }
 
-// CurrentPlayer returns the player whose turn it is to play.
-func (t *TicTacToe) CurrentPlayer() board.PlayerID {
-	return t.PlayerTurn
+// CurrentActor returns the actor whose turn it is to play.
+func (t *TicTacToe) CurrentActor() decision.ActorID {
+	return t.ActorTurn
 }
 
-// PreviousPlayer retourne le joueur qui a joue le dernier coup.
-// Au morpion, c'est l'adversaire du joueur courant (alternance stricte a deux joueurs).
-// Pour l'etat initial, retourne Player2 (le "dernier" dans l'ordre de jeu).
-func (t *TicTacToe) PreviousPlayer() board.PlayerID {
-	return 3 - t.PlayerTurn
+// PreviousActor retourne l'acteur qui a joue le dernier coup.
+// Au morpion, c'est l'adversaire de l'acteur courant (alternance stricte a deux acteurs).
+// Pour l'etat initial, retourne Actor2 (le "dernier" dans l'ordre de jeu).
+func (t *TicTacToe) PreviousActor() decision.ActorID {
+	return 3 - t.ActorTurn
 }
 
 // Evaluate checks the board for a winner or draw.
-// It returns [board.NoPlayer] if the game is still in progress,
-// the winning [board.PlayerID] if a player has three in a row,
-// or [board.DrawResult] if all cells are filled with no winner.
-func (t *TicTacToe) Evaluate() board.PlayerID {
+// It returns [decision.NoActor] if the game is still in progress,
+// the winning [decision.ActorID] if an actor has three in a row,
+// or [decision.DrawResult] if all cells are filled with no winner.
+func (t *TicTacToe) Evaluate() decision.ActorID {
 	// Check all winning positions: rows, columns, and diagonals
 	for _, position := range winningPositions {
 		if t.board[position[0]] != 0 &&
 			t.board[position[0]] == t.board[position[1]] &&
 			t.board[position[1]] == t.board[position[2]] {
-			// Return the winner's PlayerID
-			return board.PlayerID(t.board[position[0]])
+			// Return the winner's ActorID
+			return decision.ActorID(t.board[position[0]])
 		}
 	}
 
@@ -112,15 +113,15 @@ func (t *TicTacToe) Evaluate() board.PlayerID {
 		}
 	}
 	if draw {
-		return board.DrawResult
+		return decision.DrawResult
 	}
 
 	// Game can continue
-	return board.NoPlayer
+	return decision.NoActor
 }
 
-func toBoardState(t []*TicTacToe) []board.State {
-	output := make([]board.State, len(t))
+func toDecisionState(t []*TicTacToe) []decision.State {
+	output := make([]decision.State, len(t))
 	for i := range t {
 		output[i] = t[i]
 	}
@@ -129,23 +130,23 @@ func toBoardState(t []*TicTacToe) []board.State {
 
 // PossibleMoves returns a slice of all reachable game states from the current
 // position. Each returned state has one additional move played (at an empty cell)
-// and the turn switched to the other player.
-func (t *TicTacToe) PossibleMoves() []board.State {
+// and the turn switched to the other actor.
+func (t *TicTacToe) PossibleMoves() []decision.State {
 	games := make([]*TicTacToe, 0)
 	for i := 0; i < BoardSize; i++ {
 		if t.board[i] == 0 {
 			game := make([]uint8, BoardSize)
 			copy(game, t.board)
-			game[i] = uint8(t.PlayerTurn)
+			game[i] = uint8(t.ActorTurn)
 			games = append(games, &TicTacToe{
 				board:      game,
-				PlayerTurn: 3 - t.PlayerTurn,
-				lastMove:   uint8(i),
+				ActorTurn:  3 - t.ActorTurn,
+				lastAction: i,
 			})
 		}
 	}
 	// Return a slice of possible next states
-	return toBoardState(games)
+	return toDecisionState(games)
 }
 
 var winningPositions = [][]uint8{
@@ -156,26 +157,26 @@ var winningPositions = [][]uint8{
 
 // Features retourne l'etat du morpion sous forme de tenseur aplati [3 * 3 * 3] = 27 float32.
 //
-//   - Plan 0 (indices 0-8) : positions du joueur courant (1.0 si occupee, 0.0 sinon)
+//   - Plan 0 (indices 0-8) : positions de l'acteur courant (1.0 si occupee, 0.0 sinon)
 //   - Plan 1 (indices 9-17) : positions de l'adversaire
-//   - Plan 2 (indices 18-26) : indicateur du joueur courant (1.0 si Player1, 0.0 si Player2)
+//   - Plan 2 (indices 18-26) : indicateur de l'acteur courant (1.0 si Actor1, 0.0 si Actor2)
 func (t *TicTacToe) Features() []float32 {
 	features := make([]float32, 3*3*3) // [3][3][3]
-	current := uint8(t.CurrentPlayer())
-	opponent := uint8(3 - t.PlayerTurn)
+	current := uint8(t.CurrentActor())
+	opponent := uint8(3 - t.ActorTurn)
 
 	for i := 0; i < BoardSize; i++ {
 		if t.board[i] == current {
-			features[i] = 1.0 // Plan 0 : joueur courant
+			features[i] = 1.0 // Plan 0 : acteur courant
 		}
 		if t.board[i] == opponent {
 			features[9+i] = 1.0 // Plan 1 : adversaire
 		}
 	}
 
-	// Plan 2 : indicateur du joueur courant
+	// Plan 2 : indicateur de l'acteur courant
 	val := float32(0.0)
-	if t.PlayerTurn == board.Player1 {
+	if t.ActorTurn == decision.Actor1 {
 		val = 1.0
 	}
 	for i := 18; i < 27; i++ {

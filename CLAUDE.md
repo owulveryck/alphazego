@@ -6,14 +6,19 @@ Implementation d'AlphaZero en Go, from scratch. Le jeu de reference est le morpi
 
 ```
 alphazego/
-├── board/
-│   ├── interfaces.go              # Interfaces generiques (State, Tensorizable)
-│   └── tictactoe/
-│       ├── ttt.go                 # Implementation du morpion (State + Tensorizable)
-│       ├── console.go             # Affichage ANSI du plateau
-│       ├── ttt_test.go            # Tests unitaires
+├── decision/
+│   ├── doc.go                     # Documentation du package
+│   ├── state.go                   # Interfaces generiques (State, ActorID)
+│   └── board/
+│       ├── doc.go                 # Documentation du package
+│       ├── board.go               # Interfaces plateau (Boarder, ActionRecorder, Tensorizable)
 │       ├── example_test.go        # Exemples testables (godoc)
-│       └── cmd/main.go            # Programme jouable (humain vs IA)
+│       └── tictactoe/
+│           ├── ttt.go             # Implementation du morpion (State + ActionRecorder + Tensorizable)
+│           ├── console.go         # Affichage ANSI du plateau
+│           ├── ttt_test.go        # Tests unitaires
+│           ├── example_test.go    # Exemples testables (godoc)
+│           └── cmd/main.go        # Programme jouable (humain vs IA)
 ├── mcts/
 │   ├── doc.go                     # Documentation du package
 │   ├── evaluator.go               # Interface Evaluator (policy + value)
@@ -38,7 +43,7 @@ alphazego/
 - `go test ./...` -- lancer tous les tests
 - `go test -cover ./...` -- tests avec couverture
 - `go run main.go` -- jouer au morpion contre l'IA
-- `go run board/tictactoe/cmd/main.go` -- idem (version alternative)
+- `go run decision/board/tictactoe/cmd/main.go` -- idem (version alternative)
 - `goimports -w .` -- corriger les imports apres modification
 
 ## Conventions
