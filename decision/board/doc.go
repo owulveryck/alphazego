@@ -8,6 +8,7 @@
 // [Tensorizable] permet la conversion en tenseur pour l'évaluation par un
 // réseau de neurones.
 //
-// L'implémentation de référence est le morpion dans le sous-package
-// [tictactoe].
+// Deux implémentations de référence sont fournies :
+//   - le morpion ([tictactoe]) : problème à deux acteurs
+//   - le taquin ([taquin]) : problème à un seul acteur
 package board

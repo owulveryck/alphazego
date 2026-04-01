@@ -9,7 +9,7 @@ Ce document explique les **modifications concrètes** que l'approche AlphaZero a
 | **Selection** | UCB1 | PUCT (avec prior du policy network) |
 | **Expansion** | Ajoute 1 enfant, pas de prior | Évalue le nœud avec le NN, stocke les priors |
 | **Simulation** | Rollout aléatoire jusqu'au terminal | **Supprimée** -- la value du NN remplace le rollout |
-| **Backpropagation** | Propage le résultat (win/loss/draw) | Propage la **value** v ∈ [-1, 1] |
+| **Backpropagation** | Propage le résultat (win/loss/draw) | Propage les **values** par acteur (map[ActorID]float64) |
 
 ## Changement 1 : PUCT remplace UCB1
 
@@ -72,16 +72,16 @@ Le nœud commence avec `wins = 0`, `visits = 0`, et sera sélectionné uniquemen
 
 ### Expansion AlphaZero
 
-Quand un nœud feuille est atteint, on appelle le réseau de neurones **une seule fois** pour obtenir `(p, v)` :
+Quand un nœud feuille est atteint, on appelle le réseau de neurones **une seule fois** pour obtenir les priors et les valeurs par acteur :
 
 ```
-(policy, value) = NeuralNetwork(state)
+(policy, values) = NeuralNetwork(state)
 ```
 
 Puis on crée **tous les enfants** en leur attribuant leur prior :
 
 ```go
-policy, value := evaluator.Evaluate(node.state)
+policy, values := evaluator.Evaluate(node.state)
 possibleMoves := node.state.PossibleMoves()
 
 for i, move := range possibleMoves {
@@ -94,7 +94,7 @@ for i, move := range possibleMoves {
 }
 ```
 
-On backpropage ensuite `value` directement (pas de rollout).
+On backpropage ensuite `values` directement (pas de rollout).
 
 **Pourquoi créer tous les enfants d'un coup ?** Parce que le réseau est appelé une seule fois par expansion et retourne les priors pour **tous** les coups. Il n'y a pas de raison de les ajouter un par un.
 
@@ -105,9 +105,9 @@ On backpropage ensuite `value` directement (pas de rollout).
 Le code actuel (`mcts/simulate.go`) joue des coups aléatoires jusqu'à la fin :
 
 ```go
-func (node *mctsNode) simulate() board.PlayerID {
+func (node *mctsNode) simulate() decision.ActorID {
     currentState := node.state
-    for currentState.Evaluate() == board.NoPlayer {
+    for currentState.Evaluate() == decision.Undecided {
         possibleMoves := currentState.PossibleMoves()
         currentState = possibleMoves[rand.Intn(len(possibleMoves))]
     }
@@ -123,12 +123,12 @@ Dans AlphaZero, `simulate()` disparaît entièrement. La valeur `v` retournée p
 
 ```go
 // Avant (MCTS pur) :
-result := nodeToSimulate.simulate()       // rollout aléatoire → board.PlayerID (1, 2, ou 3)
+result := nodeToSimulate.simulate()       // rollout aléatoire → decision.ActorID
 nodeToSimulate.backpropagate(result)
 
 // Après (AlphaZero) :
-// Le réseau a déjà retourné 'value' lors de l'expansion
-nodeToSimulate.backpropagateValue(value)   // value ∈ [-1, 1]
+// Le réseau a déjà retourné 'values' lors de l'expansion
+nodeToSimulate.backpropagateValue(values)  // map[ActorID]float64
 ```
 
 **Note sur AlphaGo original** (2016) : il utilisait un **mélange** des deux :
@@ -141,43 +141,55 @@ avec `λ = 0.5`. AlphaGo Zero (2017) a montré que le rollout n'apporte rien qua
 
 ## Changement 4 : Backpropagation de valeurs continues
 
-### Backpropagation actuelle
+### Backpropagation actuelle (MCTS pur)
 
-Le code actuel propage un résultat discret (1 = Player1 gagné, 2 = Player2, 3 = nul) :
+Le code actuel propage un résultat discret (`decision.ActorID` : le gagnant, ou `Stalemate`) :
 
 ```go
-func (n *mctsNode) backpropagate(result board.PlayerID) {
-    n.visits++
-    playerWhoMovedHere := n.state.PreviousPlayer()
-    if result == playerWhoMovedHere {
-        n.wins += 1
-    } else if result == board.DrawResult {
-        n.wins += 0.5
-    }
-    if n.parent != nil {
-        n.parent.backpropagate(result)
+func (n *mctsNode) backpropagate(result decision.ActorID) {
+    for n := node; n != nil; n = n.parent {
+        n.visits++
+        actorWhoMovedHere := n.state.PreviousActor()
+        if result == actorWhoMovedHere {
+            n.wins += 1
+        } else if result == decision.Stalemate {
+            n.wins += 0.5
+        }
     }
 }
 ```
 
 ### Backpropagation AlphaZero
 
-La valeur `v ∈ [-1, 1]` est continue. Elle est exprimée **du point de vue du joueur courant** au nœud évalué. Pour rester cohérent avec la convention du MCTS pur (où `wins` est stocké du point de vue du joueur qui a effectué le coup menant à ce nœud), la valeur est d'abord inversée, puis alternée à chaque niveau :
+L'`Evaluator` retourne une **map de valeurs par acteur** (`map[ActorID]float64`). Chaque nœud récupère directement la valeur de l'acteur qui a joué le coup menant à ce nœud :
 
 ```go
-func (node *mctsNode) backpropagateValue(value float64) {
-    // Inverser : passer de la perspective du joueur courant
-    // à celle du joueur qui a joué le coup (= PreviousPlayer)
-    value = -value
+func (node *mctsNode) backpropagateValue(values map[decision.ActorID]float64) {
     for n := node; n != nil; n = n.parent {
         n.visits++
-        n.wins += value
-        value = -value  // ← alternance à chaque niveau
+        n.wins += values[n.state.PreviousActor()]
     }
 }
 ```
 
-L'inversion initiale garantit que `Q(child) = wins/visits` représente la valeur du point de vue du **parent**, ce qui est nécessaire pour que PUCT sélectionne les coups favorables au joueur qui choisit.
+Cette approche fonctionne pour tout nombre d'acteurs (1, 2, N) sans hypothèse de somme nulle. `Q(child) = wins/visits` représente la valeur du point de vue de l'acteur qui a joué le coup menant à ce nœud, ce qui est nécessaire pour que PUCT sélectionne les coups favorables à l'acteur qui choisit.
+
+Pour les nœuds terminaux (quand le réseau n'est pas appelé), `backpropagateTerminal()` calcule la valeur à la volée pour chaque acteur :
+
+```go
+func (node *mctsNode) backpropagateTerminal() {
+    result := node.state.Evaluate()
+    for n := node; n != nil; n = n.parent {
+        n.visits++
+        actor := n.state.PreviousActor()
+        if result == actor {
+            n.wins += 1.0
+        } else if result != decision.Stalemate {
+            n.wins += -1.0
+        }
+    }
+}
+```
 
 ## Récapitulatif : une itération AlphaZero
 
@@ -190,20 +202,18 @@ L'inversion initiale garantit que `Q(child) = wins/visits` représente la valeur
 
 2. EXPANSION + EVALUATION (fusionnées, un seul appel réseau)
    if not node.is_terminal():
-       policy, value = neural_network(node.state)    ← appel réseau unique
+       policy, values = neural_network(node.state)    ← appel réseau unique
        for each legal move:
-           create child with prior = policy[move]     ← expandAll(policy)
+           create child with prior = policy[move]      ← expandAll(policy)
 
 3. PAS DE SIMULATION
-   (la value du réseau remplace le rollout)
+   (les values du réseau remplacent le rollout)
 
 4. BACKPROPAGATION
-   value = -value                                     ← inversion initiale (convention MCTS)
    n = node
    while n != nil:
        n.visits += 1
-       n.wins += value
-       value = -value                                 ← alternance à chaque niveau
+       n.wins += values[n.state.PreviousActor()]       ← lookup par acteur
        n = n.parent
 ```
 

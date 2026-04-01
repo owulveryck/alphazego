@@ -41,7 +41,8 @@
 //     obtenir policy et value. Tous les enfants sont créés d'un coup avec
 //     leurs priors.
 //  3. Pas de simulation : la value du réseau remplace le rollout.
-//  4. Backpropagation : propage la value continue avec inversion de signe.
+//  4. Backpropagation : propage les values par acteur (une valeur par
+//     [decision.ActorID]), sans hypothèse de somme nulle.
 //
 // After all iterations, the child of the root with the most visits is
 // selected as the best move.

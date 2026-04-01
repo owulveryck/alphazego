@@ -18,9 +18,11 @@
 //
 // # Compatibilité MCTS
 //
-// Le MCTS pur (rollouts aléatoires) fonctionne correctement : [backpropagate]
-// crédite les victoires quand result == PreviousActor(), ce qui est toujours
-// vrai pour un seul acteur quand le puzzle est résolu.
+// Les deux modes du moteur MCTS fonctionnent correctement :
+//   - MCTS pur ([mcts.NewMCTS]) : backpropagate crédite les victoires quand
+//     result == PreviousActor(), ce qui est toujours vrai pour un seul acteur.
+//   - AlphaZero ([mcts.NewAlphaMCTS]) : backpropagateValue reçoit une map de
+//     valeurs par acteur, sans hypothèse de somme nulle.
 //
 // Une limite d'étapes (maxSteps) borne les rollouts pour éviter les boucles
 // infinies. Quand la limite est atteinte, [Evaluate] retourne [decision.Stalemate].

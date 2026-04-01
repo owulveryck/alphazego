@@ -69,9 +69,9 @@ Depuis le nœud nouvellement créé, on joue des **coups aléatoires** jusqu'à 
 Dans le code (`mcts/simulate.go`) :
 
 ```go
-func (node *mctsNode) simulate() board.PlayerID {
+func (node *mctsNode) simulate() decision.ActorID {
     currentState := node.state
-    for currentState.Evaluate() == board.NoPlayer {
+    for currentState.Evaluate() == decision.Undecided {
         possibleMoves := currentState.PossibleMoves()
         currentState = possibleMoves[rand.Intn(len(possibleMoves))]
     }
@@ -89,15 +89,15 @@ Le résultat de la simulation est **propagé vers le haut** de l'arbre, du nœud
 - `wins += 1` si le joueur qui a joué le coup menant à ce nœud a gagné
 - `wins += 0.5` en cas de match nul
 
-**Subtilité critique** : à chaque nœud, `CurrentPlayer()` désigne le joueur **à qui c'est le tour de jouer**, pas celui qui a joué le coup. Le joueur qui a joué le coup menant à ce nœud est `PreviousPlayer()`. Les wins doivent être créditées à ce dernier.
+**Subtilité critique** : à chaque nœud, `CurrentActor()` désigne l'acteur **à qui c'est le tour d'agir**, pas celui qui a joué le coup. L'acteur qui a joué le coup menant à ce nœud est `PreviousActor()`. Les wins doivent être créditées à ce dernier.
 
 Dans le code (`mcts/backpropagate.go`) :
 
 ```go
-playerWhoMovedHere := n.state.PreviousPlayer()
-if result == playerWhoMovedHere {
+actorWhoMovedHere := n.state.PreviousActor()
+if result == actorWhoMovedHere {
     n.wins += 1
-} else if result == board.DrawResult {
+} else if result == decision.Stalemate {
     n.wins += 0.5
 }
 ```

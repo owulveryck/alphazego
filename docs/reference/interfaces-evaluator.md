@@ -12,7 +12,7 @@ type State interface {
     CurrentActor() ActorID
     // PreviousActor retourne l'acteur qui a effectué l'action menant à cet état.
     PreviousActor() ActorID
-    // Evaluate retourne l'issue du problème : NoActor (en cours), DrawResult, ou l'ActorID gagnant.
+    // Evaluate retourne l'issue du problème : Undecided (en cours), Stalemate, ou l'ActorID gagnant.
     Evaluate() ActorID
     // PossibleMoves retourne tous les états atteignables depuis l'état courant.
     PossibleMoves() []State
@@ -60,17 +60,17 @@ L'`Evaluator` est le point d'entrée entre le MCTS et le réseau de neurones. Il
 
 ```go
 // Evaluator fournit une évaluation d'une position.
-// Il est utilisé par le MCTS pour remplacer les rollouts aléatoires (value)
+// Il est utilisé par le MCTS pour remplacer les rollouts aléatoires (values)
 // et guider l'exploration (policy).
 type Evaluator interface {
     // Evaluate prend un état et retourne :
     //   - policy : probabilité a priori pour chaque action légale,
     //     dans le même ordre que state.PossibleMoves()
-    //   - value : estimation de victoire pour l'acteur courant, dans [-1, 1]
+    //   - values : estimation de victoire par acteur, dans [-1, 1]
     //
     // La somme des éléments de policy doit être égale à 1.
     // Les actions illégales ne doivent pas apparaître dans policy.
-    Evaluate(state decision.State) (policy []float64, value float64)
+    Evaluate(state decision.State) (policy []float64, values map[decision.ActorID]float64)
 }
 ```
 
@@ -78,23 +78,27 @@ type Evaluator interface {
 
 - `policy` a exactement `len(state.PossibleMoves())` éléments, dans le même ordre
 - `sum(policy) = 1.0` (distribution de probabilités normalisée)
-- `value ∈ [-1, 1]` du point de vue de `state.CurrentActor()`
+- `values[actorID] ∈ [-1, 1]` pour chaque acteur du problème
+- La map doit contenir au minimum `CurrentActor()` et `PreviousActor()`
 - L'implémentation doit être **thread-safe** si le MCTS est parallélisé
 
-### Exemple d'implémentation (évaluation aléatoire, pour tests)
+### Exemple d'implémentation (évaluation uniforme, pour tests)
 
 ```go
 type RandomEvaluator struct{}
 
-func (r *RandomEvaluator) Evaluate(state decision.State) ([]float64, float64) {
+func (r *RandomEvaluator) Evaluate(state decision.State) ([]float64, map[decision.ActorID]float64) {
     moves := state.PossibleMoves()
     n := len(moves)
     policy := make([]float64, n)
     for i := range policy {
         policy[i] = 1.0 / float64(n) // distribution uniforme
     }
-    value := 0.0 // position neutre
-    return policy, value
+    values := map[decision.ActorID]float64{
+        state.CurrentActor():  0.0,
+        state.PreviousActor(): 0.0,
+    }
+    return policy, values
 }
 ```
 
@@ -152,7 +156,7 @@ func (t *TicTacToe) Features() []float32 {
 
     // Plan 2 : indicateur de l'acteur courant
     val := float32(0.0)
-    if current == decision.Actor1 {
+    if current == tictactoe.Cross {
         val = 1.0
     }
     for i := 18; i < 27; i++ {
@@ -189,7 +193,7 @@ bestState := m.RunMCTS(currentState, 800)
 move := bestState.(board.ActionRecorder).LastAction()
 ```
 
-En mode AlphaZero, la sélection utilise PUCT (avec les priors du policy network) au lieu de UCB1, et la value du réseau remplace les rollouts aléatoires. Les détails internes (nœuds, PUCT, backpropagation) sont encapsulés dans le package `mcts` et ne sont pas exposés.
+En mode AlphaZero, la sélection utilise PUCT (avec les priors du policy network) au lieu de UCB1, et les values par acteur du réseau remplacent les rollouts aléatoires. Les détails internes (nœuds, PUCT, backpropagation) sont encapsulés dans le package `mcts` et ne sont pas exposés.
 
 ## Choix d'implémentation du réseau en Go
 

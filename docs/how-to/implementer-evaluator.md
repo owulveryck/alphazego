@@ -12,7 +12,7 @@ Guide pour créer une implémentation de l'interface `mcts.Evaluator`, qui perme
 ```go
 // dans mcts/evaluator.go
 type Evaluator interface {
-    Evaluate(state decision.State) (policy []float64, value float64)
+    Evaluate(state decision.State) (policy []float64, values map[decision.ActorID]float64)
 }
 ```
 
@@ -21,7 +21,7 @@ L'`Evaluator` est appelé par `RunMCTS` à chaque expansion de nœud. Il reçoit
 | Retour | Description | Contraintes |
 |--------|-------------|-------------|
 | `policy` | Probabilité a priori de chaque action légale | Même ordre que `state.PossibleMoves()`, somme = 1.0 |
-| `value` | Estimation de victoire pour l'acteur courant | Dans [-1, 1]. +1 = victoire certaine, -1 = défaite |
+| `values` | Estimation de victoire par acteur | Clé = `ActorID`, valeur ∈ [-1, 1]. +1 = victoire certaine, -1 = défaite |
 
 ## Étape 1 : Définir la structure
 
@@ -40,19 +40,19 @@ type MonEvaluator struct {
 Le corps de `Evaluate` suit toujours le même schéma :
 
 ```go
-func (e *MonEvaluator) Evaluate(state decision.State) ([]float64, float64) {
+func (e *MonEvaluator) Evaluate(state decision.State) ([]float64, map[decision.ActorID]float64) {
     // 1. Obtenir les actions légales
     moves := state.PossibleMoves()
     n := len(moves)
     if n == 0 {
-        return nil, 0.0
+        return nil, map[decision.ActorID]float64{}
     }
 
-    // 2. Calculer la policy et la value
+    // 2. Calculer la policy et les values par acteur
     //    (spécifique à chaque implémentation)
     policy := make([]float64, n)
-    var value float64
-    // ... remplir policy et value ...
+    values := make(map[decision.ActorID]float64)
+    // ... remplir policy et values ...
 
     // 3. Normaliser la policy (somme = 1)
     sum := 0.0
@@ -63,7 +63,7 @@ func (e *MonEvaluator) Evaluate(state decision.State) ([]float64, float64) {
         policy[i] /= sum
     }
 
-    return policy, value
+    return policy, values
 }
 ```
 
@@ -76,17 +76,21 @@ Policy uniforme et value neutre. Utile pour vérifier que le chemin AlphaZero fo
 ```go
 type UniformEvaluator struct{}
 
-func (u *UniformEvaluator) Evaluate(state decision.State) ([]float64, float64) {
+func (u *UniformEvaluator) Evaluate(state decision.State) ([]float64, map[decision.ActorID]float64) {
     moves := state.PossibleMoves()
     n := len(moves)
     if n == 0 {
-        return nil, 0.0
+        return nil, map[decision.ActorID]float64{}
     }
     policy := make([]float64, n)
     for i := range policy {
         policy[i] = 1.0 / float64(n)
     }
-    return policy, 0.0 // value neutre
+    values := map[decision.ActorID]float64{
+        state.CurrentActor():  0.0,
+        state.PreviousActor(): 0.0,
+    }
+    return policy, values
 }
 ```
 
@@ -97,11 +101,11 @@ Policy uniforme, mais value estimée par un rollout aléatoire. Cela fournit un 
 ```go
 type RolloutEvaluator struct{}
 
-func (r *RolloutEvaluator) Evaluate(state decision.State) ([]float64, float64) {
+func (r *RolloutEvaluator) Evaluate(state decision.State) ([]float64, map[decision.ActorID]float64) {
     moves := state.PossibleMoves()
     n := len(moves)
     if n == 0 {
-        return nil, 0.0
+        return nil, map[decision.ActorID]float64{}
     }
 
     // Policy uniforme
@@ -110,21 +114,26 @@ func (r *RolloutEvaluator) Evaluate(state decision.State) ([]float64, float64) {
         policy[i] = 1.0 / float64(n)
     }
 
-    // Value par rollout aléatoire
+    // Values par rollout aléatoire
     currentState := state
-    for currentState.Evaluate() == decision.NoActor {
+    for currentState.Evaluate() == decision.Undecided {
         possibleMoves := currentState.PossibleMoves()
         currentState = possibleMoves[rand.Intn(len(possibleMoves))]
     }
     result := currentState.Evaluate()
     current := state.CurrentActor()
-    if result == current {
-        return policy, 1.0
+    previous := state.PreviousActor()
+    values := make(map[decision.ActorID]float64)
+    for _, actor := range []decision.ActorID{current, previous} {
+        if result == actor {
+            values[actor] = 1.0
+        } else if result == decision.Stalemate {
+            values[actor] = 0.0
+        } else {
+            values[actor] = -1.0
+        }
     }
-    if result == decision.DrawResult {
-        return policy, 0.0
-    }
-    return policy, -1.0
+    return policy, values
 }
 ```
 
@@ -146,11 +155,11 @@ func NewONNXEvaluator(modelPath string, actionSize int) (*ONNXEvaluator, error) 
     return &ONNXEvaluator{session: session, actionSize: actionSize}, nil
 }
 
-func (e *ONNXEvaluator) Evaluate(state decision.State) ([]float64, float64) {
+func (e *ONNXEvaluator) Evaluate(state decision.State) ([]float64, map[decision.ActorID]float64) {
     moves := state.PossibleMoves()
     n := len(moves)
     if n == 0 {
-        return nil, 0.0
+        return nil, map[decision.ActorID]float64{}
     }
 
     // 1. Convertir l'état en tenseur via Tensorizable
@@ -170,10 +179,16 @@ func (e *ONNXEvaluator) Evaluate(state decision.State) ([]float64, float64) {
     //    dans le même ordre que state.PossibleMoves().
     policy := filterLegalMoves(state, rawPolicy)
 
-    // 5. Extraire la value
-    value := outputs[1].Float64s()[0] // déjà dans [-1, 1] grâce au tanh
+    // 5. Extraire la value et construire la map par acteur
+    //    Le réseau retourne une value v ∈ [-1, 1] du point de vue de l'acteur courant.
+    //    Pour un jeu à 2 acteurs somme nulle :
+    v := outputs[1].Float64s()[0]
+    values := map[decision.ActorID]float64{
+        state.CurrentActor():  v,
+        state.PreviousActor(): -v,
+    }
 
-    return policy, value
+    return policy, values
 }
 
 // filterLegalMoves extrait les probabilités des actions légales
@@ -219,9 +234,9 @@ move := bestState.(board.ActionRecorder).LastAction()
 
 `policy[i]` doit correspondre à `state.PossibleMoves()[i]`. Si le réseau produit un vecteur sur tout l'espace d'action (ex: 9 cases pour le morpion), il faut filtrer et réordonner pour ne garder que les actions légales.
 
-### Perspective de la value
+### Perspective des values
 
-`value` est du point de vue de `state.CurrentActor()`. Si l'acteur courant est en position de gagner, `value` doit être positif. Le MCTS se charge de l'inversion de signe lors de la backpropagation.
+La map `values` contient une valeur par acteur. Pour un jeu à 2 acteurs somme nulle, si le réseau retourne un scalaire `v` du point de vue de l'acteur courant, on construit : `{CurrentActor: v, PreviousActor: -v}`. Pour un problème à 1 acteur : `{Player: v}`. Le MCTS n'effectue aucune inversion de signe.
 
 ### Thread-safety
 
@@ -240,7 +255,7 @@ func TestMonEvaluator(t *testing.T) {
     eval := &MonEvaluator{...}
     state := tictactoe.NewTicTacToe()
 
-    policy, value := eval.Evaluate(state)
+    policy, values := eval.Evaluate(state)
 
     // Vérifier le nombre d'éléments
     if len(policy) != len(state.PossibleMoves()) {
@@ -256,9 +271,11 @@ func TestMonEvaluator(t *testing.T) {
         t.Errorf("policy sum = %f, want 1.0", sum)
     }
 
-    // Vérifier la borne de la value
-    if value < -1.0 || value > 1.0 {
-        t.Errorf("value = %f, want [-1, 1]", value)
+    // Vérifier les bornes des values
+    for actor, v := range values {
+        if v < -1.0 || v > 1.0 {
+            t.Errorf("value[%d] = %f, want [-1, 1]", actor, v)
+        }
     }
 }
 ```

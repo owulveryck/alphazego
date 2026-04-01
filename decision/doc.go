@@ -23,5 +23,7 @@
 //
 // Pour utiliser ce framework, implémenter [State] avec la logique
 // spécifique au problème. Le sous-package board fournit des interfaces
-// supplémentaires pour les jeux de plateau ([board.Boarder]).
+// supplémentaires pour les jeux de plateau ([board.Boarder]), avec deux
+// implémentations d'exemple : le morpion (deux acteurs) et le taquin
+// (un seul acteur).
 package decision
