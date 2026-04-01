@@ -29,32 +29,40 @@ func (node *mctsNode) backpropagate(result decision.ActorID) {
 	// nodes in future iterations of the MCTS, guiding the search towards more promising paths.
 }
 
-// backpropagateValue propage une valeur continue v ∈ [-1, 1] depuis ce nœud
-// jusqu'à la racine. Cette méthode est utilisée par le chemin AlphaZero, où la
-// value provient du réseau de neurones au lieu d'un rollout aléatoire.
+// backpropagateValue propage des valeurs continues ∈ [-1, 1] depuis ce nœud
+// jusqu'à la racine. Cette méthode est utilisée par le chemin AlphaZero, où les
+// valeurs proviennent du réseau de neurones au lieu d'un rollout aléatoire.
 //
-// La valeur initiale est exprimée du point de vue de l'acteur courant au nœud
-// évalué (CurrentActor). Elle est convertie en perspective de PreviousActor
-// (l'acteur qui a effectué l'action menant à ce nœud), puis propagée vers la
-// racine en inversant le signe uniquement quand l'acteur change entre niveaux.
+// La map values associe chaque [decision.ActorID] à sa valeur. À chaque nœud,
+// la valeur de PreviousActor() (l'acteur qui a effectué l'action menant à ce
+// nœud) est ajoutée aux wins. Cette logique est identique à [backpropagate]
+// mais avec des valeurs continues.
 //
-// Pour un problème à un seul acteur (CurrentActor == PreviousActor à chaque
-// nœud), aucune inversion n'a lieu : la valeur est propagée telle quelle.
-// Pour un jeu à deux acteurs en alternance, le comportement est identique
-// à l'alternance systématique classique.
-func (node *mctsNode) backpropagateValue(value float64) {
-	// Convertir de la perspective de CurrentActor vers celle de PreviousActor.
-	// Pour un seul acteur, CurrentActor == PreviousActor : pas d'inversion.
-	if node.state.CurrentActor() != node.state.PreviousActor() {
-		value = -value
-	}
+// Cette approche fonctionne pour tout nombre d'acteurs (1, 2, N) sans
+// hypothèse de somme nulle.
+func (node *mctsNode) backpropagateValue(values map[decision.ActorID]float64) {
 	for n := node; n != nil; n = n.parent {
 		n.visits++
-		n.wins += value
-		// Inverser le signe uniquement si l'acteur qui a joué change
-		// entre ce nœud et son parent.
-		if n.parent != nil && n.state.PreviousActor() != n.parent.state.PreviousActor() {
-			value = -value
+		n.wins += values[n.state.PreviousActor()]
+	}
+}
+
+// backpropagateTerminal propage le résultat d'un état terminal depuis ce nœud
+// jusqu'à la racine. Chaque nœud reçoit 1.0 si PreviousActor a gagné, -1.0
+// s'il a perdu, ou 0.0 en cas de match nul (convention [-1, 1]).
+//
+// Cette méthode remplace l'ancien terminalValue + backpropagateValue pour les
+// nœuds terminaux, en calculant la valeur à la volée pour chaque acteur.
+func (node *mctsNode) backpropagateTerminal() {
+	result := node.state.Evaluate()
+	for n := node; n != nil; n = n.parent {
+		n.visits++
+		actor := n.state.PreviousActor()
+		if result == actor {
+			n.wins += 1.0
+		} else if result != decision.Stalemate {
+			n.wins += -1.0
 		}
+		// Stalemate : wins += 0.0 (implicite)
 	}
 }

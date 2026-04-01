@@ -173,18 +173,22 @@ func ExampleNewAlphaMCTS_singleActor() {
 	// AlphaMCTS solved taquin: true
 }
 
-// exampleEvaluator is a simple evaluator with uniform policy and neutral value.
+// exampleEvaluator is a simple evaluator with uniform policy and neutral values.
 type exampleEvaluator struct{}
 
-func (e *exampleEvaluator) Evaluate(state decision.State) ([]float64, float64) {
+func (e *exampleEvaluator) Evaluate(state decision.State) ([]float64, map[decision.ActorID]float64) {
 	moves := state.PossibleMoves()
 	n := len(moves)
 	if n == 0 {
-		return nil, 0.0
+		return nil, map[decision.ActorID]float64{}
 	}
 	policy := make([]float64, n)
 	for i := range policy {
 		policy[i] = 1.0 / float64(n)
 	}
-	return policy, 0.0
+	values := map[decision.ActorID]float64{
+		state.CurrentActor():  0.0,
+		state.PreviousActor(): 0.0,
+	}
+	return policy, values
 }

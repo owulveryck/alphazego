@@ -49,24 +49,6 @@ func NewAlphaMCTS(eval Evaluator, cpuct float64) *MCTS {
 	}
 }
 
-// terminalValue convertit le résultat d'un état terminal en valeur continue
-// du point de vue de l'acteur courant (celui qui est à jouer).
-// Retourne 1.0 si l'acteur courant a gagné, -1.0 s'il a perdu, 0.0 pour un nul.
-//
-// Pour un problème à un seul acteur où CurrentActor == PreviousActor,
-// une victoire (result == Player) retourne correctement 1.0.
-func terminalValue(s decision.State) float64 {
-	result := s.Evaluate()
-	if result == s.CurrentActor() {
-		return 1.0
-	}
-	if result == decision.Stalemate {
-		return 0.0
-	}
-	// Un autre acteur a gagné → défaite pour l'acteur courant
-	return -1.0
-}
-
 // getOrCreateNode retrieves a node from the inventory or creates a new one if it doesn't exist.
 func (m *MCTS) getOrCreateNode(s decision.State, parent *mctsNode) *mctsNode {
 	boardID := s.ID()
@@ -104,9 +86,9 @@ func (m *MCTS) RunMCTS(s decision.State, iterations int) decision.State {
 		// Expansion + Évaluation + Backpropagation
 		if !node.isTerminal() && !node.isFullyExpanded() {
 			if m.evaluator != nil {
-				policy, value := m.evaluator.Evaluate(node.state)
+				policy, values := m.evaluator.Evaluate(node.state)
 				node.expandAll(policy)
-				node.backpropagateValue(value)
+				node.backpropagateValue(values)
 			} else {
 				expandedNode := node.expand()
 				if expandedNode == nil {
@@ -117,8 +99,7 @@ func (m *MCTS) RunMCTS(s decision.State, iterations int) decision.State {
 			}
 		} else {
 			if m.evaluator != nil {
-				value := terminalValue(node.state)
-				node.backpropagateValue(value)
+				node.backpropagateTerminal()
 			} else {
 				result := node.simulate()
 				node.backpropagate(result)

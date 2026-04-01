@@ -581,11 +581,11 @@ func TestBackpropagateValue_SingleActor(t *testing.T) {
 	child := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "child"}, parent: root}
 	grandchild := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "gchild"}, parent: child}
 
-	// value=0.8 du point de vue de l'acteur unique
-	grandchild.backpropagateValue(0.8)
+	// value=0.8 pour l'acteur unique
+	values := map[decision.ActorID]float64{1: 0.8}
+	grandchild.backpropagateValue(values)
 
-	// Pas d'inversion : CurrentActor == PreviousActor à chaque nœud
-	// Tous les nœuds doivent avoir wins == 0.8
+	// Tous les nœuds ont PreviousActor == 1 → lookup values[1] == 0.8
 	if math.Abs(grandchild.wins-0.8) > 1e-9 {
 		t.Errorf("expected grandchild wins=0.8, got %f", grandchild.wins)
 	}
@@ -597,20 +597,80 @@ func TestBackpropagateValue_SingleActor(t *testing.T) {
 	}
 }
 
-func TestTerminalValue_SingleActor_Win(t *testing.T) {
-	s := &singleActorState{actor: 1, result: 1, id: "solved"}
-	v := terminalValue(s)
-	// CurrentActor == result → victoire → 1.0
-	if math.Abs(v-1.0) > 1e-9 {
-		t.Errorf("expected 1.0 for single-actor win, got %f", v)
+func TestBackpropagateValue_ThreeActors(t *testing.T) {
+	root := &mctsNode{state: &threeActorState{current: 10, previous: 12, result: decision.Undecided, id: "root"}}
+	child := &mctsNode{state: &threeActorState{current: 11, previous: 10, result: decision.Undecided, id: "child"}, parent: root}
+	grandchild := &mctsNode{state: &threeActorState{current: 12, previous: 11, result: decision.Undecided, id: "gchild"}, parent: child}
+
+	values := map[decision.ActorID]float64{
+		10: 0.6,
+		11: -0.3,
+		12: -0.3,
+	}
+	grandchild.backpropagateValue(values)
+
+	// grandchild: PreviousActor = 11 → wins = -0.3
+	if math.Abs(grandchild.wins-(-0.3)) > 1e-9 {
+		t.Errorf("expected grandchild wins=-0.3, got %f", grandchild.wins)
+	}
+	// child: PreviousActor = 10 → wins = 0.6
+	if math.Abs(child.wins-0.6) > 1e-9 {
+		t.Errorf("expected child wins=0.6, got %f", child.wins)
+	}
+	// root: PreviousActor = 12 → wins = -0.3
+	if math.Abs(root.wins-(-0.3)) > 1e-9 {
+		t.Errorf("expected root wins=-0.3, got %f", root.wins)
 	}
 }
 
-func TestTerminalValue_SingleActor_Stalemate(t *testing.T) {
-	s := &singleActorState{actor: 1, result: decision.Stalemate, id: "stuck"}
-	v := terminalValue(s)
-	if math.Abs(v) > 1e-9 {
-		t.Errorf("expected 0.0 for stalemate, got %f", v)
+func TestBackpropagateTerminal_SingleActor_Win(t *testing.T) {
+	root := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "root"}}
+	child := &mctsNode{state: &singleActorState{actor: 1, result: 1, id: "solved"}, parent: root}
+
+	child.backpropagateTerminal()
+
+	// Tous les nœuds : PreviousActor == 1, result == 1 → wins = 1.0
+	if math.Abs(child.wins-1.0) > 1e-9 {
+		t.Errorf("expected child wins=1.0, got %f", child.wins)
+	}
+	if math.Abs(root.wins-1.0) > 1e-9 {
+		t.Errorf("expected root wins=1.0, got %f", root.wins)
+	}
+}
+
+func TestBackpropagateTerminal_SingleActor_Stalemate(t *testing.T) {
+	root := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "root"}}
+	child := &mctsNode{state: &singleActorState{actor: 1, result: decision.Stalemate, id: "stuck"}, parent: root}
+
+	child.backpropagateTerminal()
+
+	// Stalemate → wins = 0.0
+	if math.Abs(child.wins) > 1e-9 {
+		t.Errorf("expected child wins=0.0, got %f", child.wins)
+	}
+	if math.Abs(root.wins) > 1e-9 {
+		t.Errorf("expected root wins=0.0, got %f", root.wins)
+	}
+}
+
+func TestBackpropagateTerminal_ThreeActors(t *testing.T) {
+	root := &mctsNode{state: &threeActorState{current: 10, previous: 12, result: decision.Undecided, id: "root"}}
+	child := &mctsNode{state: &threeActorState{current: 11, previous: 10, result: decision.Undecided, id: "child"}, parent: root}
+	grandchild := &mctsNode{state: &threeActorState{current: 12, previous: 11, result: 10, id: "gchild"}, parent: child}
+
+	grandchild.backpropagateTerminal()
+
+	// grandchild: PreviousActor = 11, result = 10 → 11 perd → -1.0
+	if math.Abs(grandchild.wins-(-1.0)) > 1e-9 {
+		t.Errorf("expected grandchild wins=-1.0, got %f", grandchild.wins)
+	}
+	// child: PreviousActor = 10, result = 10 → 10 gagne → 1.0
+	if math.Abs(child.wins-1.0) > 1e-9 {
+		t.Errorf("expected child wins=1.0, got %f", child.wins)
+	}
+	// root: PreviousActor = 12, result = 10 → 12 perd → -1.0
+	if math.Abs(root.wins-(-1.0)) > 1e-9 {
+		t.Errorf("expected root wins=-1.0, got %f", root.wins)
 	}
 }
 

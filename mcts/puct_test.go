@@ -72,7 +72,7 @@ func TestPUCT_HigherPriorGivesHigherScore(t *testing.T) {
 
 // --- BackpropagateValue Tests ---
 
-func TestBackpropagateValue_SignInversion(t *testing.T) {
+func TestBackpropagateValue_TwoActors(t *testing.T) {
 	root := &mctsNode{state: tictactoe.NewTicTacToe()}
 	ttt1 := tictactoe.NewTicTacToe()
 	ttt1.Play(0)
@@ -82,19 +82,22 @@ func TestBackpropagateValue_SignInversion(t *testing.T) {
 	ttt2.Play(1)
 	grandchild := &mctsNode{state: ttt2, parent: child}
 
-	// value=0.8 from grandchild.CurrentActor()'s perspective
-	// BackpropagateValue negates first to store from "actor who moved here" perspective
-	grandchild.backpropagateValue(0.8)
+	// values map: Cross=0.8 (favorable), Circle=-0.8 (défavorable)
+	values := map[decision.ActorID]float64{
+		tictactoe.Cross:  0.8,
+		tictactoe.Circle: -0.8,
+	}
+	grandchild.backpropagateValue(values)
 
-	// grandchild: initial negate → wins += -0.8 (from opponent's perspective = actor who moved here)
+	// grandchild: PreviousActor = Circle → wins += -0.8
 	if math.Abs(grandchild.wins-(-0.8)) > 1e-9 {
 		t.Errorf("expected grandchild wins=-0.8, got %f", grandchild.wins)
 	}
-	// child: wins += 0.8 (alternation)
+	// child: PreviousActor = Cross → wins += 0.8
 	if math.Abs(child.wins-0.8) > 1e-9 {
 		t.Errorf("expected child wins=0.8, got %f", child.wins)
 	}
-	// root: wins += -0.8 (alternation)
+	// root: PreviousActor = Circle → wins += -0.8
 	if math.Abs(root.wins-(-0.8)) > 1e-9 {
 		t.Errorf("expected root wins=-0.8, got %f", root.wins)
 	}
@@ -106,7 +109,11 @@ func TestBackpropagateValue_UpdatesVisits(t *testing.T) {
 	ttt1.Play(0)
 	child := &mctsNode{state: ttt1, parent: root}
 
-	child.backpropagateValue(1.0)
+	values := map[decision.ActorID]float64{
+		tictactoe.Cross:  1.0,
+		tictactoe.Circle: -1.0,
+	}
+	child.backpropagateValue(values)
 
 	if child.visits != 1 {
 		t.Errorf("expected child visits=1, got %f", child.visits)
@@ -114,13 +121,13 @@ func TestBackpropagateValue_UpdatesVisits(t *testing.T) {
 	if root.visits != 1 {
 		t.Errorf("expected root visits=1, got %f", root.visits)
 	}
-	// child: value negated first → wins = -1.0
-	if math.Abs(child.wins-(-1.0)) > 1e-9 {
-		t.Errorf("expected child wins=-1.0, got %f", child.wins)
+	// child: PreviousActor = Cross → wins = 1.0
+	if math.Abs(child.wins-1.0) > 1e-9 {
+		t.Errorf("expected child wins=1.0, got %f", child.wins)
 	}
-	// root: alternated → wins = 1.0
-	if math.Abs(root.wins-1.0) > 1e-9 {
-		t.Errorf("expected root wins=1.0, got %f", root.wins)
+	// root: PreviousActor = Circle → wins = -1.0
+	if math.Abs(root.wins-(-1.0)) > 1e-9 {
+		t.Errorf("expected root wins=-1.0, got %f", root.wins)
 	}
 }
 
@@ -267,58 +274,73 @@ func TestRunMCTS_WithEvaluator_TakesWin(t *testing.T) {
 	}
 }
 
-// --- terminalValue Tests ---
+// --- backpropagateTerminal Tests ---
 
-func TestTerminalValue_Actor1Wins(t *testing.T) {
+func TestBackpropagateTerminal_Actor1Wins(t *testing.T) {
 	// Actor1 wins, it's Actor2's turn (meaning Actor1 just moved)
 	ttt := playMoves(0, 3, 1, 4, 2) // A1 wins top row
-	v := terminalValue(ttt)
-	// CurrentActor = Actor2, actorWhoMovedHere = Actor1, result = Actor1Wins
-	// → -1.0 (défaite pour l'acteur courant)
-	if math.Abs(v-(-1.0)) > 1e-9 {
-		t.Errorf("expected -1.0, got %f", v)
+	node := &mctsNode{state: ttt}
+	root := &mctsNode{state: tictactoe.NewTicTacToe()}
+	node.parent = root
+
+	node.backpropagateTerminal()
+
+	// node: PreviousActor = Cross (Actor1), result = Cross → wins = 1.0
+	if math.Abs(node.wins-1.0) > 1e-9 {
+		t.Errorf("expected node wins=1.0 (Cross won, Cross moved here), got %f", node.wins)
+	}
+	// root: PreviousActor = Circle (Actor2), result = Cross → wins = -1.0
+	if math.Abs(root.wins-(-1.0)) > 1e-9 {
+		t.Errorf("expected root wins=-1.0 (Cross won, Circle moved here), got %f", root.wins)
 	}
 }
 
-func TestTerminalValue_Draw(t *testing.T) {
+func TestBackpropagateTerminal_Draw(t *testing.T) {
 	ttt := playMoves(4, 0, 2, 6, 3, 5, 1, 7, 8)
 	if ttt.Evaluate() != decision.Stalemate {
 		t.Skipf("sequence didn't produce a draw, got %d", ttt.Evaluate())
 	}
-	v := terminalValue(ttt)
-	if math.Abs(v) > 1e-9 {
-		t.Errorf("expected 0.0 for draw, got %f", v)
+	node := &mctsNode{state: ttt}
+	node.backpropagateTerminal()
+
+	// Stalemate : wins += 0.0
+	if math.Abs(node.wins) > 1e-9 {
+		t.Errorf("expected 0.0 for draw, got %f", node.wins)
 	}
 }
 
 // --- Test helpers ---
 
-// uniformEvaluator retourne une policy uniforme et une value neutre.
+// uniformEvaluator retourne une policy uniforme et des values neutres.
 // Utile pour tester que le chemin AlphaZero fonctionne sans signal fort.
 type uniformEvaluator struct{}
 
-func (u *uniformEvaluator) Evaluate(state decision.State) ([]float64, float64) {
+func (u *uniformEvaluator) Evaluate(state decision.State) ([]float64, map[decision.ActorID]float64) {
 	moves := state.PossibleMoves()
 	n := len(moves)
 	if n == 0 {
-		return nil, 0.0
+		return nil, map[decision.ActorID]float64{}
 	}
 	policy := make([]float64, n)
 	for i := range policy {
 		policy[i] = 1.0 / float64(n)
 	}
-	return policy, 0.0
+	values := map[decision.ActorID]float64{
+		state.CurrentActor():  0.0,
+		state.PreviousActor(): 0.0,
+	}
+	return policy, values
 }
 
-// rolloutEvaluator retourne une policy uniforme et une value estimée
+// rolloutEvaluator retourne une policy uniforme et des values estimées
 // par rollout aléatoire. Cela fournit un signal réel pour les tests tactiques.
 type rolloutEvaluator struct{}
 
-func (r *rolloutEvaluator) Evaluate(state decision.State) ([]float64, float64) {
+func (r *rolloutEvaluator) Evaluate(state decision.State) ([]float64, map[decision.ActorID]float64) {
 	moves := state.PossibleMoves()
 	n := len(moves)
 	if n == 0 {
-		return nil, 0.0
+		return nil, map[decision.ActorID]float64{}
 	}
 	policy := make([]float64, n)
 	for i := range policy {
@@ -332,13 +354,18 @@ func (r *rolloutEvaluator) Evaluate(state decision.State) ([]float64, float64) {
 	}
 	result := currentState.Evaluate()
 	current := state.CurrentActor()
-	if result == current {
-		return policy, 1.0
+	previous := state.PreviousActor()
+	values := make(map[decision.ActorID]float64)
+	for _, actor := range []decision.ActorID{current, previous} {
+		if result == actor {
+			values[actor] = 1.0
+		} else if result == decision.Stalemate {
+			values[actor] = 0.0
+		} else {
+			values[actor] = -1.0
+		}
 	}
-	if result == decision.Stalemate {
-		return policy, 0.0
-	}
-	return policy, -1.0
+	return policy, values
 }
 
 // TestExpandAll_PolicyLengthMismatch vérifie que expandAll panique
