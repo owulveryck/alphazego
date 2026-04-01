@@ -26,8 +26,8 @@ const (
 // TicTacToe represents the state of a tic-tac-toe game.
 // It implements [decision.State] and [board.ActionRecorder].
 type TicTacToe struct {
-	board      []uint8
-	ActorTurn  decision.ActorID
+	board      [BoardSize]uint8
+	actorTurn  decision.ActorID
 	lastAction int
 }
 
@@ -35,10 +35,10 @@ type TicTacToe struct {
 // The ID is the board cells concatenated with the current actor byte,
 // producing a 10-character string.
 func (tictactoe *TicTacToe) ID() string {
-	id := make([]byte, BoardSize+1)
-	copy(id, tictactoe.board)
-	id[BoardSize] = byte(tictactoe.ActorTurn)
-	return string(id)
+	var id [BoardSize + 1]byte
+	copy(id[:], tictactoe.board[:])
+	id[BoardSize] = byte(tictactoe.actorTurn)
+	return string(id[:])
 }
 
 // LastAction retourne la position (0-8) du dernier coup joué.
@@ -52,8 +52,7 @@ func (tictactoe *TicTacToe) LastAction() int {
 // Actor1 goes first.
 func NewTicTacToe() *TicTacToe {
 	return &TicTacToe{
-		board:     make([]uint8, BoardSize),
-		ActorTurn: decision.Actor1,
+		actorTurn: decision.Actor1,
 	}
 }
 
@@ -71,22 +70,22 @@ func (t *TicTacToe) Play(p uint8) error {
 	if t.Evaluate() != decision.NoActor {
 		return fmt.Errorf("la partie est terminée")
 	}
-	t.board[p] = uint8(t.ActorTurn)
+	t.board[p] = uint8(t.actorTurn)
 	t.lastAction = int(p)
-	t.ActorTurn = 3 - t.ActorTurn
+	t.actorTurn = 3 - t.actorTurn
 	return nil
 }
 
 // CurrentActor returns the actor whose turn it is to play.
 func (t *TicTacToe) CurrentActor() decision.ActorID {
-	return t.ActorTurn
+	return t.actorTurn
 }
 
 // PreviousActor retourne l'acteur qui a joué le dernier coup.
 // Au morpion, c'est l'adversaire de l'acteur courant (alternance stricte à deux acteurs).
 // Pour l'état initial, retourne Actor2 (le "dernier" dans l'ordre de jeu).
 func (t *TicTacToe) PreviousActor() decision.ActorID {
-	return 3 - t.ActorTurn
+	return 3 - t.actorTurn
 }
 
 // Evaluate checks the board for a winner or draw.
@@ -135,12 +134,11 @@ func (t *TicTacToe) PossibleMoves() []decision.State {
 	games := make([]*TicTacToe, 0)
 	for i := 0; i < BoardSize; i++ {
 		if t.board[i] == 0 {
-			game := make([]uint8, BoardSize)
-			copy(game, t.board)
-			game[i] = uint8(t.ActorTurn)
+			game := t.board // copie par valeur (tableau fixe)
+			game[i] = uint8(t.actorTurn)
 			games = append(games, &TicTacToe{
 				board:      game,
-				ActorTurn:  3 - t.ActorTurn,
+				actorTurn:  3 - t.actorTurn,
 				lastAction: i,
 			})
 		}
@@ -149,7 +147,7 @@ func (t *TicTacToe) PossibleMoves() []decision.State {
 	return toDecisionState(games)
 }
 
-var winningPositions = [][]uint8{
+var winningPositions = [8][3]uint8{
 	{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, // Rows
 	{0, 3, 6}, {1, 4, 7}, {2, 5, 8}, // Columns
 	{0, 4, 8}, {2, 4, 6}, // Diagonals
@@ -163,7 +161,7 @@ var winningPositions = [][]uint8{
 func (t *TicTacToe) Features() []float32 {
 	features := make([]float32, 3*3*3) // [3][3][3]
 	current := uint8(t.CurrentActor())
-	opponent := uint8(3 - t.ActorTurn)
+	opponent := uint8(3 - t.actorTurn)
 
 	for i := 0; i < BoardSize; i++ {
 		if t.board[i] == current {
@@ -176,7 +174,7 @@ func (t *TicTacToe) Features() []float32 {
 
 	// Plan 2 : indicateur de l'acteur courant
 	val := float32(0.0)
-	if t.ActorTurn == decision.Actor1 {
+	if t.actorTurn == decision.Actor1 {
 		val = 1.0
 	}
 	for i := 18; i < 27; i++ {

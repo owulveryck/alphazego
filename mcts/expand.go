@@ -1,5 +1,7 @@
 package mcts
 
+import "fmt"
+
 // expand adds one new child node for an untried move from the current game state.
 // It returns the newly created child node, or nil if no untried moves remain.
 func (node *mctsNode) expand() *mctsNode {
@@ -35,6 +37,9 @@ func (node *mctsNode) expand() *mctsNode {
 // [decision.State.PossibleMoves].
 func (node *mctsNode) expandAll(policy []float64) {
 	possibleMoves := node.state.PossibleMoves()
+	if len(policy) != len(possibleMoves) {
+		panic(fmt.Sprintf("mcts: policy length %d does not match possible moves count %d", len(policy), len(possibleMoves)))
+	}
 	for i, move := range possibleMoves {
 		child := &mctsNode{
 			state:    move,

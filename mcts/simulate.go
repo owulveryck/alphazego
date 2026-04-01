@@ -8,21 +8,22 @@ import (
 
 // simulate performs a random playthrough from the current state until a terminal state is reached.
 // It selects moves randomly and advances the state until it can be evaluated as a win, lose, or draw.
+// Le générateur aléatoire utilisé provient de l'instance MCTS parente (si disponible),
+// ce qui permet la reproductibilité via une graine fixée.
 func (node *mctsNode) simulate() decision.ActorID {
+	rng := rand.Intn // fallback sur le générateur global
+	if node.mcts != nil && node.mcts.rng != nil {
+		rng = node.mcts.rng.Intn
+	}
+
 	// Start from the current state of the node.
 	currentState := node.state
 
 	// Continue simulating random moves until the game reaches a terminal state.
-	// The game is in a terminal state if it is not in the NoActor state anymore.
 	for currentState.Evaluate() == decision.NoActor {
-		possibleMoves := currentState.PossibleMoves() // Get all possible moves from the current state.
-
-		// Randomly select one of the possible moves.
-		// This approach simulates a playthrough with random decisions, mimicking an unpredictable game.
-		currentState = possibleMoves[rand.Intn(len(possibleMoves))]
+		possibleMoves := currentState.PossibleMoves()
+		currentState = possibleMoves[rng(len(possibleMoves))]
 	}
 
-	// After reaching a terminal state, evaluate and return the outcome of the game.
-	// The outcome is determined based on the rules defined in the State's Evaluate method.
 	return currentState.Evaluate()
 }

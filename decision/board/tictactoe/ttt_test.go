@@ -8,8 +8,8 @@ import (
 
 func TestNewTicTacToe(t *testing.T) {
 	ttt := NewTicTacToe()
-	if ttt.ActorTurn != decision.Actor1 {
-		t.Errorf("expected Actor1 to start, got %d", ttt.ActorTurn)
+	if ttt.CurrentActor() != decision.Actor1 {
+		t.Errorf("expected Actor1 to start, got %d", ttt.CurrentActor())
 	}
 	for i, cell := range ttt.board {
 		if cell != 0 {
@@ -24,15 +24,15 @@ func TestPlay(t *testing.T) {
 	if ttt.board[0] != uint8(decision.Actor1) {
 		t.Errorf("expected Actor1 at position 0, got %d", ttt.board[0])
 	}
-	if ttt.ActorTurn != decision.Actor2 {
-		t.Errorf("expected Actor2 turn after Actor1 plays, got %d", ttt.ActorTurn)
+	if ttt.CurrentActor() != decision.Actor2 {
+		t.Errorf("expected Actor2 turn after Actor1 plays, got %d", ttt.CurrentActor())
 	}
 	ttt.Play(4)
 	if ttt.board[4] != uint8(decision.Actor2) {
 		t.Errorf("expected Actor2 at position 4, got %d", ttt.board[4])
 	}
-	if ttt.ActorTurn != decision.Actor1 {
-		t.Errorf("expected Actor1 turn after Actor2 plays, got %d", ttt.ActorTurn)
+	if ttt.CurrentActor() != decision.Actor1 {
+		t.Errorf("expected Actor1 turn after Actor2 plays, got %d", ttt.CurrentActor())
 	}
 }
 
@@ -88,8 +88,8 @@ func TestEvaluate_GameOn(t *testing.T) {
 
 func TestEvaluate_Actor1WinsRow(t *testing.T) {
 	ttt := &TicTacToe{
-		board:     []uint8{1, 1, 1, 0, 0, 0, 0, 0, 0},
-		ActorTurn: decision.Actor2,
+		board:     [BoardSize]uint8{1, 1, 1, 0, 0, 0, 0, 0, 0},
+		actorTurn: decision.Actor2,
 	}
 	if ttt.Evaluate() != decision.Actor1 {
 		t.Errorf("expected Actor1 wins for top row, got %d", ttt.Evaluate())
@@ -98,8 +98,8 @@ func TestEvaluate_Actor1WinsRow(t *testing.T) {
 
 func TestEvaluate_Actor2WinsColumn(t *testing.T) {
 	ttt := &TicTacToe{
-		board:     []uint8{2, 0, 0, 2, 0, 0, 2, 0, 0},
-		ActorTurn: decision.Actor1,
+		board:     [BoardSize]uint8{2, 0, 0, 2, 0, 0, 2, 0, 0},
+		actorTurn: decision.Actor1,
 	}
 	if ttt.Evaluate() != decision.Actor2 {
 		t.Errorf("expected Actor2 wins for left column, got %d", ttt.Evaluate())
@@ -108,8 +108,8 @@ func TestEvaluate_Actor2WinsColumn(t *testing.T) {
 
 func TestEvaluate_Actor1WinsDiagonal(t *testing.T) {
 	ttt := &TicTacToe{
-		board:     []uint8{1, 0, 0, 0, 1, 0, 0, 0, 1},
-		ActorTurn: decision.Actor2,
+		board:     [BoardSize]uint8{1, 0, 0, 0, 1, 0, 0, 0, 1},
+		actorTurn: decision.Actor2,
 	}
 	if ttt.Evaluate() != decision.Actor1 {
 		t.Errorf("expected Actor1 wins for diagonal, got %d", ttt.Evaluate())
@@ -118,8 +118,8 @@ func TestEvaluate_Actor1WinsDiagonal(t *testing.T) {
 
 func TestEvaluate_Actor1WinsAntiDiagonal(t *testing.T) {
 	ttt := &TicTacToe{
-		board:     []uint8{0, 0, 1, 0, 1, 0, 1, 0, 0},
-		ActorTurn: decision.Actor2,
+		board:     [BoardSize]uint8{0, 0, 1, 0, 1, 0, 1, 0, 0},
+		actorTurn: decision.Actor2,
 	}
 	if ttt.Evaluate() != decision.Actor1 {
 		t.Errorf("expected Actor1 wins for anti-diagonal, got %d", ttt.Evaluate())
@@ -131,8 +131,8 @@ func TestEvaluate_Draw(t *testing.T) {
 		// X O X
 		// X X O
 		// O X O
-		board:     []uint8{1, 2, 1, 1, 1, 2, 2, 1, 2},
-		ActorTurn: decision.Actor1,
+		board:     [BoardSize]uint8{1, 2, 1, 1, 1, 2, 2, 1, 2},
+		actorTurn: decision.Actor1,
 	}
 	if ttt.Evaluate() != decision.DrawResult {
 		t.Errorf("expected DrawResult, got %d", ttt.Evaluate())
@@ -164,8 +164,8 @@ func TestPossibleMoves(t *testing.T) {
 
 func TestPossibleMoves_FullBoard(t *testing.T) {
 	ttt := &TicTacToe{
-		board:     []uint8{1, 2, 1, 1, 1, 2, 2, 1, 2},
-		ActorTurn: decision.Actor1,
+		board:     [BoardSize]uint8{1, 2, 1, 1, 1, 2, 2, 1, 2},
+		actorTurn: decision.Actor1,
 	}
 	moves := ttt.PossibleMoves()
 	if len(moves) != 0 {
@@ -277,24 +277,70 @@ func TestEvaluate_AllWinningPositions(t *testing.T) {
 	// Test all rows, columns, diagonals for both actors
 	tests := []struct {
 		name   string
-		board  []uint8
+		board  [BoardSize]uint8
 		winner decision.ActorID
 	}{
-		{"row0-a1", []uint8{1, 1, 1, 0, 0, 0, 0, 0, 0}, decision.Actor1},
-		{"row1-a1", []uint8{0, 0, 0, 1, 1, 1, 0, 0, 0}, decision.Actor1},
-		{"row2-a1", []uint8{0, 0, 0, 0, 0, 0, 1, 1, 1}, decision.Actor1},
-		{"col0-a2", []uint8{2, 0, 0, 2, 0, 0, 2, 0, 0}, decision.Actor2},
-		{"col1-a2", []uint8{0, 2, 0, 0, 2, 0, 0, 2, 0}, decision.Actor2},
-		{"col2-a2", []uint8{0, 0, 2, 0, 0, 2, 0, 0, 2}, decision.Actor2},
-		{"diag-a2", []uint8{2, 0, 0, 0, 2, 0, 0, 0, 2}, decision.Actor2},
-		{"anti-a2", []uint8{0, 0, 2, 0, 2, 0, 2, 0, 0}, decision.Actor2},
+		{"row0-a1", [BoardSize]uint8{1, 1, 1, 0, 0, 0, 0, 0, 0}, decision.Actor1},
+		{"row1-a1", [BoardSize]uint8{0, 0, 0, 1, 1, 1, 0, 0, 0}, decision.Actor1},
+		{"row2-a1", [BoardSize]uint8{0, 0, 0, 0, 0, 0, 1, 1, 1}, decision.Actor1},
+		{"col0-a2", [BoardSize]uint8{2, 0, 0, 2, 0, 0, 2, 0, 0}, decision.Actor2},
+		{"col1-a2", [BoardSize]uint8{0, 2, 0, 0, 2, 0, 0, 2, 0}, decision.Actor2},
+		{"col2-a2", [BoardSize]uint8{0, 0, 2, 0, 0, 2, 0, 0, 2}, decision.Actor2},
+		{"diag-a2", [BoardSize]uint8{2, 0, 0, 0, 2, 0, 0, 0, 2}, decision.Actor2},
+		{"anti-a2", [BoardSize]uint8{0, 0, 2, 0, 2, 0, 2, 0, 0}, decision.Actor2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ttt := &TicTacToe{board: tt.board, ActorTurn: decision.Actor1}
+			ttt := &TicTacToe{board: tt.board, actorTurn: decision.Actor1}
 			if ttt.Evaluate() != tt.winner {
 				t.Errorf("expected %d, got %d", tt.winner, ttt.Evaluate())
 			}
 		})
+	}
+}
+
+// TestPossibleMoves_Independence vérifie que muter un état retourné par
+// PossibleMoves n'affecte pas les autres états ni l'état parent.
+func TestPossibleMoves_Independence(t *testing.T) {
+	ttt := NewTicTacToe()
+	ttt.Play(0)
+	moves := ttt.PossibleMoves()
+	if len(moves) < 2 {
+		t.Fatal("expected at least 2 moves")
+	}
+
+	// Sauvegarder l'ID du parent et du second enfant
+	parentID := ttt.ID()
+	secondChildID := moves[1].ID()
+
+	// Muter le premier enfant
+	first := moves[0].(*TicTacToe)
+	first.board[8] = 42 // valeur arbitraire
+
+	// Vérifier que le parent n'est pas affecté
+	if ttt.ID() != parentID {
+		t.Error("mutating a child affected the parent state")
+	}
+
+	// Vérifier que le second enfant n'est pas affecté
+	if moves[1].ID() != secondChildID {
+		t.Error("mutating one child affected another child")
+	}
+}
+
+// TestPossibleMoves_SingleMove vérifie le comportement avec un seul coup légal.
+func TestPossibleMoves_SingleMove(t *testing.T) {
+	// Plateau presque complet : une seule case vide (position 8)
+	ttt := &TicTacToe{
+		board:     [BoardSize]uint8{1, 2, 1, 2, 1, 2, 2, 1, 0},
+		actorTurn: decision.Actor1,
+	}
+	moves := ttt.PossibleMoves()
+	if len(moves) != 1 {
+		t.Fatalf("expected 1 possible move, got %d", len(moves))
+	}
+	child := moves[0].(*TicTacToe)
+	if child.LastAction() != 8 {
+		t.Errorf("expected LastAction 8, got %d", child.LastAction())
 	}
 }

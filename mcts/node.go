@@ -49,6 +49,11 @@ type mctsNode struct {
 
 	// mcts holds a reference back to the MCTS instance for inventory access during expansion.
 	mcts *MCTS
+
+	// possibleMovesCount est le nombre de coups possibles depuis cet état,
+	// mis en cache pour éviter de recalculer PossibleMoves() dans isFullyExpanded().
+	possibleMovesCount    int
+	possibleMovesComputed bool
 }
 
 // isTerminal returns true if this node represents a terminal state (win, loss, or draw).
@@ -58,22 +63,25 @@ func (n *mctsNode) isTerminal() bool {
 
 // isFullyExpanded returns true if all possible moves from this state have been expanded as children.
 func (n *mctsNode) isFullyExpanded() bool {
-	return len(n.children) >= len(n.state.PossibleMoves())
+	if !n.possibleMovesComputed {
+		n.possibleMovesCount = len(n.state.PossibleMoves())
+		n.possibleMovesComputed = true
+	}
+	return len(n.children) >= n.possibleMovesCount
 }
 
 // selectChildUCB selects the immediate child with the highest score.
-// When an Evaluator is configured, it uses puct (with prior probabilities).
-// Otherwise, it uses ucb1 (pure MCTS).
+// La stratégie de sélection (ucb1 ou puct) est déterminée par selectionFn,
+// configurée au moment de la construction de l'instance MCTS.
 func (n *mctsNode) selectChildUCB() *mctsNode {
 	bestScore := math.Inf(-1)
 	var bestChild *mctsNode
+	scoreFn := (*mctsNode).ucb1 // fallback pour les nœuds sans MCTS (tests)
+	if n.mcts != nil && n.mcts.selectionFn != nil {
+		scoreFn = n.mcts.selectionFn
+	}
 	for _, child := range n.children {
-		var score float64
-		if n.mcts != nil && n.mcts.evaluator != nil {
-			score = child.puct()
-		} else {
-			score = child.ucb1()
-		}
+		score := scoreFn(child)
 		if score > bestScore {
 			bestScore = score
 			bestChild = child

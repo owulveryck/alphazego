@@ -340,3 +340,19 @@ func (r *rolloutEvaluator) Evaluate(state decision.State) ([]float64, float64) {
 	}
 	return policy, -1.0
 }
+
+// TestExpandAll_PolicyLengthMismatch vérifie que expandAll panique
+// lorsque la taille de la policy ne correspond pas aux coups possibles.
+func TestExpandAll_PolicyLengthMismatch(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic for policy length mismatch")
+		}
+	}()
+
+	ttt := tictactoe.NewTicTacToe()
+	node := &mctsNode{state: ttt, children: []*mctsNode{}}
+	// Le morpion a 9 coups possibles au départ, on en fournit seulement 3
+	node.expandAll([]float64{0.3, 0.3, 0.4})
+}

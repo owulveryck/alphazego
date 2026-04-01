@@ -1,6 +1,8 @@
 package mcts
 
 import (
+	"math/rand"
+
 	"github.com/owulveryck/alphazego/decision"
 )
 
@@ -10,9 +12,15 @@ import (
 // within a single RunMCTS call.
 func NewMCTS() *MCTS {
 	return &MCTS{
-		inventory: make(map[string]*mctsNode),
+		inventory:   make(map[string]*mctsNode),
+		selectionFn: (*mctsNode).ucb1,
+		rng:         rand.New(rand.NewSource(rand.Int63())),
 	}
 }
+
+// selectionFunc calcule le score d'un nœud enfant pour la phase de sélection.
+// UCB1 est utilisé en MCTS pur, PUCT en mode AlphaZero.
+type selectionFunc func(child *mctsNode) float64
 
 // MCTS holds the state for the Monte Carlo Tree Search.
 // En mode MCTS pur (créé par [NewMCTS]), le champ evaluator est nil et
@@ -20,9 +28,11 @@ func NewMCTS() *MCTS {
 // En mode AlphaZero (créé par [NewAlphaMCTS]), l'evaluator fournit policy et
 // value, et la sélection utilise PUCT.
 type MCTS struct {
-	inventory map[string]*mctsNode // Stores nodes by their state ID for potential reuse within a search.
-	evaluator Evaluator            // nil = MCTS pur, non-nil = AlphaZero
-	cpuct     float64              // constante d'exploration pour PUCT (utilisé uniquement avec evaluator)
+	inventory   map[string]*mctsNode // Stores nodes by their state ID for potential reuse within a search.
+	evaluator   Evaluator            // nil = MCTS pur, non-nil = AlphaZero
+	cpuct       float64              // constante d'exploration pour PUCT (utilisé uniquement avec evaluator)
+	selectionFn selectionFunc        // stratégie de sélection (ucb1 ou puct)
+	rng         *rand.Rand           // générateur aléatoire pour les rollouts (reproductibilité)
 }
 
 // NewAlphaMCTS initialise un MCTS guidé par un réseau de neurones (style AlphaZero).
@@ -31,9 +41,11 @@ type MCTS struct {
 // dans la formule PUCT (typiquement entre 1.0 et 5.0).
 func NewAlphaMCTS(eval Evaluator, cpuct float64) *MCTS {
 	return &MCTS{
-		inventory: make(map[string]*mctsNode),
-		evaluator: eval,
-		cpuct:     cpuct,
+		inventory:   make(map[string]*mctsNode),
+		evaluator:   eval,
+		cpuct:       cpuct,
+		selectionFn: (*mctsNode).puct,
+		rng:         rand.New(rand.NewSource(rand.Int63())),
 	}
 }
 

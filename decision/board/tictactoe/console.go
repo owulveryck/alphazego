@@ -25,7 +25,7 @@ func (tictactoe *TicTacToe) String() string {
 		return symbols[decision.ActorID(tictactoe.board[i])]
 	}
 	var b strings.Builder
-	b.WriteString("Current actor: " + symbols[tictactoe.ActorTurn] + "\n")
+	b.WriteString("Current actor: " + symbols[tictactoe.actorTurn] + "\n")
 	b.WriteString(" ┌───┬───┬───┐\n")
 	b.WriteString(" │ " + cellSymbol(0))
 	b.WriteString(" │ ")
