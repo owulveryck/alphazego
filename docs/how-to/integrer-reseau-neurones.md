@@ -1,21 +1,21 @@
-# Integrer un reseau de neurones dans le MCTS
+# Intégrer un réseau de neurones dans le MCTS
 
-Guide pratique des modifications a apporter au code d'AlphaZeGo pour passer d'un MCTS pur a un MCTS guide par reseau de neurones (style AlphaZero).
+Guide pratique des modifications à apporter au code d'AlphaZeGo pour passer d'un MCTS pur à un MCTS guidé par réseau de neurones (style AlphaZero).
 
-## Prerequis
+## Prérequis
 
-Comprendre les concepts decriere ces modifications :
+Comprendre les concepts derrière ces modifications :
 
 - [L'algorithme MCTS](../explanation/mcts.md)
-- [De MCTS a AlphaZero](../explanation/de-mcts-a-alphazero.md)
-- [Interfaces Evaluator et Tensorizable](../reference/interfaces-evaluator.md)
+- [De MCTS à AlphaZero](../explanation/de-mcts-a-alphazero.md)
+- [Interfaces Evaluator et Tensorizable](../référence/interfaces-evaluator.md)
 
-## Etape 1 : Les interfaces
+## Étape 1 : Les interfaces
 
-Les deux interfaces cles sont deja definies :
+Les deux interfaces clés sont déjà définies :
 
 - `Evaluator` dans `mcts/evaluator.go` — fournit policy et value
-- `Tensorizable` dans `board/interfaces.go` — convertit un etat en tenseur
+- `Tensorizable` dans `board/interfaces.go` — convertit un état en tenseur
 
 ```go
 // mcts/evaluator.go
@@ -31,15 +31,15 @@ type Tensorizable interface {
 }
 ```
 
-Voir [reference/interfaces-evaluator.md](../reference/interfaces-evaluator.md) pour les details.
+Voir [référence/interfaces-evaluator.md](../référence/interfaces-evaluator.md) pour les détails.
 
-## Etape 2 : Implementer Tensorizable pour le morpion
+## Étape 2 : Implémenter Tensorizable pour le morpion
 
 Fichier : `board/tictactoe/ttt.go`
 
-Ajouter les methodes `Features()`, `FeatureShape()`, et `ActionSize()` sur `*TicTacToe`. Voir l'exemple dans [reference/interfaces-evaluator.md](../reference/interfaces-evaluator.md).
+Ajouter les méthodes `Features()`, `FeatureShape()`, et `ActionSize()` sur `*TicTacToe`. Voir l'exemple dans [référence/interfaces-evaluator.md](../référence/interfaces-evaluator.md).
 
-Verification :
+Vérification :
 
 ```go
 // Dans un test :
@@ -49,7 +49,7 @@ assert(len(features) == 27)  // 3 * 3 * 3
 assert(game.ActionSize() == 9)
 ```
 
-## Etape 3 : Ajouter le champ prior au noeud interne
+## Étape 3 : Ajouter le champ prior au nœud interne
 
 Fichier : `mcts/node.go`
 
@@ -60,7 +60,7 @@ type mctsNode struct {
 }
 ```
 
-## Etape 4 : Modifier MCTS pour accepter un Evaluator
+## Étape 4 : Modifier MCTS pour accepter un Evaluator
 
 Fichier : `mcts/mcts.go`
 
@@ -84,7 +84,7 @@ func NewAlphaMCTS(eval Evaluator, cpuct float64) *MCTS {
 }
 ```
 
-## Etape 5 : Implementer PUCT
+## Étape 5 : Implémenter PUCT
 
 Fichier : `mcts/puct.go`
 
@@ -104,7 +104,7 @@ func (n *mctsNode) puct() float64 {
 }
 ```
 
-## Etape 6 : Modifier selectChildUCB pour utiliser PUCT si disponible
+## Étape 6 : Modifier selectChildUCB pour utiliser PUCT si disponible
 
 Fichier : `mcts/node.go`
 
@@ -128,14 +128,14 @@ func (n *mctsNode) selectChildUCB() *mctsNode {
 }
 ```
 
-## Etape 7 : Ajouter expandAll pour l'expansion guidee
+## Étape 7 : Ajouter expandAll pour l'expansion guidée
 
 Fichier : `mcts/expand.go`
 
-Ajouter une nouvelle methode `expandAll` qui cree **tous** les enfants et leur attribue leur prior. La methode `expand()` existante reste inchangee pour le chemin MCTS pur.
+Ajouter une nouvelle méthode `expandAll` qui crée **tous** les enfants et leur attribue leur prior. La méthode `expand()` existante reste inchangée pour le chemin MCTS pur.
 
 ```go
-// expandAll cree des noeuds enfants pour tous les coups possibles,
+// expandAll crée des nœuds enfants pour tous les coups possibles,
 // en leur attribuant les priors fournis par le policy network.
 func (node *mctsNode) expandAll(policy []float64) {
     possibleMoves := node.state.PossibleMoves()
@@ -152,23 +152,23 @@ func (node *mctsNode) expandAll(policy []float64) {
 }
 ```
 
-**Point important** : `expandAll` ne retourne rien et ne fait pas d'appel a l'evaluateur. C'est `RunMCTS` qui appelle l'evaluateur une seule fois et passe la policy a `expandAll` (voir etape 8).
+**Point important** : `expandAll` ne retourne rien et ne fait pas d'appel à l'évaluateur. C'est `RunMCTS` qui appelle l'évaluateur une seule fois et passe la policy à `expandAll` (voir étape 8).
 
-## Etape 8 : Modifier RunMCTS pour utiliser la value au lieu du rollout
+## Étape 8 : Modifier RunMCTS pour utiliser la value au lieu du rollout
 
-Fichier : `mcts/mcts.go`, dans la boucle d'iteration.
+Fichier : `mcts/mcts.go`, dans la boucle d'itération.
 
-Le point cle est d'appeler l'evaluateur **une seule fois** par expansion. L'appel retourne a la fois la policy (pour `expandAll`) et la value (pour `backpropagateValue`) :
+Le point clé est d'appeler l'évaluateur **une seule fois** par expansion. L'appel retourne à la fois la policy (pour `expandAll`) et la value (pour `backpropagateValue`) :
 
 ```go
 if !node.isTerminal() && !node.isFullyExpanded() {
     if m.evaluator != nil {
-        // AlphaZero : evaluation unique → expansion + backpropagation
+        // AlphaZero : évaluation unique -> expansion + backpropagation
         policy, value := m.evaluator.Evaluate(node.state)
         node.expandAll(policy)
         node.backpropagateValue(value)
     } else {
-        // MCTS pur : expansion incrementale + rollout
+        // MCTS pur : expansion incrémentale + rollout
         expandedNode := node.expand()
         if expandedNode == nil {
             expandedNode = node
@@ -177,7 +177,7 @@ if !node.isTerminal() && !node.isFullyExpanded() {
         expandedNode.backpropagate(result)
     }
 } else if node.isTerminal() {
-    // Noeud terminal : resultat connu, pas besoin du reseau
+    // Nœud terminal : résultat connu, pas besoin du réseau
     if m.evaluator != nil {
         value := terminalValue(node.state)
         node.backpropagateValue(value)
@@ -190,16 +190,16 @@ if !node.isTerminal() && !node.isFullyExpanded() {
 
 La fonction `terminalValue` convertit un `board.PlayerID` discret en valeur continue du point de vue du joueur courant.
 
-## Etape 9 : Adapter la backpropagation
+## Étape 9 : Adapter la backpropagation
 
 Fichier : `mcts/backpropagate.go`
 
-Ajouter une variante qui propage une valeur continue. La valeur initiale (du point de vue du joueur courant) est d'abord inversee pour respecter la convention du MCTS pur : `wins` stocke la valeur du point de vue du joueur qui a effectue le coup menant a ce noeud (`PreviousPlayer()`). Ensuite le signe alterne a chaque niveau :
+Ajouter une variante qui propage une valeur continue. La valeur initiale (du point de vue du joueur courant) est d'abord inversée pour respecter la convention du MCTS pur : `wins` stocke la valeur du point de vue du joueur qui a effectué le coup menant à ce nœud (`PreviousPlayer()`). Ensuite le signe alterne à chaque niveau :
 
 ```go
 func (node *mctsNode) backpropagateValue(value float64) {
     // Inverser pour passer de la perspective du joueur courant
-    // a celle du joueur qui a effectue le coup (convention MCTS)
+    // à celle du joueur qui a effectué le coup (convention MCTS)
     value = -value
     for n := node; n != nil; n = n.parent {
         n.visits++
@@ -209,9 +209,9 @@ func (node *mctsNode) backpropagateValue(value float64) {
 }
 ```
 
-La methode `backpropagate(result board.PlayerID)` existante reste inchangee pour le chemin MCTS pur.
+La méthode `backpropagate(result board.PlayerID)` existante reste inchangée pour le chemin MCTS pur.
 
-## Etape 10 : Implementer l'Evaluator avec ONNX Runtime
+## Étape 10 : Implémenter l'Evaluator avec ONNX Runtime
 
 Fichier : `evaluator/onnx.go` (nouveau package)
 
@@ -228,41 +228,41 @@ type ONNXEvaluator struct {
 }
 
 func NewONNXEvaluator(modelPath string) (*ONNXEvaluator, error) {
-    // Charger le modele ONNX
+    // Charger le modèle ONNX
     // Initialiser la session
 }
 
 func (e *ONNXEvaluator) Evaluate(state board.State) ([]float64, float64) {
-    // 1. Convertir l'etat en tenseur via Tensorizable
+    // 1. Convertir l'état en tenseur via Tensorizable
     t := state.(board.Tensorizable)
     features := t.Features()
 
-    // 2. Appeler le reseau
+    // 2. Appeler le réseau
     // input := ort.NewTensor(features, t.FeatureShape())
     // outputs := e.session.Run(input)
 
-    // 3. Decoder policy (softmax + masquage des coups illegaux)
-    // 4. Decoder value (tanh)
+    // 3. Décoder policy (softmax + masquage des coups illégaux)
+    // 4. Décoder value (tanh)
 
-    // 5. Retourner policy filtree sur les coups legaux + value
+    // 5. Retourner policy filtrée sur les coups légaux + value
 }
 ```
 
-## Verification
+## Vérification
 
-1. **Tests de regression** : les tests existants (`TestRunMCTS_TakesWin`, `TestRunMCTS_BlocksWin`) passent avec `NewMCTS()` -- le chemin MCTS pur n'est pas affecte
-2. **Tests unitaires** : verifier PUCT, `expandAll`, `backpropagateValue` avec des valeurs connues
-3. **Test d'integration** : verifier que `NewAlphaMCTS` avec un evaluateur a rollout (`rolloutEvaluator` dans `puct_test.go`) bloque et prend les victoires
-4. **Benchmark** : comparer le temps par iteration avec et sans reseau
+1. **Tests de régression** : les tests existants (`TestRunMCTS_TakesWin`, `TestRunMCTS_BlocksWin`) passent avec `NewMCTS()` -- le chemin MCTS pur n'est pas affecté
+2. **Tests unitaires** : vérifier PUCT, `expandAll`, `backpropagateValue` avec des valeurs connues
+3. **Test d'intégration** : vérifier que `NewAlphaMCTS` avec un évaluateur à rollout (`rolloutEvaluator` dans `puct_test.go`) bloque et prend les victoires
+4. **Benchmark** : comparer le temps par itération avec et sans réseau
 
-**Etat actuel** : les etapes 1-9 sont implementees et testees. Coverage > 95%.
-Pour implementer un Evaluator, voir [how-to/implementer-evaluator.md](implementer-evaluator.md).
+**État actuel** : les étapes 1-9 sont implémentées et testées. Coverage > 95%.
+Pour implémenter un Evaluator, voir [how-to/implementer-evaluator.md](implementer-evaluator.md).
 
-## Prochaines etapes
+## Prochaines étapes
 
 ```
 Fait : 1-9 (interfaces, Tensorizable, prior, PUCT, expandAll, backpropagateValue, RunMCTS)
 A faire :
-  10. Evaluator ONNX (evaluator/onnx.go)     ← necessite un modele entraine
-  11. Boucle d'entrainement (Python)          ← hors du scope Go
+  10. Evaluator ONNX (evaluator/onnx.go)     ← nécessite un modèle entraîné
+  11. Boucle d'entraînement (Python)          ← hors du scope Go
 ```

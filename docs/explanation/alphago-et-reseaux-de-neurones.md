@@ -1,23 +1,23 @@
-# AlphaGo et les reseaux de neurones
+# AlphaGo et les réseaux de neurones
 
-## Le probleme fondamental
+## Le problème fondamental
 
-Le Go a un facteur de branchement d'environ **250** (nombre de coups legaux moyens) et des parties de **200+ coups**. L'arbre de jeu complet contient environ 10^170 positions -- plus que le nombre d'atomes dans l'univers observable.
+Le Go a un facteur de branchement d'environ **250** (nombre de coups légaux moyens) et des parties de **200+ coups**. L'arbre de jeu complet contient environ 10^170 positions -- plus que le nombre d'atomes dans l'univers observable.
 
-Le MCTS pur ne peut pas gerer cette complexite. Ses rollouts aleatoires sont du bruit, et son exploration uniforme gaspille du temps sur des coups absurdes qu'un joueur humain eliminerait instantanement.
+Le MCTS pur ne peut pas gérer cette complexité. Ses rollouts aléatoires sont du bruit, et son exploration uniforme gaspille du temps sur des coups absurdes qu'un joueur humain éliminerait instantanément.
 
-La percee d'AlphaGo : utiliser des **reseaux de neurones convolutifs** pour donner au MCTS une "intuition" humaine (voire surhumaine).
+La percée d'AlphaGo : utiliser des **réseaux de neurones convolutifs** pour donner au MCTS une "intuition" humaine (voire surhumaine).
 
 ## Les deux cerveaux d'AlphaGo
 
-AlphaGo utilise deux fonctions apprise par reseau de neurones :
+AlphaGo utilise deux fonctions apprises par réseau de neurones :
 
 ```
                     Etat du plateau (tenseur)
                          │
                    ┌─────┴─────┐
                    │  Tronc     │
-                   │  commun    │  Blocs residuels (ResNet)
+                   │  commun    │  Blocs résiduels (ResNet)
                    │  convolutif│  convolutions 3x3
                    └─────┬─────┘
                     ┌────┴────┐
@@ -29,15 +29,15 @@ AlphaGo utilise deux fonctions apprise par reseau de neurones :
               └─────┬───┘ └──┬─────┘
                     │         │
            Distribution    Scalaire
-           de probabilites v ∈ [-1, 1]
+           de probabilités v ∈ [-1, 1]
            sur les coups
 ```
 
 ### Policy network (p) -- "Quels coups sont prometteurs ?"
 
-Le policy network prend un etat de plateau et produit une **distribution de probabilites** sur tous les coups legaux. Pour le Go : un vecteur de 362 valeurs (361 intersections + passer).
+Le policy network prend un état de plateau et produit une **distribution de probabilités** sur tous les coups légaux. Pour le Go : un vecteur de 362 valeurs (361 intersections + passer).
 
-Exemple simplifie pour le morpion :
+Exemple simplifié pour le morpion :
 
 ```
 Position :        Policy :
@@ -45,33 +45,33 @@ Position :        Policy :
  . | X | .             0.05, 0, 0.20,
  . | . | O             0.10, 0.05, 0]
                         ↑
-                   probabilite de jouer chaque case
+                   probabilité de jouer chaque case
 ```
 
-Ce vecteur remplace l'exploration uniforme dans MCTS. Au lieu d'essayer tous les coups avec la meme priorite, l'algorithme explore d'abord les coups a forte probabilite.
+Ce vecteur remplace l'exploration uniforme dans MCTS. Au lieu d'essayer tous les coups avec la même priorité, l'algorithme explore d'abord les coups à forte probabilité.
 
-**Role dans MCTS** : guide la **selection** via la formule PUCT (voir [de-mcts-a-alphazero.md](de-mcts-a-alphazero.md)).
+**Rôle dans MCTS** : guide la **sélection** via la formule PUCT (voir [de-mcts-a-alphazero.md](de-mcts-a-alphazero.md)).
 
 ### Value network (v) -- "Qui va gagner ?"
 
-Le value network prend un etat de plateau et produit un **scalaire** entre -1 et +1, estimant la probabilite de victoire du joueur courant.
+Le value network prend un état de plateau et produit un **scalaire** entre -1 et +1, estimant la probabilité de victoire du joueur courant.
 
 - `v = +1` : le joueur courant gagne certainement
-- `v = 0` : position equilibree
+- `v = 0` : position équilibrée
 - `v = -1` : le joueur courant perd certainement
 
-**Role dans MCTS** : remplace le **rollout aleatoire**. Au lieu de jouer des coups au hasard jusqu'a la fin, on demande au reseau "qui gagne depuis cette position ?".
+**Rôle dans MCTS** : remplace le **rollout aléatoire**. Au lieu de jouer des coups au hasard jusqu'à la fin, on demande au réseau "qui gagne depuis cette position ?".
 
 ## Pourquoi la convolution ?
 
-Le plateau de Go (ou de morpion) est une **grille 2D**, exactement comme une image. Les reseaux convolutifs excellent sur ce type de donnees grace a deux proprietes :
+Le plateau de Go (ou de morpion) est une **grille 2D**, exactement comme une image. Les réseaux convolutifs excellent sur ce type de données grâce à deux propriétés :
 
-### Localite spatiale
+### Localité spatiale
 
 Les motifs au Go sont locaux : un "oeil", un "atari", une "echelle" sont des configurations de pierres voisines. Une convolution 3x3 capture exactement ces relations de voisinage.
 
 ```
-Filtre 3x3 detectant        Application sur le plateau :
+Filtre 3x3 détectant        Application sur le plateau :
 un motif d'atari :
                              . . . . .
   0  1  0                   . X O . .
@@ -81,15 +81,15 @@ un motif d'atari :
 
 ### Invariance par translation
 
-Un motif qui fonctionne dans un coin du plateau fonctionne aussi au centre. La convolution partage ses poids sur toute la grille, donc le reseau apprend le motif **une seule fois** et le reconnait partout.
+Un motif qui fonctionne dans un coin du plateau fonctionne aussi au centre. La convolution partage ses poids sur toute la grille, donc le réseau apprend le motif **une seule fois** et le reconnaît partout.
 
-### Architecture convolutive detaillee
+### Architecture convolutive détaillée
 
-Voir [reference/architecture-reseau.md](../reference/architecture-reseau.md) pour les details techniques (tenseurs d'entree, blocs residuels, dimensions).
+Voir [référence/architecture-réseau.md](../référence/architecture-réseau.md) pour les détails techniques (tenseurs d'entrée, blocs résiduels, dimensions).
 
-## Representation du plateau en tenseur
+## Représentation du plateau en tenseur
 
-Le plateau n'est pas passe au reseau sous forme de grille brute. Il est encode en **plans de features** (feature planes), chacun de taille H x W :
+Le plateau n'est pas passé au réseau sous forme de grille brute. Il est encodé en **plans de features** (feature planes), chacun de taille H x W :
 
 Pour AlphaGo Zero (Go 19x19) :
 
@@ -100,7 +100,7 @@ Pour AlphaGo Zero (Go 19x19) :
 | Couleur du joueur courant | Plan constant (0 ou 1) | 1 |
 | **Total** | | **17** |
 
-Le tenseur d'entree est donc de dimension `[17][19][19]`.
+Le tenseur d'entrée est donc de dimension `[17][19][19]`.
 
 Pour le morpion, on pourrait utiliser :
 
@@ -111,82 +111,82 @@ Pour le morpion, on pourrait utiliser :
 | Joueur courant | Plan constant | 1 |
 | **Total** | | **3** |
 
-Tenseur d'entree : `[3][3][3]` -- suffisant pour un reseau minimaliste.
+Tenseur d'entrée : `[3][3][3]` -- suffisant pour un réseau minimaliste.
 
-## L'evolution : AlphaGo, AlphaGo Zero, AlphaZero
+## L'évolution : AlphaGo, AlphaGo Zero, AlphaZero
 
 ### AlphaGo (2016) -- Silver et al., Nature
 
-- **Deux reseaux separes** : policy (13 couches CNN) et value (13 couches CNN)
-- Policy pre-entraine par **apprentissage supervise** sur 30 millions de parties humaines
-- Affine par **reinforcement learning** (self-play)
-- Simulation = **melange** rollout aleatoire + value network : `v_final = λ * v_network + (1-λ) * v_rollout`
+- **Deux réseaux séparés** : policy (13 couches CNN) et value (13 couches CNN)
+- Policy pré-entraîné par **apprentissage supervisé** sur 30 millions de parties humaines
+- Affiné par **reinforcement learning** (self-play)
+- Simulation = **mélange** rollout aléatoire + value network : `v_final = λ * v_network + (1-λ) * v_rollout`
 - A battu Lee Sedol 4-1
 
 ### AlphaGo Zero (2017) -- Silver et al., Nature
 
-- **Un seul reseau a deux tetes** (policy + value partagent le tronc)
-- **Aucune donnee humaine** : entraine uniquement par self-play (tabula rasa)
+- **Un seul réseau à deux têtes** (policy + value partagent le tronc)
+- **Aucune donnée humaine** : entraîné uniquement par self-play (tabula rasa)
 - **Pas de rollout** : la value network seule remplace la simulation
-- Architecture **ResNet** (blocs residuels) au lieu de CNN simple
+- Architecture **ResNet** (blocs résiduels) au lieu de CNN simple
 - A battu AlphaGo 100-0
 
 ### AlphaZero (2018) -- Silver et al., Science
 
-- Meme architecture qu'AlphaGo Zero
-- **Generalise** a trois jeux : Go, echecs, shogi
-- Aucune connaissance specifique au jeu sauf les regles
-- A battu Stockfish (echecs) et Elmo (shogi) en partant de zero
+- Même architecture qu'AlphaGo Zero
+- **Généralisé** à trois jeux : Go, échecs, shogi
+- Aucune connaissance spécifique au jeu sauf les règles
+- A battu Stockfish (échecs) et Elmo (shogi) en partant de zéro
 
 ### MuZero (2020) -- Schrittwieser et al., Nature
 
-- N'a meme plus besoin des **regles du jeu**
-- Apprend un **modele interne** de l'environnement (dynamics network)
-- Trois reseaux : representation, dynamics, prediction
+- N'a même plus besoin des **règles du jeu**
+- Apprend un **modèle interne** de l'environnement (dynamics network)
+- Trois réseaux : représentation, dynamics, prédiction
 - Fonctionne aussi sur les jeux Atari (pas seulement les jeux de plateau)
 
 ```
 AlphaGo          AlphaGo Zero       AlphaZero          MuZero
 (2016)           (2017)             (2018)             (2020)
     │                │                  │                  │
-    │ Supervise +    │ Self-play        │ Generalise       │ Apprend les
-    │ rollouts       │ sans rollout     │ a 3 jeux         │ regles aussi
-    │ 2 reseaux      │ 1 reseau         │                  │ 3 reseaux
+    │ Supervisé +    │ Self-play        │ Généralisé       │ Apprend les
+    │ rollouts       │ sans rollout     │ à 3 jeux         │ règles aussi
+    │ 2 réseaux      │ 1 réseau         │                  │ 3 réseaux
     │                │ ResNet           │                  │
-    └──────► ameliore ──────► generalise ──────► abstrait ──►
+    └──────► amélioré ──────► généralisé ──────► abstrait ──►
 ```
 
-## Le cycle d'entrainement
+## Le cycle d'entraînement
 
-AlphaZero apprend par **self-play iteratif** :
+AlphaZero apprend par **self-play itératif** :
 
 ```
   ┌─────────────────────────────────────────┐
   │                                         │
   v                                         │
-Reseau (v0)  ──►  Self-play avec MCTS  ──►  Donnees d'entrainement
+Réseau (v0)  ──►  Self-play avec MCTS  ──►  Données d'entraînement
                    (MCTS utilise le            │
-                    reseau courant)             │
+                    réseau courant)             │
                                                v
-                                         Entrainer le reseau
-                                         sur les parties jouees
+                                         Entraîner le réseau
+                                         sur les parties jouées
                                                │
                                                v
-                                         Reseau (v1) ──► ...
+                                         Réseau (v1) ──► ...
   │                                         │
   └─────────────────────────────────────────┘
 ```
 
-A chaque partie de self-play :
-1. MCTS (guide par le reseau courant) choisit les coups
-2. On stocke pour chaque position : `(etat, politique_MCTS, resultat_final)`
-3. On entraine le reseau pour que :
-   - sa **policy** predise la politique MCTS (cross-entropy loss)
-   - sa **value** predise le resultat final (MSE loss)
+À chaque partie de self-play :
+1. MCTS (guidé par le réseau courant) choisit les coups
+2. On stocke pour chaque position : `(état, politique_MCTS, résultat_final)`
+3. On entraîne le réseau pour que :
+   - sa **policy** prédise la politique MCTS (cross-entropy loss)
+   - sa **value** prédise le résultat final (MSE loss)
 
-La politique MCTS est **meilleure** que la politique brute du reseau (car elle fait de la recherche), donc le reseau apprend a imiter une version amelioree de lui-meme. C'est un cercle vertueux.
+La politique MCTS est **meilleure** que la politique brute du réseau (car elle fait de la recherche), donc le réseau apprend à imiter une version améliorée de lui-même. C'est un cercle vertueux.
 
-## References
+## Références
 
 - Silver et al., "Mastering the game of Go with deep neural networks and tree search", Nature 529, 2016 -- AlphaGo
 - Silver et al., "Mastering the game of Go without human knowledge", Nature 550, 2017 -- AlphaGo Zero

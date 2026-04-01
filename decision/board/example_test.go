@@ -8,25 +8,25 @@ import (
 	"github.com/owulveryck/alphazego/mcts"
 )
 
-// ttt est une implementation minimale de [decision.State] et
+// ttt est une implémentation minimale de [decision.State] et
 // [board.ActionRecorder] pour le morpion.
-// Elle illustre les champs necessaires : le plateau, l'acteur
-// courant, et l'action qui a produit cet etat.
+// Elle illustre les champs nécessaires : le plateau, l'acteur
+// courant, et l'action qui a produit cet état.
 //
 // Le plateau utilise un tableau fixe [9]uint8 (pas un slice) :
-// l'affectation d'un tableau copie les donnees automatiquement,
+// l'affectation d'un tableau copie les données automatiquement,
 // ce qui simplifie [decision.State.PossibleMoves].
 type ttt struct {
 	cells      [9]uint8         // 0=vide, 1=Actor1, 2=Actor2
 	turn       decision.ActorID // acteur dont c'est le tour
-	lastAction int              // action qui a produit cet etat
+	lastAction int              // action qui a produit cet état
 }
 
 func (t *ttt) CurrentActor() decision.ActorID  { return t.turn }
 func (t *ttt) PreviousActor() decision.ActorID { return 3 - t.turn }
 func (t *ttt) LastAction() int                 { return t.lastAction }
 
-// ID inclut l'acteur courant : meme plateau + acteur different = ID different.
+// ID inclut l'acteur courant : même plateau + acteur différent = ID différent.
 func (t *ttt) ID() string {
 	var id [10]byte
 	copy(id[:], t.cells[:])
@@ -34,7 +34,7 @@ func (t *ttt) ID() string {
 	return string(id[:])
 }
 
-// Evaluate verifie les 8 combinaisons gagnantes, puis le match nul.
+// Evaluate vérifie les 8 combinaisons gagnantes, puis le match nul.
 func (t *ttt) Evaluate() decision.ActorID {
 	for _, l := range [][3]int{
 		{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, // lignes
@@ -55,12 +55,12 @@ func (t *ttt) Evaluate() decision.ActorID {
 	return decision.DrawResult
 }
 
-// PossibleMoves retourne un etat par case vide.
-// Chaque enfant est une copie independante grace au tableau [9]uint8 :
+// PossibleMoves retourne un état par case vide.
+// Chaque enfant est une copie indépendante grâce au tableau [9]uint8 :
 // l'affectation child.cells = t.cells copie les 9 octets.
 func (t *ttt) PossibleMoves() []decision.State {
 	if t.Evaluate() != decision.NoActor {
-		return nil // etat terminal : aucun coup
+		return nil // état terminal : aucun coup
 	}
 	var moves []decision.State
 	for i, c := range t.cells {
@@ -68,7 +68,7 @@ func (t *ttt) PossibleMoves() []decision.State {
 			child := &ttt{
 				cells:      t.cells,    // copie automatique (tableau, pas slice)
 				turn:       3 - t.turn, // acteur suivant
-				lastAction: i,          // action qui a produit cet etat
+				lastAction: i,          // action qui a produit cet état
 			}
 			child.cells[i] = uint8(t.turn) // placer le pion de l'acteur courant
 			moves = append(moves, child)
@@ -77,14 +77,14 @@ func (t *ttt) PossibleMoves() []decision.State {
 	return moves
 }
 
-// Cet exemple montre une implementation complete de [decision.State] pour le
-// morpion (tic-tac-toe), connectee au moteur MCTS.
+// Cet exemple montre une implémentation complète de [decision.State] pour le
+// morpion (tic-tac-toe), connectée au moteur MCTS.
 //
-// L'implementation tient en ~50 lignes grace a deux choix :
+// L'implémentation tient en ~50 lignes grâce à deux choix :
 //   - un tableau fixe [9]uint8 pour le plateau (copie automatique)
-//   - l'acteur suivant calcule par 3 - acteur (alternance 1↔2)
+//   - l'acteur suivant calculé par 3 - acteur (alternance 1↔2)
 //
-// Voir le type ttt dans le code source pour l'implementation complete.
+// Voir le type ttt dans le code source pour l'implémentation complète.
 func Example() {
 	game := &ttt{turn: decision.Actor1}
 
@@ -102,9 +102,9 @@ func Example() {
 }
 
 // Cet exemple montre comment utiliser [board.ActionRecorder] pour extraire
-// l'action choisie par le MCTS. L'interface [decision.State] est generique et
-// n'impose pas de notion d'action ; [board.ActionRecorder] est une commodite
-// pour les jeux de plateau ou l'on veut connaitre le coup joue.
+// l'action choisie par le MCTS. L'interface [decision.State] est générique et
+// n'impose pas de notion d'action ; [board.ActionRecorder] est une commodité
+// pour les jeux de plateau où l'on veut connaître le coup joué.
 func Example_actionRecorder() {
 	game := &ttt{turn: decision.Actor1}
 	m := mcts.NewMCTS()
@@ -121,7 +121,7 @@ func Example_actionRecorder() {
 	// Action extraite: true
 }
 
-// Cet exemple montre une partie complete MCTS vs MCTS.
+// Cet exemple montre une partie complète MCTS vs MCTS.
 func Example_fullGame() {
 	game := &ttt{turn: decision.Actor1}
 	m := mcts.NewMCTS()

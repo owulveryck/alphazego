@@ -1,18 +1,18 @@
-# Tutoriel : Le morpion pas a pas
+# Tutoriel : Le morpion pas à pas
 
-Dans ce tutoriel, vous allez construire un morpion (tic-tac-toe) jouable contre une IA MCTS, en implementant l'interface `decision.State` de zero.
+Dans ce tutoriel, vous allez construire un morpion (tic-tac-toe) jouable contre une IA MCTS, en implémentant l'interface `decision.State` de zéro.
 
 ## Ce que vous allez construire
 
-- Un morpion 3x3 avec detection de victoire et de match nul
-- Une IA basee sur le MCTS (Monte Carlo Tree Search)
+- Un morpion 3x3 avec détection de victoire et de match nul
+- Une IA basée sur le MCTS (Monte Carlo Tree Search)
 - Une boucle de jeu interactive dans le terminal
 
-Le code final correspond a l'implementation dans `decision/board/tictactoe/` et `main.go`.
+Le code final correspond à l'implémentation dans `decision/board/tictactoe/` et `main.go`.
 
-## Prerequis
+## Prérequis
 
-- Go installe (1.21+)
+- Go installé (1.21+)
 - Le module `alphazego` disponible :
 
 ```bash
@@ -20,7 +20,7 @@ go mod init mon-morpion
 go get github.com/owulveryck/alphazego
 ```
 
-## Etape 1 : Le plateau
+## Étape 1 : Le plateau
 
 Le morpion est une grille 3x3 = 9 cases :
 
@@ -34,7 +34,7 @@ Le morpion est une grille 3x3 = 9 cases :
 
 Chaque case contient `0` (vide), `1` (Actor1 / X) ou `2` (Actor2 / O).
 
-Definissez le struct et le constructeur :
+Définissez le struct et le constructeur :
 
 ```go
 package morpion
@@ -60,9 +60,9 @@ func New() *Morpion {
 Trois champs :
 - `board` : les 9 cases du plateau
 - `actorTurn` : qui doit jouer (alternance Actor1/Actor2)
-- `lastAction` : l'action qui a mene a cet etat (pour l'interface `ActionRecorder`)
+- `lastAction` : l'action qui a mené à cet état (pour l'interface `ActionRecorder`)
 
-## Etape 2 : `Evaluate()` — detecter la fin de partie
+## Étape 2 : `Evaluate()` -- détecter la fin de partie
 
 Les combinaisons gagnantes au morpion sont 8 : 3 lignes, 3 colonnes, 2 diagonales.
 
@@ -81,7 +81,7 @@ func (m *Morpion) Evaluate() decision.ActorID {
             return decision.ActorID(m.board[pos[0]])
         }
     }
-    // Match nul si toutes les cases sont occupees
+    // Match nul si toutes les cases sont occupées
     for _, cell := range m.board {
         if cell == 0 {
             return decision.NoActor // partie en cours
@@ -91,7 +91,7 @@ func (m *Morpion) Evaluate() decision.ActorID {
 }
 ```
 
-**Verification** : ecrivez un test pour valider les cas courants.
+**Vérification** : écrivez un test pour valider les cas courants.
 
 ```go
 func TestEvaluate_Actor1Wins(t *testing.T) {
@@ -107,7 +107,7 @@ func TestEvaluate_Draw(t *testing.T) {
     m := New()
     m.board = []uint8{1, 2, 1, 1, 1, 2, 2, 1, 2}
     if m.Evaluate() != decision.DrawResult {
-        t.Error("devrait etre un match nul")
+        t.Error("devrait être un match nul")
     }
 }
 
@@ -123,11 +123,11 @@ func TestEvaluate_InProgress(t *testing.T) {
 go test -v ./...
 ```
 
-## Etape 3 : `PossibleMoves()` — generer les etats fils
+## Étape 3 : `PossibleMoves()` -- générer les états fils
 
-C'est la methode la plus importante pour le MCTS. Elle retourne un `[]decision.State` ou chaque element est un plateau avec un coup en plus.
+C'est la méthode la plus importante pour le MCTS. Elle retourne un `[]decision.State` où chaque élément est un plateau avec un coup en plus.
 
-**Regle critique** : ne jamais modifier `m.board` directement. Chaque etat fils doit etre une copie independante.
+**Règle critique** : ne jamais modifier `m.board` directement. Chaque état fils doit être une copie indépendante.
 
 ```go
 func (m *Morpion) PossibleMoves() []decision.State {
@@ -150,11 +150,11 @@ func (m *Morpion) PossibleMoves() []decision.State {
 ```
 
 Points importants :
-- On copie le slice avec `copy()` — sans cela, tous les etats partagent le meme tableau
+- On copie le slice avec `copy()` -- sans cela, tous les états partagent le même tableau
 - On alterne l'acteur avec `3 - m.actorTurn` (1↔2)
 - On enregistre `lastAction` pour que `LastAction()` fonctionne (interface `ActionRecorder`)
 
-## Etape 4 : Les autres methodes de State
+## Étape 4 : Les autres méthodes de State
 
 ```go
 func (m *Morpion) CurrentActor() decision.ActorID {
@@ -177,11 +177,11 @@ func (m *Morpion) LastAction() int {
 }
 ```
 
-L'`ID()` encode le plateau + l'acteur courant en une chaine de 10 octets. C'est suffisant pour identifier de maniere unique chaque position.
+L'`ID()` encode le plateau + l'acteur courant en une chaîne de 10 octets. C'est suffisant pour identifier de manière unique chaque position.
 
-## Etape 5 : Premier test MCTS
+## Étape 5 : Premier test MCTS
 
-Avant de construire l'interface utilisateur, verifions que le MCTS fonctionne avec notre implementation.
+Avant de construire l'interface utilisateur, vérifions que le MCTS fonctionne avec notre implémentation.
 
 ```go
 func TestMCTS_FullGame(t *testing.T) {
@@ -198,7 +198,7 @@ func TestMCTS_FullGame(t *testing.T) {
     }
 
     if game.Evaluate() == decision.NoActor {
-        t.Error("la partie devrait etre terminee")
+        t.Error("la partie devrait être terminée")
     }
     if moves < 5 || moves > 9 {
         t.Errorf("nombre de coups invalide : %d", moves)
@@ -210,9 +210,9 @@ func TestMCTS_FullGame(t *testing.T) {
 go test -v -run TestMCTS
 ```
 
-## Etape 6 : `Play()` pour l'interaction humaine
+## Étape 6 : `Play()` pour l'interaction humaine
 
-`Play()` n'est pas dans l'interface `State`, mais permet a un humain de jouer :
+`Play()` n'est pas dans l'interface `State`, mais permet à un humain de jouer :
 
 ```go
 func (m *Morpion) Play(p uint8) error {
@@ -220,10 +220,10 @@ func (m *Morpion) Play(p uint8) error {
         return fmt.Errorf("position %d hors limites (0-%d)", p, BoardSize-1)
     }
     if m.board[p] != 0 {
-        return fmt.Errorf("position %d deja occupee", p)
+        return fmt.Errorf("position %d déjà occupée", p)
     }
     if m.Evaluate() != decision.NoActor {
-        return fmt.Errorf("la partie est terminee")
+        return fmt.Errorf("la partie est terminée")
     }
     m.board[p] = uint8(m.actorTurn)
     m.lastAction = int(p)
@@ -232,9 +232,9 @@ func (m *Morpion) Play(p uint8) error {
 }
 ```
 
-## Etape 7 : Affichage du plateau
+## Étape 7 : Affichage du plateau
 
-Pour un affichage agreable dans le terminal, utilisez des couleurs ANSI :
+Pour un affichage agréable dans le terminal, utilisez des couleurs ANSI :
 
 ```go
 func (m *Morpion) String() string {
@@ -260,7 +260,7 @@ func (m *Morpion) String() string {
 }
 ```
 
-## Etape 8 : La boucle de jeu complete
+## Étape 8 : La boucle de jeu complète
 
 Assemblez le tout dans un `main.go` :
 
@@ -290,7 +290,7 @@ func main() {
         fmt.Scan(&input)
         val, err := strconv.ParseUint(input, 10, 8)
         if err != nil {
-            fmt.Println("Entree invalide")
+            fmt.Println("Entrée invalide")
             continue
         }
         if err := game.Play(uint8(val)); err != nil {
@@ -298,7 +298,7 @@ func main() {
             continue
         }
 
-        // Verifier si la partie est finie
+        // Vérifier si la partie est finie
         if game.Evaluate() != decision.NoActor {
             break
         }
@@ -310,13 +310,13 @@ func main() {
         game.Play(uint8(aiMove))
     }
 
-    // Resultat
+    // Résultat
     fmt.Println(game)
     switch game.Evaluate() {
     case decision.Actor1:
-        fmt.Println("Vous avez gagne !")
+        fmt.Println("Vous avez gagné !")
     case decision.Actor2:
-        fmt.Println("L'IA a gagne !")
+        fmt.Println("L'IA a gagné !")
     case decision.DrawResult:
         fmt.Println("Match nul !")
     }
@@ -329,8 +329,8 @@ go run main.go
 
 ## Pour aller plus loin
 
-- **Augmenter les iterations** : plus d'iterations = IA plus forte (essayez 5000 ou 10000)
-- **Implementer `Tensorizable`** : pour connecter un reseau de neurones, voir la [reference des interfaces](../reference/interfaces-evaluator.md)
-- **Implementer un `Evaluator`** : pour remplacer les rollouts aleatoires par une evaluation intelligente, voir le [how-to Evaluator](../how-to/implementer-evaluator.md)
-- **Mode AlphaZero** : utiliser `mcts.NewAlphaMCTS(evaluator, cpuct)` avec un reseau entraine, voir [de MCTS a AlphaZero](../explanation/de-mcts-a-alphazero.md)
-- **Autre jeu** : adaptez ce tutoriel a un autre jeu en suivant le [how-to implementer un jeu](../how-to/implementer-un-jeu.md)
+- **Augmenter les itérations** : plus d'itérations = IA plus forte (essayez 5000 ou 10000)
+- **Implémenter `Tensorizable`** : pour connecter un réseau de neurones, voir la [référence des interfaces](../référence/interfaces-evaluator.md)
+- **Implémenter un `Evaluator`** : pour remplacer les rollouts aléatoires par une évaluation intelligente, voir le [how-to Evaluator](../how-to/implementer-evaluator.md)
+- **Mode AlphaZero** : utiliser `mcts.NewAlphaMCTS(evaluator, cpuct)` avec un réseau entraîné, voir [de MCTS à AlphaZero](../explanation/de-mcts-a-alphazero.md)
+- **Autre jeu** : adaptez ce tutoriel à un autre jeu en suivant le [how-to implémenter un jeu](../how-to/implementer-un-jeu.md)

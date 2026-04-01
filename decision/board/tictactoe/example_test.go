@@ -121,7 +121,7 @@ func ExampleTicTacToe_PreviousActor() {
 	game.Play(4) // Actor1 joue au centre
 	fmt.Println("Previous actor after A1 plays:", game.PreviousActor())
 
-	game.Play(0) // Actor2 joue en haut a gauche
+	game.Play(0) // Actor2 joue en haut à gauche
 	fmt.Println("Previous actor after A2 plays:", game.PreviousActor())
 	// Output:
 	// Previous actor (initial): 2

@@ -39,9 +39,9 @@ func main() {
 	fmt.Println(ttt)
 	switch ttt.Evaluate() {
 	case decision.Actor1:
-		fmt.Println("Vous avez gagne !")
+		fmt.Println("Vous avez gagné !")
 	case decision.Actor2:
-		fmt.Println("L'IA a gagne !")
+		fmt.Println("L'IA a gagné !")
 	case decision.DrawResult:
 		fmt.Println("Match nul !")
 	}

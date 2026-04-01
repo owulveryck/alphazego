@@ -14,7 +14,7 @@ func (node *mctsNode) backpropagate(result decision.ActorID) {
 		n.visits += 1
 
 		// Credit wins to the actor who made the move leading to this node.
-		// PreviousActor() retourne l'acteur qui a effectue l'action menant a cet etat,
+		// PreviousActor() retourne l'acteur qui a effectué l'action menant à cet état,
 		// quelle que soit la logique de tour (2 acteurs, N acteurs, etc.).
 		actorWhoMovedHere := n.state.PreviousActor()
 		if result == actorWhoMovedHere {
@@ -29,21 +29,21 @@ func (node *mctsNode) backpropagate(result decision.ActorID) {
 	// nodes in future iterations of the MCTS, guiding the search towards more promising paths.
 }
 
-// backpropagateValue propage une valeur continue v ∈ [-1, 1] depuis ce noeud
-// jusqu'a la racine. Cette methode est utilisee par le chemin AlphaZero, ou la
-// value provient du reseau de neurones au lieu d'un rollout aleatoire.
+// backpropagateValue propage une valeur continue v ∈ [-1, 1] depuis ce nœud
+// jusqu'à la racine. Cette méthode est utilisée par le chemin AlphaZero, où la
+// value provient du réseau de neurones au lieu d'un rollout aléatoire.
 //
-// La valeur initiale est exprimee du point de vue de l'acteur courant au noeud
-// evalue (CurrentActor). Elle est d'abord inversee pour etre stockee du point
-// de vue de l'acteur qui a effectue l'action menant a ce noeud (convention
-// coherente avec backpropagate), puis alternee a chaque niveau en remontant.
+// La valeur initiale est exprimée du point de vue de l'acteur courant au nœud
+// évalué (CurrentActor). Elle est d'abord inversée pour être stockée du point
+// de vue de l'acteur qui a effectué l'action menant à ce nœud (convention
+// cohérente avec backpropagate), puis alternée à chaque niveau en remontant.
 //
-// L'inversion de signe suppose un jeu a somme nulle a deux acteurs. Pour les
-// jeux a N acteurs (N > 2), utiliser backpropagate avec un [decision.ActorID]
+// L'inversion de signe suppose un jeu à somme nulle à deux acteurs. Pour les
+// jeux à N acteurs (N > 2), utiliser backpropagate avec un [decision.ActorID]
 // discret.
 func (node *mctsNode) backpropagateValue(value float64) {
-	// Inverser pour passer de la perspective de l'acteur courant a celle de l'acteur
-	// qui a effectue l'action menant a ce noeud (= PreviousActor).
+	// Inverser pour passer de la perspective de l'acteur courant à celle de l'acteur
+	// qui a effectué l'action menant à ce nœud (= PreviousActor).
 	value = -value
 	for n := node; n != nil; n = n.parent {
 		n.visits++

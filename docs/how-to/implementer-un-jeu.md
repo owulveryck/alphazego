@@ -1,29 +1,29 @@
-# Comment implementer un nouveau jeu pour le MCTS
+# Comment implémenter un nouveau jeu pour le MCTS
 
-Ce guide explique comment implementer l'interface `decision.State` pour connecter un jeu (ou tout probleme de decision sequentiel) au moteur MCTS d'AlphaZeGo.
+Ce guide explique comment implémenter l'interface `decision.State` pour connecter un jeu (ou tout problème de décision séquentiel) au moteur MCTS d'AlphaZeGo.
 
-## Prerequis
+## Prérequis
 
 - Connaissance de base de Go (structs, interfaces, slices)
-- Avoir lu la [documentation du framework generique](../explanation/framework-generique.md)
+- Avoir lu la [documentation du framework générique](../explanation/framework-générique.md)
 
-## 1. Definir le struct d'etat
+## 1. Définir le struct d'état
 
-Votre struct doit contenir toutes les informations necessaires pour decrire une position du jeu :
+Votre struct doit contenir toutes les informations nécessaires pour décrire une position du jeu :
 
 ```go
 type MonJeu struct {
-    plateau    [N]uint8          // representation du plateau
+    plateau    [N]uint8          // représentation du plateau
     acteur     decision.ActorID  // acteur dont c'est le tour
-    lastAction int               // action qui a mene a cet etat (pour ActionRecorder)
+    lastAction int               // action qui a mené à cet état (pour ActionRecorder)
 }
 ```
 
-**Optionnel** : le champ `lastAction` est necessaire si vous implementez `board.ActionRecorder`.
+**Optionnel** : le champ `lastAction` est nécessaire si vous implémentez `board.ActionRecorder`.
 
-## 2. Implementer `decision.State`
+## 2. Implémenter `decision.State`
 
-L'interface `State` comporte 5 methodes :
+L'interface `State` comporte 5 méthodes :
 
 ```go
 type State interface {
@@ -37,7 +37,7 @@ type State interface {
 
 ### `CurrentActor()` et `PreviousActor()`
 
-Pour un jeu a deux acteurs en alternance :
+Pour un jeu à deux acteurs en alternance :
 
 ```go
 func (j *MonJeu) CurrentActor() decision.ActorID {
@@ -57,14 +57,14 @@ Retourne l'`ActorID` du gagnant, `decision.DrawResult` pour un nul, ou `decision
 
 ```go
 func (j *MonJeu) Evaluate() decision.ActorID {
-    // Verifier les conditions de victoire
+    // Vérifier les conditions de victoire
     if victoire(decision.Actor1) {
         return decision.Actor1
     }
     if victoire(decision.Actor2) {
         return decision.Actor2
     }
-    // Verifier le match nul (plateau plein, etc.)
+    // Vérifier le match nul (plateau plein, etc.)
     if plateauPlein() {
         return decision.DrawResult
     }
@@ -74,9 +74,9 @@ func (j *MonJeu) Evaluate() decision.ActorID {
 
 ### `PossibleMoves()`
 
-Retourne un slice de `decision.State`, chaque element representant un etat apres un coup legal.
+Retourne un slice de `decision.State`, chaque élément représentant un état après un coup légal.
 
-**Regle critique : ne jamais muter le recepteur.** Chaque etat fils doit etre une copie independante.
+**Règle critique : ne jamais muter le récepteur.** Chaque état fils doit être une copie indépendante.
 
 ```go
 func (j *MonJeu) PossibleMoves() []decision.State {
@@ -99,7 +99,7 @@ func (j *MonJeu) PossibleMoves() []decision.State {
 
 ### `ID()`
 
-Retourne un identifiant unique pour cet etat. Deux etats identiques (meme plateau, meme acteur) doivent retourner le meme ID :
+Retourne un identifiant unique pour cet état. Deux états identiques (même plateau, même acteur) doivent retourner le même ID :
 
 ```go
 func (j *MonJeu) ID() string {
@@ -110,9 +110,9 @@ func (j *MonJeu) ID() string {
 }
 ```
 
-## 3. Implementer `ActionRecorder` (optionnel)
+## 3. Implémenter `ActionRecorder` (optionnel)
 
-Si vous voulez pouvoir extraire l'action choisie par le MCTS, implementez `board.ActionRecorder` :
+Si vous voulez pouvoir extraire l'action choisie par le MCTS, implémentez `board.ActionRecorder` :
 
 ```go
 func (j *MonJeu) LastAction() int {
@@ -129,7 +129,7 @@ move := bestState.(board.ActionRecorder).LastAction()
 
 ## 4. Ajouter `Play()` pour l'interaction humaine
 
-`Play()` n'est pas dans l'interface `State` mais est necessaire pour permettre a un humain de jouer :
+`Play()` n'est pas dans l'interface `State` mais est nécessaire pour permettre à un humain de jouer :
 
 ```go
 func (j *MonJeu) Play(position uint8) error {
@@ -137,10 +137,10 @@ func (j *MonJeu) Play(position uint8) error {
         return fmt.Errorf("position %d hors limites (0-%d)", position, N-1)
     }
     if j.plateau[position] != 0 {
-        return fmt.Errorf("position %d deja occupee", position)
+        return fmt.Errorf("position %d déjà occupée", position)
     }
     if j.Evaluate() != decision.NoActor {
-        return fmt.Errorf("la partie est terminee")
+        return fmt.Errorf("la partie est terminée")
     }
     j.plateau[position] = uint8(j.acteur)
     j.lastAction = int(position)
@@ -153,9 +153,9 @@ func (j *MonJeu) Play(position uint8) error {
 
 ```go
 m := mcts.NewMCTS()
-game := NewMonJeu() // etat initial
+game := NewMonJeu() // état initial
 
-// Trouver le meilleur coup avec 1000 iterations
+// Trouver le meilleur coup avec 1000 itérations
 bestState := m.RunMCTS(game, 1000)
 move := bestState.(board.ActionRecorder).LastAction()
 
@@ -165,7 +165,7 @@ game.Play(uint8(move))
 
 ## 6. Optionnel : `Tensorizable` pour AlphaZero
 
-Si vous voulez utiliser un reseau de neurones, implementez `board.Tensorizable` :
+Si vous voulez utiliser un réseau de neurones, implémentez `board.Tensorizable` :
 
 ```go
 func (j *MonJeu) Features() []float32    { /* tenseur aplati [C*H*W] */ }
@@ -173,34 +173,34 @@ func (j *MonJeu) FeatureShape() [3]int   { return [3]int{C, H, W} }
 func (j *MonJeu) ActionSize() int        { return N }
 ```
 
-Voir la [reference des interfaces](../reference/interfaces-evaluator.md) pour les details du contrat.
+Voir la [référence des interfaces](../référence/interfaces-evaluator.md) pour les détails du contrat.
 
-## 7. Optionnel : `Evaluator` pour une evaluation custom
+## 7. Optionnel : `Evaluator` pour une évaluation custom
 
-Implementez `mcts.Evaluator` pour remplacer les rollouts aleatoires :
+Implémentez `mcts.Evaluator` pour remplacer les rollouts aléatoires :
 
 ```go
-type MonEvaluateur struct{}
+type MonÉvaluateur struct{}
 
-func (e *MonEvaluateur) Evaluate(state decision.State) ([]float64, float64) {
+func (e *MonÉvaluateur) Evaluate(state decision.State) ([]float64, float64) {
     moves := state.PossibleMoves()
     policy := make([]float64, len(moves))
-    // ... calculer les probabilites pour chaque coup ...
+    // ... calculer les probabilités pour chaque coup ...
     value := 0.0 // estimation de la position
     return policy, value
 }
 
-m := mcts.NewAlphaMCTS(evaluateur, 1.5) // cpuct entre 1.0 et 5.0
+m := mcts.NewAlphaMCTS(évaluateur, 1.5) // cpuct entre 1.0 et 5.0
 ```
 
-Voir le [how-to Evaluator](implementer-evaluator.md) pour un guide detaille.
+Voir le [how-to Evaluator](implementer-evaluator.md) pour un guide détaillé.
 
 ## Erreurs courantes
 
-| Erreur | Consequence | Solution |
+| Erreur | Conséquence | Solution |
 |--------|------------|----------|
-| Muter le plateau dans `PossibleMoves()` | Tous les etats partagent le meme tableau | Toujours copier le plateau avant de modifier |
-| Oublier `lastAction` dans `PossibleMoves()` | `LastAction()` retourne 0 pour tous les coups | Affecter `lastAction: i` dans chaque etat fils |
-| Collisions d'`ID()` | Le MCTS confond des etats differents | Inclure l'acteur courant dans l'ID |
-| `Evaluate()` ne detecte pas le nul | Le MCTS boucle indefiniment | Verifier le plateau plein / absence de coups |
-| `Play()` sans validation | Etat incoherent silencieux | Valider bornes, occupation, partie terminee |
+| Muter le plateau dans `PossibleMoves()` | Tous les états partagent le même tableau | Toujours copier le plateau avant de modifier |
+| Oublier `lastAction` dans `PossibleMoves()` | `LastAction()` retourne 0 pour tous les coups | Affecter `lastAction: i` dans chaque état fils |
+| Collisions d'`ID()` | Le MCTS confond des états différents | Inclure l'acteur courant dans l'ID |
+| `Evaluate()` ne détecte pas le nul | Le MCTS boucle indéfiniment | Vérifier le plateau plein / absence de coups |
+| `Play()` sans validation | État incohérent silencieux | Valider bornes, occupation, partie terminée |

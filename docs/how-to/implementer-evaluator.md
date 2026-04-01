@@ -1,11 +1,11 @@
-# Implementer un Evaluator
+# Implémenter un Evaluator
 
-Guide pour creer une implementation de l'interface `mcts.Evaluator`, qui permet d'utiliser le MCTS en mode AlphaZero.
+Guide pour créer une implémentation de l'interface `mcts.Evaluator`, qui permet d'utiliser le MCTS en mode AlphaZero.
 
-## Prerequis
+## Prérequis
 
-- Comprendre le role de l'`Evaluator` : [reference/interfaces-evaluator.md](../reference/interfaces-evaluator.md)
-- Comprendre les differences MCTS pur / AlphaZero : [explanation/de-mcts-a-alphazero.md](../explanation/de-mcts-a-alphazero.md)
+- Comprendre le rôle de l'`Evaluator` : [référence/interfaces-evaluator.md](../référence/interfaces-evaluator.md)
+- Comprendre les différences MCTS pur / AlphaZero : [explanation/de-mcts-a-alphazero.md](../explanation/de-mcts-a-alphazero.md)
 
 ## L'interface
 
@@ -16,14 +16,14 @@ type Evaluator interface {
 }
 ```
 
-L'`Evaluator` est appele par `RunMCTS` a chaque expansion de noeud. Il recoit un etat et doit retourner :
+L'`Evaluator` est appelé par `RunMCTS` à chaque expansion de nœud. Il reçoit un état et doit retourner :
 
 | Retour | Description | Contraintes |
 |--------|-------------|-------------|
-| `policy` | Probabilite a priori de chaque action legale | Meme ordre que `state.PossibleMoves()`, somme = 1.0 |
-| `value` | Estimation de victoire pour l'acteur courant | Dans [-1, 1]. +1 = victoire certaine, -1 = defaite |
+| `policy` | Probabilité a priori de chaque action légale | Même ordre que `state.PossibleMoves()`, somme = 1.0 |
+| `value` | Estimation de victoire pour l'acteur courant | Dans [-1, 1]. +1 = victoire certaine, -1 = défaite |
 
-## Etape 1 : Definir la structure
+## Étape 1 : Définir la structure
 
 ```go
 package evaluator
@@ -31,17 +31,17 @@ package evaluator
 import "github.com/owulveryck/alphazego/decision"
 
 type MonEvaluator struct {
-    // champs internes : modele charge, session, etc.
+    // champs internes : modèle chargé, session, etc.
 }
 ```
 
-## Etape 2 : Implementer Evaluate
+## Étape 2 : Implémenter Evaluate
 
-Le corps de `Evaluate` suit toujours le meme schema :
+Le corps de `Evaluate` suit toujours le même schéma :
 
 ```go
 func (e *MonEvaluator) Evaluate(state decision.State) ([]float64, float64) {
-    // 1. Obtenir les actions legales
+    // 1. Obtenir les actions légales
     moves := state.PossibleMoves()
     n := len(moves)
     if n == 0 {
@@ -49,7 +49,7 @@ func (e *MonEvaluator) Evaluate(state decision.State) ([]float64, float64) {
     }
 
     // 2. Calculer la policy et la value
-    //    (specifique a chaque implementation)
+    //    (spécifique à chaque implémentation)
     policy := make([]float64, n)
     var value float64
     // ... remplir policy et value ...
@@ -67,11 +67,11 @@ func (e *MonEvaluator) Evaluate(state decision.State) ([]float64, float64) {
 }
 ```
 
-## Exemples d'implementation
+## Exemples d'implémentation
 
-### Evaluateur uniforme (pour tests)
+### Évaluateur uniforme (pour tests)
 
-Policy uniforme et value neutre. Utile pour verifier que le chemin AlphaZero fonctionne sans signal.
+Policy uniforme et value neutre. Utile pour vérifier que le chemin AlphaZero fonctionne sans signal.
 
 ```go
 type UniformEvaluator struct{}
@@ -90,9 +90,9 @@ func (u *UniformEvaluator) Evaluate(state decision.State) ([]float64, float64) {
 }
 ```
 
-### Evaluateur a rollout (pour tests tactiques)
+### Évaluateur à rollout (pour tests tactiques)
 
-Policy uniforme, mais value estimee par un rollout aleatoire. Cela fournit un vrai signal pour guider l'arbre. Cet evaluateur est utilise dans les tests d'integration (`mcts/puct_test.go`).
+Policy uniforme, mais value estimée par un rollout aléatoire. Cela fournit un vrai signal pour guider l'arbre. Cet évaluateur est utilisé dans les tests d'intégration (`mcts/puct_test.go`).
 
 ```go
 type RolloutEvaluator struct{}
@@ -110,7 +110,7 @@ func (r *RolloutEvaluator) Evaluate(state decision.State) ([]float64, float64) {
         policy[i] = 1.0 / float64(n)
     }
 
-    // Value par rollout aleatoire
+    // Value par rollout aléatoire
     currentState := state
     for currentState.Evaluate() == decision.NoActor {
         possibleMoves := currentState.PossibleMoves()
@@ -128,9 +128,9 @@ func (r *RolloutEvaluator) Evaluate(state decision.State) ([]float64, float64) {
 }
 ```
 
-### Evaluateur ONNX (pour un vrai reseau)
+### Évaluateur ONNX (pour un vrai réseau)
 
-Utilise un modele ONNX exporte depuis PyTorch. L'etat doit implementer `board.Tensorizable` pour la conversion en tenseur.
+Utilise un modèle ONNX exporté depuis PyTorch. L'état doit implémenter `board.Tensorizable` pour la conversion en tenseur.
 
 ```go
 type ONNXEvaluator struct {
@@ -153,31 +153,31 @@ func (e *ONNXEvaluator) Evaluate(state decision.State) ([]float64, float64) {
         return nil, 0.0
     }
 
-    // 1. Convertir l'etat en tenseur via Tensorizable
+    // 1. Convertir l'état en tenseur via Tensorizable
     t := state.(board.Tensorizable)
     features := t.Features()
     shape := t.FeatureShape()
 
-    // 2. Appeler le reseau
+    // 2. Appeler le réseau
     input := ort.NewTensor(features, []int64{1, int64(shape[0]), int64(shape[1]), int64(shape[2])})
     outputs, _ := e.session.Run([]ort.Tensor{input})
 
     // 3. Extraire la policy brute (sur tout l'espace d'action)
     rawPolicy := outputs[0].Float64s() // taille = actionSize
 
-    // 4. Masquer les actions illegales et normaliser
-    //    La policy retournee ne doit contenir que les actions legales,
-    //    dans le meme ordre que state.PossibleMoves().
+    // 4. Masquer les actions illégales et normaliser
+    //    La policy retournée ne doit contenir que les actions légales,
+    //    dans le même ordre que state.PossibleMoves().
     policy := filterLegalMoves(state, rawPolicy)
 
     // 5. Extraire la value
-    value := outputs[1].Float64s()[0] // deja dans [-1, 1] grace au tanh
+    value := outputs[1].Float64s()[0] // déjà dans [-1, 1] grâce au tanh
 
     return policy, value
 }
 
-// filterLegalMoves extrait les probabilites des actions legales
-// depuis le vecteur brut du reseau et les normalise.
+// filterLegalMoves extrait les probabilités des actions légales
+// depuis le vecteur brut du réseau et les normalise.
 func filterLegalMoves(state decision.State, rawPolicy []float64) []float64 {
     moves := state.PossibleMoves()
     policy := make([]float64, len(moves))
@@ -202,10 +202,10 @@ func filterLegalMoves(state decision.State, rawPolicy []float64) []float64 {
 ## Utilisation avec le MCTS
 
 ```go
-// Creer l'evaluateur
+// Créer l'évaluateur
 eval := &MonEvaluator{...}
 
-// Creer le MCTS AlphaZero avec cpuct = 1.5
+// Créer le MCTS AlphaZero avec cpuct = 1.5
 m := mcts.NewAlphaMCTS(eval, 1.5)
 
 // Jouer un coup
@@ -217,23 +217,23 @@ move := bestState.(board.ActionRecorder).LastAction()
 
 ### Ordre de la policy
 
-`policy[i]` doit correspondre a `state.PossibleMoves()[i]`. Si le reseau produit un vecteur sur tout l'espace d'action (ex: 9 cases pour le morpion), il faut filtrer et reordonner pour ne garder que les actions legales.
+`policy[i]` doit correspondre à `state.PossibleMoves()[i]`. Si le réseau produit un vecteur sur tout l'espace d'action (ex: 9 cases pour le morpion), il faut filtrer et réordonner pour ne garder que les actions légales.
 
 ### Perspective de la value
 
-`value` est du point de vue de `state.CurrentActor()`. Si l'acteur courant est en position de gagner, `value` doit etre positif. Le MCTS se charge de l'inversion de signe lors de la backpropagation.
+`value` est du point de vue de `state.CurrentActor()`. Si l'acteur courant est en position de gagner, `value` doit être positif. Le MCTS se charge de l'inversion de signe lors de la backpropagation.
 
 ### Thread-safety
 
-Si le MCTS est parallelise, l'`Evaluator` doit etre thread-safe. Typiquement, proteger l'appel au reseau avec un `sync.Mutex` ou utiliser un pool de sessions.
+Si le MCTS est parallélisé, l'`Evaluator` doit être thread-safe. Typiquement, protéger l'appel au réseau avec un `sync.Mutex` ou utiliser un pool de sessions.
 
 ### Performance
 
-L'`Evaluate` est appele une fois par expansion de noeud (pas une fois par iteration). Pour le morpion avec 800 iterations, il est appele au plus ~800 fois. Pour le Go avec 1600 iterations, idem. Le batching (evaluer plusieurs positions en un seul appel reseau) est une optimisation possible pour le MCTS parallele.
+L'`Evaluate` est appelé une fois par expansion de nœud (pas une fois par itération). Pour le morpion avec 800 itérations, il est appelé au plus ~800 fois. Pour le Go avec 1600 itérations, idem. Le batching (évaluer plusieurs positions en un seul appel réseau) est une optimisation possible pour le MCTS parallèle.
 
-## Verification
+## Vérification
 
-Tester l'evaluateur independamment du MCTS :
+Tester l'évaluateur indépendamment du MCTS :
 
 ```go
 func TestMonEvaluator(t *testing.T) {
@@ -242,12 +242,12 @@ func TestMonEvaluator(t *testing.T) {
 
     policy, value := eval.Evaluate(state)
 
-    // Verifier le nombre d'elements
+    // Vérifier le nombre d'éléments
     if len(policy) != len(state.PossibleMoves()) {
         t.Errorf("policy length mismatch")
     }
 
-    // Verifier la normalisation
+    // Vérifier la normalisation
     sum := 0.0
     for _, p := range policy {
         sum += p
@@ -256,7 +256,7 @@ func TestMonEvaluator(t *testing.T) {
         t.Errorf("policy sum = %f, want 1.0", sum)
     }
 
-    // Verifier la borne de la value
+    // Vérifier la borne de la value
     if value < -1.0 || value > 1.0 {
         t.Errorf("value = %f, want [-1, 1]", value)
     }

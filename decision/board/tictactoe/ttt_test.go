@@ -46,7 +46,7 @@ func TestPlay_Validation(t *testing.T) {
 	if err := ttt.Play(0); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	// Case deja occupee
+	// Case déjà occupée
 	if err := ttt.Play(0); err == nil {
 		t.Error("expected error for occupied cell")
 	}

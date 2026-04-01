@@ -41,9 +41,9 @@ func (tictactoe *TicTacToe) ID() string {
 	return string(id)
 }
 
-// LastAction retourne la position (0-8) du dernier coup joue.
-// Pour l'etat initial, retourne 0 (non significatif).
-// Implemente [board.ActionRecorder].
+// LastAction retourne la position (0-8) du dernier coup joué.
+// Pour l'état initial, retourne 0 (non significatif).
+// Implémente [board.ActionRecorder].
 func (tictactoe *TicTacToe) LastAction() int {
 	return tictactoe.lastAction
 }
@@ -66,10 +66,10 @@ func (t *TicTacToe) Play(p uint8) error {
 		return fmt.Errorf("position %d hors limites (0-%d)", p, BoardSize-1)
 	}
 	if t.board[p] != 0 {
-		return fmt.Errorf("position %d deja occupee", p)
+		return fmt.Errorf("position %d déjà occupée", p)
 	}
 	if t.Evaluate() != decision.NoActor {
-		return fmt.Errorf("la partie est terminee")
+		return fmt.Errorf("la partie est terminée")
 	}
 	t.board[p] = uint8(t.ActorTurn)
 	t.lastAction = int(p)
@@ -82,9 +82,9 @@ func (t *TicTacToe) CurrentActor() decision.ActorID {
 	return t.ActorTurn
 }
 
-// PreviousActor retourne l'acteur qui a joue le dernier coup.
-// Au morpion, c'est l'adversaire de l'acteur courant (alternance stricte a deux acteurs).
-// Pour l'etat initial, retourne Actor2 (le "dernier" dans l'ordre de jeu).
+// PreviousActor retourne l'acteur qui a joué le dernier coup.
+// Au morpion, c'est l'adversaire de l'acteur courant (alternance stricte à deux acteurs).
+// Pour l'état initial, retourne Actor2 (le "dernier" dans l'ordre de jeu).
 func (t *TicTacToe) PreviousActor() decision.ActorID {
 	return 3 - t.ActorTurn
 }
@@ -155,9 +155,9 @@ var winningPositions = [][]uint8{
 	{0, 4, 8}, {2, 4, 6}, // Diagonals
 }
 
-// Features retourne l'etat du morpion sous forme de tenseur aplati [3 * 3 * 3] = 27 float32.
+// Features retourne l'état du morpion sous forme de tenseur aplati [3 * 3 * 3] = 27 float32.
 //
-//   - Plan 0 (indices 0-8) : positions de l'acteur courant (1.0 si occupee, 0.0 sinon)
+//   - Plan 0 (indices 0-8) : positions de l'acteur courant (1.0 si occupée, 0.0 sinon)
 //   - Plan 1 (indices 9-17) : positions de l'adversaire
 //   - Plan 2 (indices 18-26) : indicateur de l'acteur courant (1.0 si Actor1, 0.0 si Actor2)
 func (t *TicTacToe) Features() []float32 {

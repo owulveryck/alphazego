@@ -41,10 +41,10 @@ type mctsNode struct {
 	// the search explores a wide range of moves while also concentrating on promising areas.
 	visits float64
 
-	// prior est la probabilite a priori P(s,a) attribuee par le policy network.
-	// En MCTS pur, cette valeur est 0 (non utilisee). En mode AlphaZero,
-	// elle est fixee lors de l'expansion par l'Evaluator et utilisee dans la
-	// formule PUCT pour guider la selection.
+	// prior est la probabilité a priori P(s,a) attribuée par le policy network.
+	// En MCTS pur, cette valeur est 0 (non utilisée). En mode AlphaZero,
+	// elle est fixée lors de l'expansion par l'Evaluator et utilisée dans la
+	// formule PUCT pour guider la sélection.
 	prior float64
 
 	// mcts holds a reference back to the MCTS instance for inventory access during expansion.

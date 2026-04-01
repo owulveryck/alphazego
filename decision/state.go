@@ -1,21 +1,21 @@
 package decision
 
-// ActorID identifie un decideur dans le probleme. Dans un jeu de plateau,
-// c'est un joueur. Dans une negociation, c'est une partie. Dans un probleme
+// ActorID identifie un décideur dans le problème. Dans un jeu de plateau,
+// c'est un joueur. Dans une négociation, c'est une partie. Dans un problème
 // de planification, c'est un acteur.
 //
-// ActorID est aussi utilise comme resultat de [State.Evaluate] : la valeur
-// retournee est l'ActorID du gagnant, [NoActor] si le probleme est en cours,
+// ActorID est aussi utilisé comme résultat de [State.Evaluate] : la valeur
+// retournée est l'ActorID du gagnant, [NoActor] si le problème est en cours,
 // ou [DrawResult] en cas de match nul.
 type ActorID int
 
 const (
-	// NoActor indique qu'aucun acteur n'est concerne. Utilise comme valeur de
-	// retour de [State.Evaluate] pour indiquer que le probleme est en cours,
+	// NoActor indique qu'aucun acteur n'est concerné. Utilisé comme valeur de
+	// retour de [State.Evaluate] pour indiquer que le problème est en cours,
 	// et comme contenu d'une position vide sur un plateau.
 	NoActor ActorID = 0
-	// DrawResult indique un match nul : le probleme est termine mais aucun
-	// acteur n'a gagne.
+	// DrawResult indique un match nul : le problème est terminé mais aucun
+	// acteur n'a gagné.
 	DrawResult ActorID = -1
 	// Actor1 est le premier acteur (typiquement X au morpion).
 	Actor1 ActorID = 1
@@ -23,76 +23,76 @@ const (
 	Actor2 ActorID = 2
 )
 
-// State represente l'etat d'un probleme de decision sequentiel a un ou
+// State représente l'état d'un problème de décision séquentiel à un ou
 // plusieurs acteurs.
 //
-// Tout probleme implementant cette interface peut etre resolu par le moteur
+// Tout problème implémentant cette interface peut être résolu par le moteur
 // MCTS. Les jeux de plateau en sont un cas particulier : le morpion
-// en est l'implementation de reference pour deux acteurs.
+// en est l'implémentation de référence pour deux acteurs.
 //
-// # Implementer State
+// # Implémenter State
 //
-// Le struct d'etat doit contenir au minimum deux informations :
+// Le struct d'état doit contenir au minimum deux informations :
 //
-//   - L'etat du probleme (plateau, configuration, etc.)
+//   - L'état du problème (plateau, configuration, etc.)
 //   - L'acteur courant (qui doit agir)
 //
-// Astuce : utiliser un tableau fixe ([N]uint8) plutot qu'un slice ([]uint8)
+// Astuce : utiliser un tableau fixe ([N]uint8) plutôt qu'un slice ([]uint8)
 // pour le plateau simplifie [State.PossibleMoves] : l'affectation d'un
-// tableau copie les donnees automatiquement, sans appel a copy().
+// tableau copie les données automatiquement, sans appel à copy().
 //
 // # Contrat
 //
-// Les invariants suivants doivent etre respectes :
+// Les invariants suivants doivent être respectés :
 //
-//   - [State.PossibleMoves] ne doit jamais modifier le recepteur. Chaque etat
-//     retourne doit etre une copie independante (c'est le piege le plus courant).
-//   - Chaque etat retourne par [State.PossibleMoves] doit avoir
-//     [State.CurrentActor] defini sur l'acteur suivant.
+//   - [State.PossibleMoves] ne doit jamais modifier le récepteur. Chaque état
+//     retourné doit être une copie indépendante (c'est le piège le plus courant).
+//   - Chaque état retourné par [State.PossibleMoves] doit avoir
+//     [State.CurrentActor] défini sur l'acteur suivant.
 //   - [State.PossibleMoves] retourne un slice vide (ou nil) quand
-//     [State.Evaluate] != [NoActor] : un etat terminal n'a pas d'actions.
-//   - [State.ID] doit etre deterministe et inclure l'acteur courant.
-//     Meme configuration + acteur different = ID different.
+//     [State.Evaluate] != [NoActor] : un état terminal n'a pas d'actions.
+//   - [State.ID] doit être déterministe et inclure l'acteur courant.
+//     Même configuration + acteur différent = ID différent.
 //
 // # Mapping vers d'autres domaines
 //
-//   - Jeu de plateau : CurrentActor = joueur, PossibleMoves = coups legaux
-//   - Negociation : CurrentActor = partie, PossibleMoves = propositions/contre-offres
-//   - Diagnostic : CurrentActor = optique (patient/medecin), PossibleMoves = examens/traitements
+//   - Jeu de plateau : CurrentActor = joueur, PossibleMoves = coups légaux
+//   - Négociation : CurrentActor = partie, PossibleMoves = propositions/contre-offres
+//   - Diagnostic : CurrentActor = optique (patient/médecin), PossibleMoves = examens/traitements
 //   - Planification : CurrentActor = agent, PossibleMoves = actions possibles
 type State interface {
 	// CurrentActor retourne l'acteur dont c'est le tour d'agir.
-	// Pour un probleme a deux acteurs en alternance, l'acteur suivant est 3 - acteur.
+	// Pour un problème à deux acteurs en alternance, l'acteur suivant est 3 - acteur.
 	CurrentActor() ActorID
 
-	// PreviousActor retourne l'acteur qui a effectue l'action menant a cet etat.
-	// Pour un probleme a deux acteurs : 3 - CurrentActor().
-	// Pour l'etat initial, le comportement est defini par l'implementation
+	// PreviousActor retourne l'acteur qui a effectué l'action menant à cet état.
+	// Pour un problème à deux acteurs : 3 - CurrentActor().
+	// Pour l'état initial, le comportement est défini par l'implémentation
 	// (typiquement le dernier acteur dans l'ordre de jeu).
-	// Le moteur MCTS utilise cette methode pour crediter les victoires
-	// au bon acteur lors de la retropropagation.
+	// Le moteur MCTS utilise cette méthode pour créditer les victoires
+	// au bon acteur lors de la rétropropagation.
 	PreviousActor() ActorID
 
-	// Evaluate retourne l'issue du probleme :
-	//   - [NoActor] (0) si le probleme est en cours
+	// Evaluate retourne l'issue du problème :
+	//   - [NoActor] (0) si le problème est en cours
 	//   - [DrawResult] (-1) en cas de match nul
-	//   - un ActorID positif si cet acteur a gagne
+	//   - un ActorID positif si cet acteur a gagné
 	//
-	// Le moteur MCTS appelle cette methode a chaque noeud pour detecter
-	// les etats terminaux. Un etat ou Evaluate != NoActor ne doit pas
+	// Le moteur MCTS appelle cette méthode à chaque nœud pour détecter
+	// les états terminaux. Un état où Evaluate != NoActor ne doit pas
 	// avoir d'actions possibles (PossibleMoves retourne nil ou vide).
 	Evaluate() ActorID
 
-	// PossibleMoves retourne tous les etats atteignables depuis l'etat courant
-	// en effectuant une action. C'est la methode la plus importante a implementer
+	// PossibleMoves retourne tous les états atteignables depuis l'état courant
+	// en effectuant une action. C'est la méthode la plus importante à implémenter
 	// correctement.
 	//
-	// Chaque etat retourne doit :
-	//   - etre une copie independante (ne pas partager de donnees mutables avec le recepteur)
-	//   - avoir CurrentActor() defini sur l'acteur suivant
+	// Chaque état retourné doit :
+	//   - être une copie indépendante (ne pas partager de données mutables avec le récepteur)
+	//   - avoir CurrentActor() défini sur l'acteur suivant
 	//
-	// Si l'implementation satisfait aussi [board.ActionRecorder], chaque etat enfant
-	// doit avoir LastAction() defini sur l'action qui a produit cet etat.
+	// Si l'implémentation satisfait aussi [board.ActionRecorder], chaque état enfant
+	// doit avoir LastAction() défini sur l'action qui a produit cet état.
 	//
 	// Retourne nil ou un slice vide si Evaluate() != [NoActor].
 	//
@@ -100,9 +100,9 @@ type State interface {
 	// pour le plateau rend la copie automatique par simple affectation.
 	PossibleMoves() []State
 
-	// ID retourne un identifiant unique pour cet etat. Deux etats avec la meme
-	// configuration et le meme acteur courant doivent retourner des ID identiques.
-	// Inclure l'acteur courant dans l'ID : meme configuration avec un acteur
-	// different constitue un etat different.
+	// ID retourne un identifiant unique pour cet état. Deux états avec la même
+	// configuration et le même acteur courant doivent retourner des ID identiques.
+	// Inclure l'acteur courant dans l'ID : même configuration avec un acteur
+	// différent constitue un état différent.
 	ID() string
 }

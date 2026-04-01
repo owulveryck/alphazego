@@ -1,6 +1,6 @@
-# Architecture du reseau de neurones
+# Architecture du réseau de neurones
 
-Reference technique de l'architecture utilisee dans AlphaGo Zero / AlphaZero.
+Référence technique de l'architecture utilisée dans AlphaGo Zero / AlphaZero.
 
 ## Vue d'ensemble
 
@@ -14,7 +14,7 @@ Input [C x H x W]
        │
        v
   ┌─────────────────┐
-  │ Bloc residuel x19│  (ou x39 pour la version large)
+  │ Bloc résiduel x19│  (ou x39 pour la version large)
   │                  │
   │  Conv 3x3, 256   │
   │  BatchNorm        │
@@ -31,7 +31,7 @@ Input [C x H x W]
   Policy Head   Value Head
 ```
 
-## Tenseur d'entree
+## Tenseur d'entrée
 
 ### AlphaGo Zero (Go 19x19)
 
@@ -45,7 +45,7 @@ Dimensions : `[17][19][19]`
 
 Chaque plan est une matrice binaire 19x19.
 
-L'historique (8 pas de temps) permet au reseau de detecter les **repetitions** et les situations de **ko** sans encodage explicite des regles.
+L'historique (8 pas de temps) permet au réseau de détecter les **répétitions** et les situations de **ko** sans encodage explicite des règles.
 
 ### Morpion (3x3) -- proposition minimaliste
 
@@ -53,11 +53,11 @@ Dimensions : `[3][3][3]`
 
 | Plan | Description |
 |---|---|
-| Plan 0 | Positions du joueur courant (1 si occupe, 0 sinon) |
+| Plan 0 | Positions du joueur courant (1 si occupé, 0 sinon) |
 | Plan 1 | Positions de l'adversaire |
 | Plan 2 | Joueur courant (plan constant : 1.0 ou 0.0) |
 
-Pas besoin d'historique pour le morpion (pas de repetition possible).
+Pas besoin d'historique pour le morpion (pas de répétition possible).
 
 ## Tronc convolutif (shared trunk)
 
@@ -71,9 +71,9 @@ ReLU
 
 Le padding de 1 preserve les dimensions spatiales : `[256][H][W]`.
 
-### Blocs residuels
+### Blocs résiduels
 
-Chaque bloc residuel (He et al., 2016) :
+Chaque bloc résiduel (He et al., 2016) :
 
 ```
 Input x ──────────────────────┐
@@ -102,7 +102,7 @@ Nombre de blocs :
 - AlphaGo Zero (version large) : **39 blocs**, 256 filtres
 - AlphaZero : **20 blocs**, 256 filtres
 
-Le skip connection resout le probleme du **gradient qui s'evanouit** (vanishing gradient) et permet d'entrainer des reseaux tres profonds (40+ couches).
+Le skip connection résout le problème du **gradient qui s'évanouit** (vanishing gradient) et permet d'entraîner des réseaux très profonds (40+ couches).
 
 ## Tete Policy
 
@@ -110,7 +110,7 @@ Le skip connection resout le probleme du **gradient qui s'evanouit** (vanishing 
 Trunk output [256][H][W]
        │
        v
-  Conv2D(256, 2, 1x1)         ← reduction a 2 canaux
+  Conv2D(256, 2, 1x1)         ← réduction à 2 canaux
   BatchNorm2D(2)
   ReLU
        │
@@ -130,7 +130,7 @@ Trunk output [256][H][W]
 Pour le Go : `action_size = 362` (361 intersections + 1 passe)
 Pour le morpion : `action_size = 9`
 
-Les coups illegaux sont **masques** avant le softmax : leur logit est mis a -∞, et les probabilites restantes sont renormalisees.
+Les coups illégaux sont **masqués** avant le softmax : leur logit est mis à -∞, et les probabilités restantes sont renormalisées.
 
 ## Tete Value
 
@@ -138,7 +138,7 @@ Les coups illegaux sont **masques** avant le softmax : leur logit est mis a -∞
 Trunk output [256][H][W]
        │
        v
-  Conv2D(256, 1, 1x1)         ← reduction a 1 canal
+  Conv2D(256, 1, 1x1)         ← réduction à 1 canal
   BatchNorm2D(1)
   ReLU
        │
@@ -161,42 +161,42 @@ Trunk output [256][H][W]
 
 Le `tanh` borne la sortie entre -1 et +1 :
 - `v = +1` : victoire certaine du joueur courant
-- `v = 0` : position equilibree
-- `v = -1` : defaite certaine
+- `v = 0` : position équilibrée
+- `v = -1` : défaite certaine
 
-## Hyperparametres d'entrainement (AlphaGo Zero)
+## Hyperparamètres d'entraînement (AlphaGo Zero)
 
-| Parametre | Valeur |
+| Paramètre | Valeur |
 |---|---|
 | Optimiseur | SGD avec momentum 0.9 |
-| Learning rate | 0.01 (divise par 10 a 400k et 600k steps) |
+| Learning rate | 0.01 (divisé par 10 à 400k et 600k steps) |
 | Batch size | 2048 |
-| L2 regularisation | c = 10⁻⁴ |
+| L2 régularisation | c = 10⁻⁴ |
 | Iterations MCTS par coup | 1600 |
 | Bruit Dirichlet (α) | 0.03 |
 | Poids du bruit (ε) | 0.25 |
-| Temperature (τ) | 1.0 pour les 30 premiers coups, puis → 0 |
+| Température (τ) | 1.0 pour les 30 premiers coups, puis → 0 |
 | Parties de self-play | 4.9 millions |
-| Duree d'entrainement | 3 jours sur 4 TPU |
+| Durée d'entraînement | 3 jours sur 4 TPU |
 
 ## Dimensionnement pour le morpion
 
-Pour un reseau minimaliste adapte au morpion :
+Pour un réseau minimaliste adapté au morpion :
 
-| Parametre | AlphaGo Zero | Morpion (suggestion) |
+| Paramètre | AlphaGo Zero | Morpion (suggestion) |
 |---|---|---|
 | Taille du plateau | 19x19 | 3x3 |
-| Plans d'entree | 17 | 3 |
+| Plans d'entrée | 17 | 3 |
 | Filtres convolutifs | 256 | 32 |
-| Blocs residuels | 19-39 | 2-4 |
+| Blocs résiduels | 19-39 | 2-4 |
 | Taille d'action | 362 | 9 |
-| Iterations MCTS | 1600 | 100-400 |
+| Itérations MCTS | 1600 | 100-400 |
 
-Un reseau aussi petit peut s'entrainer en **quelques minutes** sur un CPU, ce qui est ideal pour experimenter.
+Un réseau aussi petit peut s'entraîner en **quelques minutes** sur un CPU, ce qui est idéal pour expérimenter.
 
-## References
+## Références
 
 - He et al., "Deep Residual Learning for Image Recognition", CVPR 2016 -- Architecture ResNet
 - Ioffe & Szegedy, "Batch Normalization: Accelerating Deep Network Training", ICML 2015 -- BatchNorm
 - Silver et al., "Mastering the game of Go without human knowledge", Nature 550, 2017 -- Architecture AlphaGo Zero (Figure 2, Methods)
-- Silver et al., "A general reinforcement learning algorithm that masters chess, shogi, and Go through self-play", Science 362, 2018 -- Parametres AlphaZero
+- Silver et al., "A general reinforcement learning algorithm that masters chess, shogi, and Go through self-play", Science 362, 2018 -- Paramètres AlphaZero

@@ -274,7 +274,7 @@ func TestTerminalValue_Actor1Wins(t *testing.T) {
 	ttt := playMoves(0, 3, 1, 4, 2) // A1 wins top row
 	v := terminalValue(ttt)
 	// CurrentActor = Actor2, actorWhoMovedHere = Actor1, result = Actor1Wins
-	// → -1.0 (defaite pour l'acteur courant)
+	// → -1.0 (défaite pour l'acteur courant)
 	if math.Abs(v-(-1.0)) > 1e-9 {
 		t.Errorf("expected -1.0, got %f", v)
 	}
@@ -310,8 +310,8 @@ func (u *uniformEvaluator) Evaluate(state decision.State) ([]float64, float64) {
 	return policy, 0.0
 }
 
-// rolloutEvaluator retourne une policy uniforme et une value estimee
-// par rollout aleatoire. Cela fournit un signal reel pour les tests tactiques.
+// rolloutEvaluator retourne une policy uniforme et une value estimée
+// par rollout aléatoire. Cela fournit un signal réel pour les tests tactiques.
 type rolloutEvaluator struct{}
 
 func (r *rolloutEvaluator) Evaluate(state decision.State) ([]float64, float64) {

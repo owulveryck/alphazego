@@ -27,11 +27,11 @@ func (node *mctsNode) expand() *mctsNode {
 	return nil
 }
 
-// expandAll cree des noeuds enfants pour tous les coups possibles,
+// expandAll crée des nœuds enfants pour tous les coups possibles,
 // en leur attribuant les priors fournis par le policy network.
-// Cette methode est utilisee par le chemin AlphaZero, ou le reseau
-// retourne une distribution de probabilites sur tous les coups legaux
-// en un seul appel. Les priors doivent etre dans le meme ordre que
+// Cette méthode est utilisée par le chemin AlphaZero, où le réseau
+// retourne une distribution de probabilités sur tous les coups légaux
+// en un seul appel. Les priors doivent être dans le même ordre que
 // [decision.State.PossibleMoves].
 func (node *mctsNode) expandAll(policy []float64) {
 	possibleMoves := node.state.PossibleMoves()

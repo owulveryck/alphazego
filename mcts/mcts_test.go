@@ -469,7 +469,7 @@ func TestRunMCTS_FullGame(t *testing.T) {
 
 // --- Three-actor mock state (validates N-actor Backpropagate) ---
 
-// threeActorState est un etat mock a 3 acteurs en round-robin.
+// threeActorState est un état mock à 3 acteurs en round-robin.
 type threeActorState struct {
 	current  decision.ActorID
 	previous decision.ActorID
@@ -484,8 +484,8 @@ func (s *threeActorState) PossibleMoves() []decision.State { return nil }
 func (s *threeActorState) ID() string                      { return s.id }
 
 func TestBackpropagate_ThreeActors(t *testing.T) {
-	// Simule une chaine de 3 noeuds : acteur 10 → acteur 11 → acteur 12
-	// avec un resultat ou l'acteur 10 gagne (Result = 10).
+	// Simule une chaîne de 3 nœuds : acteur 10 → acteur 11 → acteur 12
+	// avec un résultat où l'acteur 10 gagne (Result = 10).
 	root := &mctsNode{state: &threeActorState{current: 10, previous: 12, result: decision.NoActor, id: "root"}}
 	child := &mctsNode{state: &threeActorState{current: 11, previous: 10, result: decision.NoActor, id: "child"}, parent: root}
 	grandchild := &mctsNode{state: &threeActorState{current: 12, previous: 11, result: decision.ActorID(10), id: "gchild"}, parent: child}
@@ -506,7 +506,7 @@ func TestBackpropagate_ThreeActors(t *testing.T) {
 		t.Errorf("expected root wins=0 (actor 12 moved here, actor 10 won), got %f", root.wins)
 	}
 
-	// Toutes les visites doivent etre 1
+	// Toutes les visites doivent être 1
 	if grandchild.visits != 1 || child.visits != 1 || root.visits != 1 {
 		t.Error("expected all nodes to have 1 visit")
 	}
@@ -518,7 +518,7 @@ func TestBackpropagate_ThreeActors_Draw(t *testing.T) {
 
 	child.backpropagate(decision.DrawResult)
 
-	// Tous les noeuds recoivent 0.5 pour un match nul
+	// Tous les nœuds reçoivent 0.5 pour un match nul
 	if child.wins != 0.5 {
 		t.Errorf("expected child wins=0.5 for draw, got %f", child.wins)
 	}

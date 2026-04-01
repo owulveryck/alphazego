@@ -15,19 +15,19 @@ func NewMCTS() *MCTS {
 }
 
 // MCTS holds the state for the Monte Carlo Tree Search.
-// En mode MCTS pur (cree par [NewMCTS]), le champ evaluator est nil et
-// l'algorithme utilise des rollouts aleatoires avec UCB1.
-// En mode AlphaZero (cree par [NewAlphaMCTS]), l'evaluator fournit policy et
-// value, et la selection utilise PUCT.
+// En mode MCTS pur (créé par [NewMCTS]), le champ evaluator est nil et
+// l'algorithme utilise des rollouts aléatoires avec UCB1.
+// En mode AlphaZero (créé par [NewAlphaMCTS]), l'evaluator fournit policy et
+// value, et la sélection utilise PUCT.
 type MCTS struct {
 	inventory map[string]*mctsNode // Stores nodes by their state ID for potential reuse within a search.
 	evaluator Evaluator            // nil = MCTS pur, non-nil = AlphaZero
-	cpuct     float64              // constante d'exploration pour PUCT (utilise uniquement avec evaluator)
+	cpuct     float64              // constante d'exploration pour PUCT (utilisé uniquement avec evaluator)
 }
 
-// NewAlphaMCTS initialise un MCTS guide par un reseau de neurones (style AlphaZero).
-// L'evaluateur fournit une policy (priors) et une value pour chaque position,
-// remplacant les rollouts aleatoires. Le parametre cpuct controle l'exploration
+// NewAlphaMCTS initialise un MCTS guidé par un réseau de neurones (style AlphaZero).
+// L'évaluateur fournit une policy (priors) et une value pour chaque position,
+// remplaçant les rollouts aléatoires. Le paramètre cpuct contrôle l'exploration
 // dans la formule PUCT (typiquement entre 1.0 et 5.0).
 func NewAlphaMCTS(eval Evaluator, cpuct float64) *MCTS {
 	return &MCTS{
@@ -37,21 +37,21 @@ func NewAlphaMCTS(eval Evaluator, cpuct float64) *MCTS {
 	}
 }
 
-// terminalValue convertit le resultat d'un etat terminal en valeur continue
-// du point de vue de l'acteur courant (celui qui est a jouer).
-// Retourne 1.0 si l'acteur courant a gagne, -1.0 s'il a perdu, 0.0 pour un nul.
+// terminalValue convertit le résultat d'un état terminal en valeur continue
+// du point de vue de l'acteur courant (celui qui est à jouer).
+// Retourne 1.0 si l'acteur courant a gagné, -1.0 s'il a perdu, 0.0 pour un nul.
 func terminalValue(s decision.State) float64 {
 	result := s.Evaluate()
-	// L'acteur qui a effectue la derniere action
+	// L'acteur qui a effectué la dernière action
 	actorWhoMovedHere := s.PreviousActor()
 	if result == actorWhoMovedHere {
-		// L'adversaire (qui a joue le dernier coup) a gagne → defaite pour l'acteur courant
+		// L'adversaire (qui a joué le dernier coup) a gagné → défaite pour l'acteur courant
 		return -1.0
 	}
 	if result == decision.DrawResult {
 		return 0.0
 	}
-	// L'acteur courant a gagne (cas rare dans un etat terminal ou c'est a lui de jouer)
+	// L'acteur courant a gagné (cas rare dans un état terminal où c'est à lui de jouer)
 	return 1.0
 }
 
@@ -89,7 +89,7 @@ func (m *MCTS) RunMCTS(s decision.State, iterations int) decision.State {
 			node = child
 		}
 
-		// Expansion + Evaluation + Backpropagation
+		// Expansion + Évaluation + Backpropagation
 		if !node.isTerminal() && !node.isFullyExpanded() {
 			if m.evaluator != nil {
 				policy, value := m.evaluator.Evaluate(node.state)
