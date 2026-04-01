@@ -527,6 +527,93 @@ func TestBackpropagate_ThreeActors_Draw(t *testing.T) {
 	}
 }
 
+// --- Single-actor mock state (validates 1-actor backpropagation) ---
+
+// singleActorState est un état mock à un seul acteur.
+// CurrentActor() == PreviousActor() == actor.
+type singleActorState struct {
+	actor  decision.ActorID
+	result decision.ActorID
+	id     string
+}
+
+func (s *singleActorState) CurrentActor() decision.ActorID  { return s.actor }
+func (s *singleActorState) PreviousActor() decision.ActorID { return s.actor }
+func (s *singleActorState) Evaluate() decision.ActorID      { return s.result }
+func (s *singleActorState) PossibleMoves() []decision.State { return nil }
+func (s *singleActorState) ID() string                      { return s.id }
+
+func TestBackpropagate_SingleActor_Win(t *testing.T) {
+	root := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "root"}}
+	child := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "child"}, parent: root}
+	grandchild := &mctsNode{state: &singleActorState{actor: 1, result: 1, id: "gchild"}, parent: child}
+
+	grandchild.backpropagate(decision.ActorID(1))
+
+	// Tous les nœuds ont PreviousActor == 1, result == 1 → victoire partout
+	if grandchild.wins != 1 {
+		t.Errorf("expected grandchild wins=1, got %f", grandchild.wins)
+	}
+	if child.wins != 1 {
+		t.Errorf("expected child wins=1, got %f", child.wins)
+	}
+	if root.wins != 1 {
+		t.Errorf("expected root wins=1, got %f", root.wins)
+	}
+}
+
+func TestBackpropagate_SingleActor_Stalemate(t *testing.T) {
+	root := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "root"}}
+	child := &mctsNode{state: &singleActorState{actor: 1, result: decision.Stalemate, id: "child"}, parent: root}
+
+	child.backpropagate(decision.Stalemate)
+
+	if child.wins != 0.5 {
+		t.Errorf("expected child wins=0.5, got %f", child.wins)
+	}
+	if root.wins != 0.5 {
+		t.Errorf("expected root wins=0.5, got %f", root.wins)
+	}
+}
+
+func TestBackpropagateValue_SingleActor(t *testing.T) {
+	root := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "root"}}
+	child := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "child"}, parent: root}
+	grandchild := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "gchild"}, parent: child}
+
+	// value=0.8 du point de vue de l'acteur unique
+	grandchild.backpropagateValue(0.8)
+
+	// Pas d'inversion : CurrentActor == PreviousActor à chaque nœud
+	// Tous les nœuds doivent avoir wins == 0.8
+	if math.Abs(grandchild.wins-0.8) > 1e-9 {
+		t.Errorf("expected grandchild wins=0.8, got %f", grandchild.wins)
+	}
+	if math.Abs(child.wins-0.8) > 1e-9 {
+		t.Errorf("expected child wins=0.8, got %f", child.wins)
+	}
+	if math.Abs(root.wins-0.8) > 1e-9 {
+		t.Errorf("expected root wins=0.8, got %f", root.wins)
+	}
+}
+
+func TestTerminalValue_SingleActor_Win(t *testing.T) {
+	s := &singleActorState{actor: 1, result: 1, id: "solved"}
+	v := terminalValue(s)
+	// CurrentActor == result → victoire → 1.0
+	if math.Abs(v-1.0) > 1e-9 {
+		t.Errorf("expected 1.0 for single-actor win, got %f", v)
+	}
+}
+
+func TestTerminalValue_SingleActor_Stalemate(t *testing.T) {
+	s := &singleActorState{actor: 1, result: decision.Stalemate, id: "stuck"}
+	v := terminalValue(s)
+	if math.Abs(v) > 1e-9 {
+		t.Errorf("expected 0.0 for stalemate, got %f", v)
+	}
+}
+
 // --- Helper ---
 
 func playMoves(moves ...uint8) *tictactoe.TicTacToe {

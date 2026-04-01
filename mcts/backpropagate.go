@@ -34,20 +34,27 @@ func (node *mctsNode) backpropagate(result decision.ActorID) {
 // value provient du réseau de neurones au lieu d'un rollout aléatoire.
 //
 // La valeur initiale est exprimée du point de vue de l'acteur courant au nœud
-// évalué (CurrentActor). Elle est d'abord inversée pour être stockée du point
-// de vue de l'acteur qui a effectué l'action menant à ce nœud (convention
-// cohérente avec backpropagate), puis alternée à chaque niveau en remontant.
+// évalué (CurrentActor). Elle est convertie en perspective de PreviousActor
+// (l'acteur qui a effectué l'action menant à ce nœud), puis propagée vers la
+// racine en inversant le signe uniquement quand l'acteur change entre niveaux.
 //
-// L'inversion de signe suppose un jeu à somme nulle à deux acteurs. Pour les
-// jeux à N acteurs (N > 2), utiliser backpropagate avec un [decision.ActorID]
-// discret.
+// Pour un problème à un seul acteur (CurrentActor == PreviousActor à chaque
+// nœud), aucune inversion n'a lieu : la valeur est propagée telle quelle.
+// Pour un jeu à deux acteurs en alternance, le comportement est identique
+// à l'alternance systématique classique.
 func (node *mctsNode) backpropagateValue(value float64) {
-	// Inverser pour passer de la perspective de l'acteur courant à celle de l'acteur
-	// qui a effectué l'action menant à ce nœud (= PreviousActor).
-	value = -value
+	// Convertir de la perspective de CurrentActor vers celle de PreviousActor.
+	// Pour un seul acteur, CurrentActor == PreviousActor : pas d'inversion.
+	if node.state.CurrentActor() != node.state.PreviousActor() {
+		value = -value
+	}
 	for n := node; n != nil; n = n.parent {
 		n.visits++
 		n.wins += value
-		value = -value
+		// Inverser le signe uniquement si l'acteur qui a joué change
+		// entre ce nœud et son parent.
+		if n.parent != nil && n.state.PreviousActor() != n.parent.state.PreviousActor() {
+			value = -value
+		}
 	}
 }

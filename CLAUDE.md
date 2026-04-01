@@ -13,12 +13,20 @@ alphazego/
 │       ├── doc.go                 # Documentation du package
 │       ├── board.go               # Interfaces plateau (Boarder, ActionRecorder, Tensorizable)
 │       ├── example_test.go        # Exemples testables (godoc)
-│       └── tictactoe/
-│           ├── ttt.go             # Implémentation du morpion (State + ActionRecorder + Tensorizable)
+│       ├── tictactoe/
+│       │   ├── ttt.go             # Implémentation du morpion (State + ActionRecorder + Tensorizable)
+│       │   ├── console.go         # Affichage ANSI du plateau
+│       │   ├── ttt_test.go        # Tests unitaires
+│       │   ├── example_test.go    # Exemples testables (godoc)
+│       │   └── cmd/main.go        # Programme jouable (humain vs IA)
+│       └── taquin/
+│           ├── doc.go             # Documentation du package
+│           ├── taquin.go          # Puzzle à glissement (State + ActionRecorder + Tensorizable, 1 acteur)
 │           ├── console.go         # Affichage ANSI du plateau
-│           ├── ttt_test.go        # Tests unitaires
-│           ├── example_test.go    # Exemples testables (godoc)
-│           └── cmd/main.go        # Programme jouable (humain vs IA)
+│           ├── taquin_test.go     # Tests unitaires
+│           ├── console_test.go    # Tests d'affichage
+│           ├── example_test.go    # Exemples testables (MCTS résout le taquin)
+│           └── cmd/main.go        # IA résout le taquin avec MCTS
 ├── mcts/
 │   ├── doc.go                     # Documentation du package
 │   ├── evaluator.go               # Interface Evaluator (policy + value)
@@ -44,6 +52,7 @@ alphazego/
 - `go test -cover ./...` -- tests avec couverture
 - `go run main.go` -- jouer au morpion contre l'IA
 - `go run decision/board/tictactoe/cmd/main.go` -- idem (version alternative)
+- `go run decision/board/taquin/cmd/main.go` -- l'IA résout un taquin 3x2 avec MCTS
 - `goimports -w .` -- corriger les imports après modification
 
 ## Conventions

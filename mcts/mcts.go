@@ -52,19 +52,19 @@ func NewAlphaMCTS(eval Evaluator, cpuct float64) *MCTS {
 // terminalValue convertit le résultat d'un état terminal en valeur continue
 // du point de vue de l'acteur courant (celui qui est à jouer).
 // Retourne 1.0 si l'acteur courant a gagné, -1.0 s'il a perdu, 0.0 pour un nul.
+//
+// Pour un problème à un seul acteur où CurrentActor == PreviousActor,
+// une victoire (result == Player) retourne correctement 1.0.
 func terminalValue(s decision.State) float64 {
 	result := s.Evaluate()
-	// L'acteur qui a effectué la dernière action
-	actorWhoMovedHere := s.PreviousActor()
-	if result == actorWhoMovedHere {
-		// L'adversaire (qui a joué le dernier coup) a gagné → défaite pour l'acteur courant
-		return -1.0
+	if result == s.CurrentActor() {
+		return 1.0
 	}
 	if result == decision.Stalemate {
 		return 0.0
 	}
-	// L'acteur courant a gagné (cas rare dans un état terminal où c'est à lui de jouer)
-	return 1.0
+	// Un autre acteur a gagné → défaite pour l'acteur courant
+	return -1.0
 }
 
 // getOrCreateNode retrieves a node from the inventory or creates a new one if it doesn't exist.

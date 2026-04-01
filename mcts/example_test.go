@@ -2,9 +2,11 @@ package mcts_test
 
 import (
 	"fmt"
+	"math/rand"
 
 	"github.com/owulveryck/alphazego/decision"
 	"github.com/owulveryck/alphazego/decision/board"
+	"github.com/owulveryck/alphazego/decision/board/taquin"
 	"github.com/owulveryck/alphazego/decision/board/tictactoe"
 	"github.com/owulveryck/alphazego/mcts"
 )
@@ -140,6 +142,35 @@ func ExampleNewAlphaMCTS() {
 	// Output:
 	// AlphaMCTS result is not nil: true
 	// Next actor after move: 2
+}
+
+// Cet exemple montre AlphaMCTS résolvant un taquin (problème à un seul acteur).
+// Grâce à la correction de backpropagateValue (pas d'alternance de signe quand
+// CurrentActor == PreviousActor), le mode AlphaZero fonctionne pour les
+// problèmes à un acteur.
+func ExampleNewAlphaMCTS_singleActor() {
+	eval := &exampleEvaluator{}
+	m := mcts.NewAlphaMCTS(eval, 1.5)
+	puzzle := taquin.NewTaquin(2, 3, 20)
+	rng := rand.New(rand.NewSource(42))
+	puzzle.Shuffle(3, rng)
+
+	solved := false
+	for puzzle.Evaluate() == decision.Undecided {
+		bestState := m.RunMCTS(puzzle, 3000)
+		if bestState == puzzle {
+			break
+		}
+		dir := bestState.(board.ActionRecorder).LastAction()
+		puzzle.Play(dir)
+		if puzzle.Evaluate() == taquin.Player {
+			solved = true
+			break
+		}
+	}
+	fmt.Println("AlphaMCTS solved taquin:", solved)
+	// Output:
+	// AlphaMCTS solved taquin: true
 }
 
 // exampleEvaluator is a simple evaluator with uniform policy and neutral value.
