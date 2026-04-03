@@ -1,0 +1,168 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+
+	"github.com/owulveryck/alphazego/vertexai"
+)
+
+func main() {
+	problemFilter := flag.String("problem", "", "Filtrer par nom de problème (substring)")
+	configFilter := flag.String("config", "", "Filtrer par config: A, B, C, D")
+	flag.Parse()
+
+	project := os.Getenv("GCP_PROJECT")
+	region := os.Getenv("GCP_REGION")
+	if project == "" || region == "" {
+		log.Fatal("Variables d'environnement GCP_PROJECT et GCP_REGION requises")
+	}
+
+	ctx := context.Background()
+	client, err := vertexai.NewClient(ctx, project, region)
+	if err != nil {
+		log.Fatalf("Erreur de connexion: %v", err)
+	}
+
+	problems := AllProblems()
+	configs := AllConfigs()
+
+	// Filtrer si demandé
+	if *problemFilter != "" {
+		var filtered []Problem
+		for _, p := range problems {
+			if strings.Contains(strings.ToLower(p.Name), strings.ToLower(*problemFilter)) {
+				filtered = append(filtered, p)
+			}
+		}
+		problems = filtered
+	}
+	if *configFilter != "" {
+		var filtered []Config
+		for _, c := range configs {
+			if strings.Contains(c.Name, *configFilter) {
+				filtered = append(filtered, c)
+			}
+		}
+		configs = filtered
+	}
+
+	fmt.Printf("Benchmark : %d problèmes × %d configurations\n", len(problems), len(configs))
+	fmt.Printf("Projet: %s, Région: %s\n\n", project, region)
+
+	// Matrice de résultats [problème][config]
+	results := make([][]Result, len(problems))
+	for i := range results {
+		results[i] = make([]Result, len(configs))
+	}
+
+	for i, problem := range problems {
+		fmt.Printf("━━━ %d/%d : %s (%d tâches, optimal=%d) ━━━\n",
+			i+1, len(problems), problem.Name, len(problem.Tasks), problem.Optimal)
+
+		for j, config := range configs {
+			fmt.Printf("  %s ... ", config.Name)
+
+			var answer string
+			var runErr error
+
+			if config.UseMCTS {
+				answer, runErr = RunMCTSReasoning(ctx, client, config.Model, problem, config.Iterations)
+			} else {
+				answer, runErr = RunOneShot(ctx, client, config.Model, problem)
+			}
+
+			if runErr != nil {
+				fmt.Printf("ERREUR: %v\n", runErr)
+				results[i][j] = Result{
+					Problem: problem,
+					Config:  config,
+					Error:   runErr,
+				}
+				continue
+			}
+
+			// Évaluer avec le juge
+			score, verdict, judgeErr := Judge(ctx, client, problem, answer)
+			if judgeErr != nil {
+				fmt.Printf("ERREUR JUGE: %v\n", judgeErr)
+				results[i][j] = Result{
+					Problem: problem,
+					Config:  config,
+					Answer:  answer,
+					Error:   judgeErr,
+				}
+				continue
+			}
+
+			results[i][j] = Result{
+				Problem: problem,
+				Config:  config,
+				Answer:  answer,
+				Score:   score,
+				Verdict: verdict,
+			}
+
+			fmt.Printf("score=%.1f (%s)\n", score, verdict)
+		}
+		fmt.Println()
+	}
+
+	// Rapport final
+	printReport(problems, configs, results)
+}
+
+func printReport(problems []Problem, configs []Config, results [][]Result) {
+	fmt.Println("\n" + strings.Repeat("═", 80))
+	fmt.Println("RAPPORT FINAL")
+	fmt.Println(strings.Repeat("═", 80))
+
+	// En-tête
+	fmt.Printf("%-30s", "Problème")
+	for _, c := range configs {
+		fmt.Printf(" | %-16s", c.Name)
+	}
+	fmt.Println()
+	fmt.Println(strings.Repeat("─", 30+len(configs)*19))
+
+	// Lignes
+	totals := make([]float64, len(configs))
+	counts := make([]int, len(configs))
+
+	for i, problem := range problems {
+		name := problem.Name
+		if len(name) > 28 {
+			name = name[:28]
+		}
+		fmt.Printf("%-30s", name)
+		for j := range configs {
+			r := results[i][j]
+			if r.Error != nil {
+				fmt.Printf(" | %-16s", "ERR")
+			} else {
+				fmt.Printf(" | %-16s", fmt.Sprintf("%.1f", r.Score))
+				totals[j] += r.Score
+				counts[j]++
+			}
+		}
+		fmt.Println()
+	}
+
+	// Totaux
+	fmt.Println(strings.Repeat("─", 30+len(configs)*19))
+	fmt.Printf("%-30s", "ACCURACY")
+	for j := range configs {
+		if counts[j] > 0 {
+			pct := totals[j] / float64(counts[j]) * 100
+			fmt.Printf(" | %-16s", fmt.Sprintf("%.0f%%", pct))
+		} else {
+			fmt.Printf(" | %-16s", "N/A")
+		}
+	}
+	fmt.Println()
+	fmt.Println(strings.Repeat("═", 80))
+}
