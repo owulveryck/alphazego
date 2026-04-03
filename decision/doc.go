@@ -22,8 +22,13 @@
 // séparé : le résultat EST l'identifiant du gagnant.
 //
 // Pour utiliser ce framework, implémenter [State] avec la logique
-// spécifique au problème. Le sous-package board fournit des interfaces
-// supplémentaires pour les jeux de plateau ([board.Boarder]), avec deux
-// implémentations d'exemple : le morpion (deux acteurs) et le taquin
-// (un seul acteur).
+// spécifique au problème. Deux sous-packages fournissent des
+// implémentations de référence :
+//
+//   - board : interfaces supplémentaires pour les jeux de plateau
+//     ([board.Boarder]), avec le morpion (deux acteurs) et le taquin
+//     (un seul acteur)
+//   - reasoning : raisonnement par décomposition factuelle avec un LLM,
+//     où les branches de l'arbre MCTS sont des étapes de raisonnement
+//     candidates
 package decision
