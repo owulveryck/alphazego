@@ -21,7 +21,7 @@ func (t *Taquin) String() string {
 	b.WriteString(fmt.Sprintf("Steps: %d/%d\n", t.steps, t.maxSteps))
 
 	// Ligne du haut
-	b.WriteString(" " + topBorder(t.cols))
+	b.WriteString(" " + topBorder(t.cols, size))
 
 	for r := 0; r < t.rows; r++ {
 		b.WriteString(" │")
@@ -36,12 +36,12 @@ func (t *Taquin) String() string {
 		}
 		b.WriteString("\n")
 		if r < t.rows-1 {
-			b.WriteString(" " + midBorder(t.cols))
+			b.WriteString(" " + midBorder(t.cols, size))
 		}
 	}
 
 	// Ligne du bas
-	b.WriteString(" " + botBorder(t.cols))
+	b.WriteString(" " + botBorder(t.cols, size))
 	return b.String()
 }
 
@@ -54,15 +54,16 @@ func cellWidth(size int) int {
 	return 2
 }
 
-func topBorder(cols int) string { return border("┌", "┬", "┐", cols) }
-func midBorder(cols int) string { return border("├", "┼", "┤", cols) }
-func botBorder(cols int) string { return border("└", "┴", "┘", cols) }
+func topBorder(cols, size int) string { return border("┌", "┬", "┐", cols, size) }
+func midBorder(cols, size int) string { return border("├", "┼", "┤", cols, size) }
+func botBorder(cols, size int) string { return border("└", "┴", "┘", cols, size) }
 
-func border(left, mid, right string, cols int) string {
+func border(left, mid, right string, cols, size int) string {
+	seg := strings.Repeat("─", cellWidth(size)+2)
 	var b strings.Builder
 	b.WriteString(left)
 	for c := 0; c < cols; c++ {
-		b.WriteString("───")
+		b.WriteString(seg)
 		if c < cols-1 {
 			b.WriteString(mid)
 		}

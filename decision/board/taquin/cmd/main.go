@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	puzzle := taquin.NewTaquin(2, 3, 30)
+	puzzle := taquin.NewTaquin(5, 5, 50)
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	puzzle.Shuffle(15, rng)
 
