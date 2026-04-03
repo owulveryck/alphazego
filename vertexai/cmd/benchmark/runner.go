@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
+	"sync"
 
 	"github.com/owulveryck/alphazego/decision"
 	"github.com/owulveryck/alphazego/decision/reasoning"
@@ -12,6 +14,34 @@ import (
 
 	"google.golang.org/genai"
 )
+
+// TokenStats accumule les compteurs de tokens pour une exécution.
+type TokenStats struct {
+	PromptTokens int32
+	OutputTokens int32
+	mu           sync.Mutex
+}
+
+// Add ajoute les tokens d'une réponse.
+func (ts *TokenStats) Add(resp *genai.GenerateContentResponse) {
+	if resp == nil || resp.UsageMetadata == nil {
+		return
+	}
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	ts.PromptTokens += resp.UsageMetadata.PromptTokenCount
+	ts.OutputTokens += resp.UsageMetadata.CandidatesTokenCount
+}
+
+// Total retourne le nombre total de tokens.
+func (ts *TokenStats) Total() int32 {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	return ts.PromptTokens + ts.OutputTokens
+}
+
+// verbose contrôle l'affichage des logs détaillés.
+var verbose bool
 
 // Config décrit une configuration de benchmark.
 type Config struct {
@@ -32,7 +62,7 @@ func AllConfigs() []Config {
 }
 
 // RunOneShot résout le problème en un seul appel au modèle.
-func RunOneShot(ctx context.Context, client *genai.Client, model string, problem Problem) (string, error) {
+func RunOneShot(ctx context.Context, client *genai.Client, model string, problem Problem, tokens *TokenStats) (string, error) {
 	prompt := problem.FormatPrompt()
 	prompt += "\nDonne l'ordonnancement optimal sous forme de liste numérotée. "
 	prompt += "Indique le makespan total. "
@@ -47,13 +77,20 @@ func RunOneShot(ctx context.Context, client *genai.Client, model string, problem
 		return "", fmt.Errorf("one-shot %s: %w", model, err)
 	}
 
-	return extractText(resp), nil
+	tokens.Add(resp)
+	text := extractText(resp)
+
+	if verbose {
+		log.Printf("[one-shot] Réponse de %s:\n%s\n", model, text)
+	}
+
+	return text, nil
 }
 
 // RunMCTSReasoning résout le problème via le reasoning package + MCTS.
-func RunMCTSReasoning(ctx context.Context, client *genai.Client, model string, problem Problem, iterations int) (string, error) {
-	gen := &modelGenerator{client: client, model: model}
-	judge := &modelJudge{client: client, model: model}
+func RunMCTSReasoning(ctx context.Context, client *genai.Client, model string, problem Problem, iterations int, tokens *TokenStats) (string, error) {
+	gen := &modelGenerator{client: client, model: model, tokens: tokens}
+	judge := &modelJudge{client: client, model: model, tokens: tokens}
 
 	question := problem.FormatPrompt()
 	criterion := "Proposer un ordonnancement complet respectant toutes les dépendances et minimisant le temps total (makespan). Conclure avec CONCLUSION: suivi de l'ordre et du makespan."
@@ -71,13 +108,22 @@ func RunMCTSReasoning(ctx context.Context, client *genai.Client, model string, p
 	m := mcts.NewAlphaMCTS(eval, 1.5)
 
 	current := state
+	step := 0
 	for current.Evaluate() == decision.Undecided {
+		step++
 		result := m.RunMCTS(current, iterations)
 		next, ok := result.(*reasoning.State)
 		if !ok || next == current {
 			break
 		}
 		current = next
+
+		if verbose {
+			steps := current.Steps()
+			if len(steps) > 0 {
+				log.Printf("[MCTS] Étape %d choisie: %s", step, steps[len(steps)-1])
+			}
+		}
 	}
 
 	// Construire la réponse à partir des étapes
@@ -93,6 +139,7 @@ func RunMCTSReasoning(ctx context.Context, client *genai.Client, model string, p
 type modelGenerator struct {
 	client *genai.Client
 	model  string
+	tokens *TokenStats
 }
 
 func (g *modelGenerator) Generate(ctx context.Context, prompt string, n int) ([]string, error) {
@@ -106,6 +153,7 @@ func (g *modelGenerator) Generate(ctx context.Context, prompt string, n int) ([]
 		if err != nil {
 			continue
 		}
+		g.tokens.Add(resp)
 		text := extractText(resp)
 		if text != "" {
 			candidates = append(candidates, text)
@@ -122,6 +170,7 @@ func (g *modelGenerator) Generate(ctx context.Context, prompt string, n int) ([]
 type modelJudge struct {
 	client *genai.Client
 	model  string
+	tokens *TokenStats
 }
 
 func (j *modelJudge) Score(ctx context.Context, prompt string) (float64, error) {
@@ -136,7 +185,13 @@ func (j *modelJudge) Score(ctx context.Context, prompt string) (float64, error) 
 		return 0.5, err
 	}
 
+	j.tokens.Add(resp)
 	text := extractText(resp)
+
+	if verbose {
+		log.Printf("[judge-mcts] Score brut: %s", text)
+	}
+
 	score, err := parseScore(text)
 	if err != nil {
 		return 0.5, err

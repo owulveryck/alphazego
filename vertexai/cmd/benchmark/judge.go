@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
+	"time"
 
 	"google.golang.org/genai"
 )
@@ -14,16 +16,18 @@ const JudgeModelName = "gemini-2.5-flash"
 
 // Result contient le résultat d'une exécution.
 type Result struct {
-	Problem Problem
-	Config  Config
-	Answer  string
-	Score   float64
-	Verdict string
-	Error   error
+	Problem  Problem
+	Config   Config
+	Answer   string
+	Score    float64
+	Verdict  string
+	Error    error
+	Duration time.Duration
+	Tokens   *TokenStats
 }
 
 // Judge évalue une réponse en utilisant un LLM.
-func Judge(ctx context.Context, client *genai.Client, problem Problem, answer string) (float64, string, error) {
+func Judge(ctx context.Context, client *genai.Client, problem Problem, answer string, tokens *TokenStats) (float64, string, error) {
 	prompt := fmt.Sprintf(`Tu es un évaluateur expert en ordonnancement de tâches.
 
 Problème :
@@ -58,7 +62,13 @@ SCORE: <0.0 ou 0.5 ou 1.0>`,
 		return 0, "", fmt.Errorf("judge: %w", err)
 	}
 
+	tokens.Add(resp)
 	text := extractText(resp)
+
+	if verbose {
+		log.Printf("[judge] Verdict complet:\n%s", text)
+	}
+
 	score, verdict := parseJudgeResponse(text)
 	return score, verdict, nil
 }

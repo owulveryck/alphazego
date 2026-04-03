@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/owulveryck/alphazego/vertexai"
 )
@@ -14,6 +15,7 @@ import (
 func main() {
 	problemFilter := flag.String("problem", "", "Filtrer par nom de problème (substring)")
 	configFilter := flag.String("config", "", "Filtrer par config: A, B, C, D")
+	flag.BoolVar(&verbose, "v", false, "Mode verbose : afficher les logs détaillés")
 	flag.Parse()
 
 	project := os.Getenv("GCP_PROJECT")
@@ -67,47 +69,59 @@ func main() {
 		for j, config := range configs {
 			fmt.Printf("  %s ... ", config.Name)
 
+			tokens := &TokenStats{}
+			start := time.Now()
+
 			var answer string
 			var runErr error
 
 			if config.UseMCTS {
-				answer, runErr = RunMCTSReasoning(ctx, client, config.Model, problem, config.Iterations)
+				answer, runErr = RunMCTSReasoning(ctx, client, config.Model, problem, config.Iterations, tokens)
 			} else {
-				answer, runErr = RunOneShot(ctx, client, config.Model, problem)
+				answer, runErr = RunOneShot(ctx, client, config.Model, problem, tokens)
 			}
 
 			if runErr != nil {
-				fmt.Printf("ERREUR: %v\n", runErr)
+				elapsed := time.Since(start)
+				fmt.Printf("ERREUR: %v (%s)\n", runErr, elapsed.Round(time.Millisecond))
 				results[i][j] = Result{
-					Problem: problem,
-					Config:  config,
-					Error:   runErr,
+					Problem:  problem,
+					Config:   config,
+					Error:    runErr,
+					Duration: elapsed,
+					Tokens:   tokens,
 				}
 				continue
 			}
 
 			// Évaluer avec le juge
-			score, verdict, judgeErr := Judge(ctx, client, problem, answer)
+			score, verdict, judgeErr := Judge(ctx, client, problem, answer, tokens)
+			elapsed := time.Since(start)
+
 			if judgeErr != nil {
-				fmt.Printf("ERREUR JUGE: %v\n", judgeErr)
+				fmt.Printf("ERREUR JUGE: %v (%s)\n", judgeErr, elapsed.Round(time.Millisecond))
 				results[i][j] = Result{
-					Problem: problem,
-					Config:  config,
-					Answer:  answer,
-					Error:   judgeErr,
+					Problem:  problem,
+					Config:   config,
+					Answer:   answer,
+					Error:    judgeErr,
+					Duration: elapsed,
+					Tokens:   tokens,
 				}
 				continue
 			}
 
 			results[i][j] = Result{
-				Problem: problem,
-				Config:  config,
-				Answer:  answer,
-				Score:   score,
-				Verdict: verdict,
+				Problem:  problem,
+				Config:   config,
+				Answer:   answer,
+				Score:    score,
+				Verdict:  verdict,
+				Duration: elapsed,
+				Tokens:   tokens,
 			}
 
-			fmt.Printf("score=%.1f (%s)\n", score, verdict)
+			fmt.Printf("score=%.1f (%s) [%s, %d tokens]\n", score, verdict, elapsed.Round(time.Millisecond), tokens.Total())
 		}
 		fmt.Println()
 	}
@@ -132,6 +146,8 @@ func printReport(problems []Problem, configs []Config, results [][]Result) {
 	// Lignes
 	totals := make([]float64, len(configs))
 	counts := make([]int, len(configs))
+	totalTokens := make([]int32, len(configs))
+	totalDuration := make([]time.Duration, len(configs))
 
 	for i, problem := range problems {
 		name := problem.Name
@@ -148,6 +164,10 @@ func printReport(problems []Problem, configs []Config, results [][]Result) {
 				totals[j] += r.Score
 				counts[j]++
 			}
+			if r.Tokens != nil {
+				totalTokens[j] += r.Tokens.Total()
+			}
+			totalDuration[j] += r.Duration
 		}
 		fmt.Println()
 	}
@@ -164,5 +184,27 @@ func printReport(problems []Problem, configs []Config, results [][]Result) {
 		}
 	}
 	fmt.Println()
+
+	// Tokens
+	fmt.Printf("%-30s", "TOKENS")
+	for j := range configs {
+		fmt.Printf(" | %-16s", formatTokenCount(totalTokens[j]))
+	}
+	fmt.Println()
+
+	// Temps
+	fmt.Printf("%-30s", "TEMPS")
+	for j := range configs {
+		fmt.Printf(" | %-16s", totalDuration[j].Round(time.Millisecond).String())
+	}
+	fmt.Println()
 	fmt.Println(strings.Repeat("═", 80))
+}
+
+// formatTokenCount formate un nombre de tokens de manière lisible.
+func formatTokenCount(n int32) string {
+	if n >= 1000 {
+		return fmt.Sprintf("%.1fk", float64(n)/1000)
+	}
+	return fmt.Sprintf("%d", n)
 }
