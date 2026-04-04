@@ -9,7 +9,7 @@ import (
 // NewMCTS initializes a new MCTS structure.
 // The inventory map stores nodes encountered during the search,
 // allowing reuse if the same game state is reached via different paths (transpositions)
-// within a single RunMCTS call.
+// au sein d'un appel RunMCTS ou entre plusieurs appels successifs sur la même instance.
 func NewMCTS() *MCTS {
 	return &MCTS{
 		inventory:   make(map[string]*mctsNode),

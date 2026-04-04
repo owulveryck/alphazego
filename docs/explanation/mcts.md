@@ -34,7 +34,7 @@ Chaque itération de MCTS exécute quatre phases dans l'ordre :
 
 ### 1. Sélection
 
-À partir de la racine, on descend dans l'arbre en choisissant à chaque nœud l'enfant avec le meilleur score **UCB1** (voir [référence/formules.md](../référence/formules.md)). On continue tant que le nœud est **complètement expansé** (tous ses coups légaux ont déjà été essayés) et **non terminal**.
+À partir de la racine, on descend dans l'arbre en choisissant à chaque nœud l'enfant avec le meilleur score **UCB1** (voir [référence/formules.md](../reference/formules.md)). On continue tant que le nœud est **complètement expansé** (tous ses coups légaux ont déjà été essayés) et **non terminal**.
 
 Dans le code (`mcts/mcts.go`) :
 
@@ -79,7 +79,7 @@ func (node *mctsNode) simulate() decision.ActorID {
 }
 ```
 
-Le rollout aléatoire est la **principale faiblesse** du MCTS pur. Pour le morpion (9 cases), les rollouts sont courts et informatifs. Pour le Go (361 intersections, parties de 200+ coups), un rollout aléatoire est essentiellement du bruit. C'est là que les réseaux de neurones interviennent (voir [alphago-et-réseaux-de-neurones.md](alphago-et-réseaux-de-neurones.md)).
+Le rollout aléatoire est la **principale faiblesse** du MCTS pur. Pour le morpion (9 cases), les rollouts sont courts et informatifs. Pour le Go (361 intersections, parties de 200+ coups), un rollout aléatoire est essentiellement du bruit. C'est là que les réseaux de neurones interviennent (voir [alphago-et-reseaux-de-neurones.md](alphago-et-reseaux-de-neurones.md)).
 
 ### 4. Backpropagation
 

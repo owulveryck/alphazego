@@ -127,6 +127,9 @@ func (t *TicTacToe) Evaluate() decision.ActorID {
 // position. Each returned state has one additional move played (at an empty cell)
 // and the turn switched to the other actor.
 func (t *TicTacToe) PossibleMoves() []decision.State {
+	if t.Evaluate() != decision.Undecided {
+		return nil
+	}
 	moves := make([]decision.State, 0, BoardSize)
 	for i := 0; i < BoardSize; i++ {
 		if t.board[i] == 0 {

@@ -85,7 +85,7 @@ Un motif qui fonctionne dans un coin du plateau fonctionne aussi au centre. La c
 
 ### Architecture convolutive détaillée
 
-Voir [référence/architecture-réseau.md](../référence/architecture-réseau.md) pour les détails techniques (tenseurs d'entrée, blocs résiduels, dimensions).
+Voir [référence/architecture-réseau.md](../reference/architecture-reseau.md) pour les détails techniques (tenseurs d'entrée, blocs résiduels, dimensions).
 
 ## Représentation du plateau en tenseur
 

@@ -8,7 +8,7 @@ Comprendre les concepts derrière ces modifications :
 
 - [L'algorithme MCTS](../explanation/mcts.md)
 - [De MCTS à AlphaZero](../explanation/de-mcts-a-alphazero.md)
-- [Interfaces Evaluator et Tensorizable](../référence/interfaces-evaluator.md)
+- [Interfaces Evaluator et Tensorizable](../reference/interfaces-evaluator.md)
 
 ## Étape 1 : Les interfaces
 
@@ -31,13 +31,13 @@ type Tensorizable interface {
 }
 ```
 
-Voir [référence/interfaces-evaluator.md](../référence/interfaces-evaluator.md) pour les détails.
+Voir [référence/interfaces-evaluator.md](../reference/interfaces-evaluator.md) pour les détails.
 
 ## Étape 2 : Implémenter Tensorizable pour le morpion
 
 Fichier : `board/tictactoe/ttt.go`
 
-Ajouter les méthodes `Features()`, `FeatureShape()`, et `ActionSize()` sur `*TicTacToe`. Voir l'exemple dans [référence/interfaces-evaluator.md](../référence/interfaces-evaluator.md).
+Ajouter les méthodes `Features()`, `FeatureShape()`, et `ActionSize()` sur `*TicTacToe`. Voir l'exemple dans [référence/interfaces-evaluator.md](../reference/interfaces-evaluator.md).
 
 Vérification :
 

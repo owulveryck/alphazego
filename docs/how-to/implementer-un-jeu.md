@@ -5,7 +5,7 @@ Ce guide explique comment implémenter l'interface `decision.State` pour connect
 ## Prérequis
 
 - Connaissance de base de Go (structs, interfaces, slices)
-- Avoir lu la [documentation du framework générique](../explanation/framework-générique.md)
+- Avoir lu la [documentation du framework générique](../explanation/framework-generique.md)
 
 ## 1. Définir le struct d'état
 
@@ -53,22 +53,22 @@ Pour N acteurs en round-robin, adaptez la logique (modulo, etc.).
 
 ### `Evaluate()`
 
-Retourne l'`ActorID` du gagnant, `decision.DrawResult` pour un nul, ou `decision.NoActor` si la partie est en cours :
+Retourne l'`ActorID` du gagnant, `decision.Stalemate` pour un nul, ou `decision.Undecided` si la partie est en cours :
 
 ```go
 func (j *MonJeu) Evaluate() decision.ActorID {
     // Vérifier les conditions de victoire
-    if victoire(decision.Actor1) {
-        return decision.Actor1
+    if victoire(decision.ActorID(1)) {
+        return decision.ActorID(1)
     }
-    if victoire(decision.Actor2) {
-        return decision.Actor2
+    if victoire(decision.ActorID(2)) {
+        return decision.ActorID(2)
     }
     // Vérifier le match nul (plateau plein, etc.)
     if plateauPlein() {
-        return decision.DrawResult
+        return decision.Stalemate
     }
-    return decision.NoActor // partie en cours
+    return decision.Undecided // partie en cours
 }
 ```
 
@@ -139,7 +139,7 @@ func (j *MonJeu) Play(position uint8) error {
     if j.plateau[position] != 0 {
         return fmt.Errorf("position %d déjà occupée", position)
     }
-    if j.Evaluate() != decision.NoActor {
+    if j.Evaluate() != decision.Undecided {
         return fmt.Errorf("la partie est terminée")
     }
     j.plateau[position] = uint8(j.acteur)
@@ -173,7 +173,7 @@ func (j *MonJeu) FeatureShape() [3]int   { return [3]int{C, H, W} }
 func (j *MonJeu) ActionSize() int        { return N }
 ```
 
-Voir la [référence des interfaces](../référence/interfaces-evaluator.md) pour les détails du contrat.
+Voir la [référence des interfaces](../reference/interfaces-evaluator.md) pour les détails du contrat.
 
 ## 7. Optionnel : `Evaluator` pour une évaluation custom
 

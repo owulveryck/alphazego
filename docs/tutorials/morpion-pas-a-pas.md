@@ -52,7 +52,7 @@ type Morpion struct {
 func New() *Morpion {
     return &Morpion{
         board:     make([]uint8, BoardSize),
-        actorTurn: decision.Actor1,
+        actorTurn: decision.ActorID(1),
     }
 }
 ```
@@ -84,10 +84,10 @@ func (m *Morpion) Evaluate() decision.ActorID {
     // Match nul si toutes les cases sont occupées
     for _, cell := range m.board {
         if cell == 0 {
-            return decision.NoActor // partie en cours
+            return decision.Undecided // partie en cours
         }
     }
-    return decision.DrawResult
+    return decision.Stalemate
 }
 ```
 
@@ -98,7 +98,7 @@ func TestEvaluate_Actor1Wins(t *testing.T) {
     m := New()
     // X en haut : positions 0, 1, 2
     m.board[0], m.board[1], m.board[2] = 1, 1, 1
-    if m.Evaluate() != decision.Actor1 {
+    if m.Evaluate() != decision.ActorID(1) {
         t.Error("Actor1 devrait gagner avec la ligne du haut")
     }
 }
@@ -106,14 +106,14 @@ func TestEvaluate_Actor1Wins(t *testing.T) {
 func TestEvaluate_Draw(t *testing.T) {
     m := New()
     m.board = []uint8{1, 2, 1, 1, 1, 2, 2, 1, 2}
-    if m.Evaluate() != decision.DrawResult {
+    if m.Evaluate() != decision.Stalemate {
         t.Error("devrait être un match nul")
     }
 }
 
 func TestEvaluate_InProgress(t *testing.T) {
     m := New()
-    if m.Evaluate() != decision.NoActor {
+    if m.Evaluate() != decision.Undecided {
         t.Error("plateau vide = partie en cours")
     }
 }
@@ -189,7 +189,7 @@ func TestMCTS_FullGame(t *testing.T) {
     game := New()
 
     moves := 0
-    for game.Evaluate() == decision.NoActor {
+    for game.Evaluate() == decision.Undecided {
         bestState := m.RunMCTS(game, 500)
         move := bestState.(board.ActionRecorder).LastAction()
         game.board[move] = uint8(game.actorTurn) // appliquer le coup
@@ -197,7 +197,7 @@ func TestMCTS_FullGame(t *testing.T) {
         moves++
     }
 
-    if game.Evaluate() == decision.NoActor {
+    if game.Evaluate() == decision.Undecided {
         t.Error("la partie devrait être terminée")
     }
     if moves < 5 || moves > 9 {
@@ -222,7 +222,7 @@ func (m *Morpion) Play(p uint8) error {
     if m.board[p] != 0 {
         return fmt.Errorf("position %d déjà occupée", p)
     }
-    if m.Evaluate() != decision.NoActor {
+    if m.Evaluate() != decision.Undecided {
         return fmt.Errorf("la partie est terminée")
     }
     m.board[p] = uint8(m.actorTurn)
@@ -281,7 +281,7 @@ func main() {
     game := morpion.New()
     m := mcts.NewMCTS()
 
-    for game.Evaluate() == decision.NoActor {
+    for game.Evaluate() == decision.Undecided {
         fmt.Println(game)
 
         // Tour de l'humain
@@ -299,7 +299,7 @@ func main() {
         }
 
         // Vérifier si la partie est finie
-        if game.Evaluate() != decision.NoActor {
+        if game.Evaluate() != decision.Undecided {
             break
         }
 
@@ -313,11 +313,11 @@ func main() {
     // Résultat
     fmt.Println(game)
     switch game.Evaluate() {
-    case decision.Actor1:
+    case decision.ActorID(1):
         fmt.Println("Vous avez gagné !")
-    case decision.Actor2:
+    case decision.ActorID(2):
         fmt.Println("L'IA a gagné !")
-    case decision.DrawResult:
+    case decision.Stalemate:
         fmt.Println("Match nul !")
     }
 }
@@ -330,7 +330,7 @@ go run decision/board/samples/tictactoe/cmd/main.go
 ## Pour aller plus loin
 
 - **Augmenter les itérations** : plus d'itérations = IA plus forte (essayez 5000 ou 10000)
-- **Implémenter `Tensorizable`** : pour connecter un réseau de neurones, voir la [référence des interfaces](../référence/interfaces-evaluator.md)
+- **Implémenter `Tensorizable`** : pour connecter un réseau de neurones, voir la [référence des interfaces](../reference/interfaces-evaluator.md)
 - **Implémenter un `Evaluator`** : pour remplacer les rollouts aléatoires par une évaluation intelligente, voir le [how-to Evaluator](../how-to/implementer-evaluator.md)
 - **Mode AlphaZero** : utiliser `mcts.NewAlphaMCTS(evaluator, cpuct)` avec un réseau entraîné, voir [de MCTS à AlphaZero](../explanation/de-mcts-a-alphazero.md)
 - **Autre jeu** : adaptez ce tutoriel à un autre jeu en suivant le [how-to implémenter un jeu](../how-to/implementer-un-jeu.md)

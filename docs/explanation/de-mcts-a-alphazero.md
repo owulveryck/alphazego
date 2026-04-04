@@ -15,7 +15,7 @@ Ce document explique les **modifications concrètes** que l'approche AlphaZero a
 
 ### UCB1 actuel
 
-La sélection dans l'arbre utilise UCB1 (voir [formules.md](../référence/formules.md)) :
+La sélection dans l'arbre utilise UCB1 (voir [formules.md](../reference/formules.md)) :
 
 ```
 UCB1(s, a) = Q(s, a) + C × √(ln N(parent) / N(s, a))
@@ -231,4 +231,4 @@ AlphaGo Zero utilisait ~1600 itérations MCTS par coup, avec un réseau évalué
 
 - Rosin, "Multi-armed bandits with episode context", Annals of Mathematics and AI 61, 2011 -- PUCT original
 - Silver et al., "Mastering the game of Go without human knowledge", Nature 550, 2017 -- Application de PUCT dans AlphaGo Zero
-- Voir aussi [référence/formules.md](../référence/formules.md) pour les dérivations mathématiques
+- Voir aussi [référence/formules.md](../reference/formules.md) pour les dérivations mathématiques

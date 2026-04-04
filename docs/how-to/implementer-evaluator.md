@@ -4,7 +4,7 @@ Guide pour créer une implémentation de l'interface `mcts.Evaluator`, qui perme
 
 ## Prérequis
 
-- Comprendre le rôle de l'`Evaluator` : [référence/interfaces-evaluator.md](../référence/interfaces-evaluator.md)
+- Comprendre le rôle de l'`Evaluator` : [référence/interfaces-evaluator.md](../reference/interfaces-evaluator.md)
 - Comprendre les différences MCTS pur / AlphaZero : [explanation/de-mcts-a-alphazero.md](../explanation/de-mcts-a-alphazero.md)
 
 ## L'interface
