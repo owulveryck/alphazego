@@ -102,3 +102,80 @@ type State interface {
 	// différent constitue un état différent.
 	ID() string
 }
+
+// RandomMover est une interface optionnelle qu'un [State] peut implémenter
+// pour accélérer les rollouts aléatoires du moteur MCTS.
+//
+// # Motivation
+//
+// Durant la phase de simulation (rollout), le MCTS choisit un coup aléatoire
+// à chaque étape en appelant [State.PossibleMoves], qui retourne TOUS les
+// états successeurs. Or, un seul est utilisé — les autres sont immédiatement
+// abandonnés. Sur un morpion avec 5 cases vides, cela signifie 5 allocations
+// de struct + 1 slice pour n'en garder qu'une.
+//
+// RandomMover permet de court-circuiter ce schéma en générant directement
+// un seul état successeur choisi aléatoirement, réduisant les allocations
+// de N à 1 par étape de rollout.
+//
+// # Utilisation par le moteur MCTS
+//
+// Le moteur MCTS détecte cette interface par type assertion dans simulate().
+// Si l'état implémente RandomMover, RandomMove est appelé à la place de
+// PossibleMoves. Sinon, le comportement existant est conservé (fallback sur
+// PossibleMoves + sélection aléatoire).
+//
+// # Contrat
+//
+//   - RandomMove ne doit jamais modifier le récepteur (même contrat que
+//     [State.PossibleMoves]).
+//   - L'état retourné doit être une copie indépendante avec
+//     [State.CurrentActor] défini sur l'acteur suivant.
+//   - Le paramètre rng est une fonction qui retourne un entier aléatoire
+//     dans [0, n). L'implémentation doit l'utiliser (et non math/rand)
+//     pour que le moteur MCTS puisse contrôler la reproductibilité via
+//     sa graine.
+//   - RandomMove ne doit être appelé que sur un état non terminal
+//     ([State.Evaluate] == [Undecided]). Le comportement sur un état
+//     terminal est indéfini.
+//
+// # Quand implémenter RandomMover
+//
+// Cette interface est bénéfique lorsque :
+//
+//   - L'état a un nombre significatif de coups possibles (>2)
+//   - La création d'un état successeur est coûteuse en allocations
+//   - Le MCTS pur (avec rollouts) est utilisé (pas le mode AlphaZero)
+//
+// En mode AlphaZero (avec evaluator), simulate() n'est jamais appelé,
+// donc RandomMover n'a aucun effet.
+//
+// # Exemple
+//
+// Pour un morpion, RandomMover compte les cases vides, choisit un index
+// aléatoire parmi elles, et crée un seul nouvel état :
+//
+//	func (t *TicTacToe) RandomMove(rng func(int) int) decision.State {
+//	    count := 0
+//	    for i := 0; i < BoardSize; i++ {
+//	        if t.board[i] == 0 { count++ }
+//	    }
+//	    target := rng(count)
+//	    for i := 0; i < BoardSize; i++ {
+//	        if t.board[i] == 0 {
+//	            if target == 0 {
+//	                game := t.board
+//	                game[i] = uint8(t.actorTurn)
+//	                return &TicTacToe{board: game, actorTurn: 3 - t.actorTurn, lastAction: i}
+//	            }
+//	            target--
+//	        }
+//	    }
+//	    return nil // unreachable
+//	}
+type RandomMover interface {
+	// RandomMove retourne un unique état successeur choisi aléatoirement
+	// parmi tous les coups possibles. Le paramètre rng(n) retourne un
+	// entier uniforme dans [0, n).
+	RandomMove(rng func(int) int) State
+}

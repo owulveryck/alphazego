@@ -21,6 +21,10 @@
 // cours, ou [Stalemate] en cas d'impasse. Il n'y a pas de type Result
 // séparé : le résultat EST l'identifiant du gagnant.
 //
+// [RandomMover] est une interface optionnelle pour les [State] qui souhaitent
+// optimiser les rollouts aléatoires du MCTS en évitant l'allocation de tous
+// les états successeurs quand un seul est nécessaire.
+//
 // Pour utiliser ce framework, implémenter [State] avec la logique
 // spécifique au problème. Deux sous-packages fournissent des
 // implémentations de référence :
