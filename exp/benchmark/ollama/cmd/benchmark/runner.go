@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/owulveryck/alphazego/benchmark/ollama"
-	"github.com/owulveryck/alphazego/benchmark/problems"
 	"github.com/owulveryck/alphazego/decision"
 	"github.com/owulveryck/alphazego/decision/reasoning"
+	"github.com/owulveryck/alphazego/exp/benchmark/ollama"
+	"github.com/owulveryck/alphazego/exp/benchmark/problems"
 	"github.com/owulveryck/alphazego/mcts"
 )
 

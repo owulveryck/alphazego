@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/owulveryck/alphazego/benchmark/ollama"
-	"github.com/owulveryck/alphazego/benchmark/problems"
+	"github.com/owulveryck/alphazego/exp/benchmark/ollama"
+	"github.com/owulveryck/alphazego/exp/benchmark/problems"
 )
 
 // Result contient le résultat d'une exécution.

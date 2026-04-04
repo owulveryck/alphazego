@@ -1,8 +1,8 @@
-module github.com/owulveryck/alphazego/benchmark/vertexai
+module github.com/owulveryck/alphazego/exp/benchmark/vertexai
 
-go 1.24
+go 1.26
 
-toolchain go1.24.0
+toolchain go1.26.0
 
 require (
 	github.com/owulveryck/alphazego v0.0.0
@@ -28,4 +28,4 @@ require (
 	google.golang.org/protobuf v1.34.2 // indirect
 )
 
-replace github.com/owulveryck/alphazego => ../../
+replace github.com/owulveryck/alphazego => ../../../

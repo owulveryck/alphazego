@@ -1,6 +1,6 @@
 # Coupler MCTS et IA générative : une exploration expérimentale
 
-> **Statut** : expérimental. Le répertoire `benchmark/` explore une piste
+> **Statut** : expérimental. Le répertoire `exp/benchmark/` explore une piste
 > de recherche. Les résultats sont préliminaires et l'approche est amenée
 > à évoluer.
 
@@ -69,7 +69,7 @@ one-shot ne peut pas faire.
 ## Le benchmark
 
 Pour tester l'hypothèse, le benchmark utilise des problèmes
-d'**ordonnancement de tâches** (package `benchmark/problems`). Ce domaine
+d'**ordonnancement de tâches** (package `exp/benchmark/problems`). Ce domaine
 est bien adapté car :
 
 - La solution optimale est calculable (chemin critique)
@@ -78,7 +78,7 @@ est bien adapté car :
 
 ### Configurations testées
 
-**Vertex AI** (`benchmark/vertexai`) — 4 configurations :
+**Vertex AI** (`exp/benchmark/vertexai`) — 4 configurations :
 
 | Config | Modèle           | Méthode  |
 |--------|-------------------|----------|
@@ -87,7 +87,7 @@ est bien adapté car :
 | C      | pro (gros)        | One-shot |
 | D      | pro (gros)        | MCTS     |
 
-**Ollama** (`benchmark/ollama`) — 2 configurations :
+**Ollama** (`exp/benchmark/ollama`) — 2 configurations :
 
 | Config | Modèle            | Méthode  |
 |--------|-------------------|----------|
@@ -132,9 +132,9 @@ Le couplage MCTS + LLM est une application directe du framework
 
 - `decision/reasoning` fournit le `State` et les interfaces `Generator`/`Judge`
 - `mcts` fournit le moteur AlphaMCTS avec PUCT
-- `benchmark/vertexai` et `benchmark/ollama` implémentent les interfaces
+- `exp/benchmark/vertexai` et `exp/benchmark/ollama` implémentent les interfaces
   pour des providers LLM concrets
-- `benchmark/problems` définit les problèmes d'évaluation
+- `exp/benchmark/problems` définit les problèmes d'évaluation
 
 L'architecture est volontairement découplée : ajouter un nouveau provider
 (OpenAI, Anthropic, etc.) revient à implémenter `Generator` et `Judge`

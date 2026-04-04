@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/owulveryck/alphazego/benchmark/problems"
+	"github.com/owulveryck/alphazego/exp/benchmark/problems"
 )
 
 func ExampleAll() {

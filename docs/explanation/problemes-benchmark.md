@@ -213,4 +213,4 @@ Chaque problème a été choisi pour tester un aspect particulier du raisonnemen
 
 ## Lien avec le benchmark
 
-Le package `benchmark/problems` expose ces 10 problèmes via la fonction `All()`. Chaque problème fournit `FormatPrompt()` pour générer automatiquement la description en langage naturel envoyée au LLM. Le makespan `Optimal` sert de référence pour le scoring par le juge.
+Le package `exp/benchmark/problems` expose ces 10 problèmes via la fonction `All()`. Chaque problème fournit `FormatPrompt()` pour générer automatiquement la description en langage naturel envoyée au LLM. Le makespan `Optimal` sert de référence pour le scoring par le juge.

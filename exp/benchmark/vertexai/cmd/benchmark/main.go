@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/owulveryck/alphazego/benchmark/problems"
-	"github.com/owulveryck/alphazego/benchmark/vertexai"
+	"github.com/owulveryck/alphazego/exp/benchmark/problems"
+	"github.com/owulveryck/alphazego/exp/benchmark/vertexai"
 )
 
 func main() {

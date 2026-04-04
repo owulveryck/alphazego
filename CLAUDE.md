@@ -34,7 +34,7 @@ alphazego/
 │       ├── reasoning.go               # State, Generator, Judge interfaces
 │       ├── evaluator.go               # Evaluator wrapping Judge pour MCTS
 │       └── prompt.go                  # Templates de prompts
-├── benchmark/                         # Benchmarks et providers LLM
+├── exp/benchmark/                         # Benchmarks et providers LLM
 │   ├── problems/                      # Problèmes d'ordonnancement partagés (root module)
 │   │   └── problems.go
 │   ├── vertexai/                      # Module séparé — Provider Google Vertex AI
@@ -59,8 +59,8 @@ alphazego/
 - `go test -cover ./...` -- tests avec couverture
 - `go run decision/board/samples/tictactoe/cmd/main.go` -- jouer au morpion contre l'IA
 - `go run decision/board/samples/taquin/cmd/main.go` -- l'IA résout un taquin 3x2 avec MCTS
-- `cd benchmark/vertexai && go run ./cmd/benchmark/` -- benchmark Vertex AI
-- `cd benchmark/ollama && go run ./cmd/benchmark/ -model qwen2.5:7b` -- benchmark Ollama
+- `cd exp/benchmark/vertexai && go run ./cmd/exp/benchmark/` -- benchmark Vertex AI
+- `cd exp/benchmark/ollama && go run ./cmd/exp/benchmark/ -model qwen2.5:7b` -- benchmark Ollama
 - `goimports -w .` -- corriger les imports après modification
 
 ## Conventions

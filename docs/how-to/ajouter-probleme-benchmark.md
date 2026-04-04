@@ -1,6 +1,6 @@
 # Comment ajouter un nouveau problème au benchmark
 
-Ce guide explique comment ajouter un problème d'ordonnancement au package `benchmark/problems` pour l'inclure dans les benchmarks MCTS + LLM.
+Ce guide explique comment ajouter un problème d'ordonnancement au package `exp/benchmark/problems` pour l'inclure dans les benchmarks MCTS + LLM.
 
 ## Prérequis
 
@@ -35,7 +35,7 @@ B(4) → C(3)      EF(B) = 4, EF(C) = max(2,4)+3 = 7   ← chemin critique
 
 ## 2. Ajouter le problème dans `All()`
 
-Ouvrir `benchmark/problems/problems.go` et ajouter une entrée dans le slice retourné par `All()` :
+Ouvrir `exp/benchmark/problems/problems.go` et ajouter une entrée dans le slice retourné par `All()` :
 
 ```go
 // 11. Description courte (N tâches) — Niveau de difficulté
@@ -118,7 +118,7 @@ func ExampleAll() {
 Lancer les tests depuis la racine du projet :
 
 ```bash
-go test ./benchmark/problems/...
+go test ./exp/benchmark/problems/...
 ```
 
 Tous les tests existants valident automatiquement la cohérence du nouveau problème :
