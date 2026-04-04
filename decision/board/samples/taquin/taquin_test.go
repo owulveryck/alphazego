@@ -100,13 +100,11 @@ func TestPlay_Valid(t *testing.T) {
 }
 
 func TestPlay_InvalidDirection(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic for invalid direction")
-		}
-	}()
 	taq := NewTaquin(2, 3, 50)
-	taq.Play(5)
+	err := taq.Play(5)
+	if err == nil {
+		t.Fatal("expected error for invalid direction")
+	}
 }
 
 func TestPlay_ImpossibleMove(t *testing.T) {

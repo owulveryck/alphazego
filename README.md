@@ -73,8 +73,8 @@ mcts/                  Moteur MCTS (UCB1, PUCT, Evaluator)
 
 ## Documentation
 
-- [Framework générique](docs/explanation/framework-générique.md) -- pourquoi State est plus qu'un jeu
+- [Framework générique](docs/explanation/framework-generique.md) -- pourquoi State est plus qu'un jeu
 - [Implémenter un jeu](docs/how-to/implementer-un-jeu.md) -- guide pas à pas
 - [Implémenter un Evaluator](docs/how-to/implementer-evaluator.md) -- connecter un réseau de neurones
-- [Référence des interfaces](docs/référence/interfaces-evaluator.md) -- contrats et spécifications
+- [Référence des interfaces](docs/reference/interfaces-evaluator.md) -- contrats et spécifications
 - [Tutoriel morpion](docs/tutorials/morpion-pas-a-pas.md) -- construire le morpion de zéro

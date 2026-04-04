@@ -80,7 +80,7 @@ func (t *Taquin) Shuffle(n int, rng *rand.Rand) {
 // Retourne une erreur si la direction est invalide ou si le puzzle est terminé.
 func (t *Taquin) Play(dir int) error {
 	if dir < Up || dir > Right {
-		panic(fmt.Sprintf("taquin: direction %d invalide (0-3)", dir))
+		return fmt.Errorf("taquin: direction %d invalide (0-3)", dir)
 	}
 	if t.Evaluate() != decision.Undecided {
 		return fmt.Errorf("le puzzle est terminé")

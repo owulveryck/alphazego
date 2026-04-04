@@ -27,6 +27,9 @@ type selectionFunc func(child *mctsNode) float64
 // l'algorithme utilise des rollouts aléatoires avec UCB1.
 // En mode AlphaZero (créé par [NewAlphaMCTS]), l'evaluator fournit policy et
 // value, et la sélection utilise PUCT.
+//
+// MCTS n'est pas thread-safe : chaque goroutine doit utiliser sa propre instance.
+// L'inventory (map) et le générateur aléatoire ne sont pas synchronisés.
 type MCTS struct {
 	inventory   map[string]*mctsNode // Stores nodes by their state ID for potential reuse within a search.
 	evaluator   Evaluator            // nil = MCTS pur, non-nil = AlphaZero
