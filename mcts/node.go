@@ -50,10 +50,10 @@ type mctsNode struct {
 	// mcts holds a reference back to the MCTS instance for inventory access during expansion.
 	mcts *MCTS
 
-	// possibleMovesCount est le nombre de coups possibles depuis cet état,
-	// mis en cache pour éviter de recalculer PossibleMoves() dans isFullyExpanded().
-	possibleMovesCount    int
-	possibleMovesComputed bool
+	// cachedMoves stocke le résultat de PossibleMoves(), mis en cache pour
+	// éviter les allocations répétées dans isFullyExpanded() et expand().
+	cachedMoves         []decision.State
+	cachedMovesComputed bool
 }
 
 // isTerminal returns true if this node represents a terminal state (win, loss, or draw).
@@ -61,13 +61,18 @@ func (n *mctsNode) isTerminal() bool {
 	return n.state.Evaluate() != decision.Undecided
 }
 
+// getPossibleMoves retourne les coups possibles, en les cachant au premier appel.
+func (n *mctsNode) getPossibleMoves() []decision.State {
+	if !n.cachedMovesComputed {
+		n.cachedMoves = n.state.PossibleMoves()
+		n.cachedMovesComputed = true
+	}
+	return n.cachedMoves
+}
+
 // isFullyExpanded returns true if all possible moves from this state have been expanded as children.
 func (n *mctsNode) isFullyExpanded() bool {
-	if !n.possibleMovesComputed {
-		n.possibleMovesCount = len(n.state.PossibleMoves())
-		n.possibleMovesComputed = true
-	}
-	return len(n.children) >= n.possibleMovesCount
+	return len(n.children) >= len(n.getPossibleMoves())
 }
 
 // selectChildUCB selects the immediate child with the highest score.

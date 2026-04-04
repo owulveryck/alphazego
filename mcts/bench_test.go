@@ -74,11 +74,49 @@ func BenchmarkExpandFull(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		node := &mctsNode{
-			state:    tictactoe.NewTicTacToe(),
-			children: []*mctsNode{},
-			mcts:     m,
+			state: tictactoe.NewTicTacToe(),
+			mcts:  m,
 		}
 		for node.expand() != nil {
 		}
+	}
+}
+
+// BenchmarkSelectChildUCB mesure le coût de sélection UCB1 parmi 9 enfants.
+// Représente 5.8% du CPU d'après le profiling pprof.
+func BenchmarkSelectChildUCB(b *testing.B) {
+	m := NewMCTS()
+	node := &mctsNode{
+		state: tictactoe.NewTicTacToe(),
+		mcts:  m,
+	}
+	// Expand all children and give them some visits
+	for node.expand() != nil {
+	}
+	for i, child := range node.children {
+		child.visits = float64(10 + i)
+		child.wins = float64(5 + i)
+	}
+	node.visits = 100
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		node.selectChildUCB()
+	}
+}
+
+// BenchmarkRunMCTS_MidGame mesure le MCTS depuis un état en milieu de partie (5 coups joués).
+func BenchmarkRunMCTS_MidGame(b *testing.B) {
+	ttt := tictactoe.NewTicTacToe()
+	ttt.Play(0) // X
+	ttt.Play(3) // O
+	ttt.Play(1) // X
+	ttt.Play(4) // O
+	ttt.Play(6) // X
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		m := NewMCTS()
+		m.RunMCTS(ttt, 1000)
 	}
 }

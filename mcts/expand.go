@@ -7,7 +7,7 @@ import "fmt"
 // La recherche de doublons utilise un scan linéaire sur les enfants existants,
 // ce qui est plus efficace qu'une map pour les branching factors typiques (< 20).
 func (node *mctsNode) expand() *mctsNode {
-	possibleMoves := node.state.PossibleMoves()
+	possibleMoves := node.getPossibleMoves()
 
 	// Find the first untried move via linear scan of existing children
 	for _, move := range possibleMoves {
@@ -21,10 +21,9 @@ func (node *mctsNode) expand() *mctsNode {
 		}
 		if !found {
 			child := &mctsNode{
-				state:    move,
-				parent:   node,
-				children: make([]*mctsNode, 0, len(possibleMoves)),
-				mcts:     node.mcts,
+				state:  move,
+				parent: node,
+				mcts:   node.mcts,
 			}
 			node.children = append(node.children, child)
 			return child
@@ -40,7 +39,7 @@ func (node *mctsNode) expand() *mctsNode {
 // en un seul appel. Les priors doivent être dans le même ordre que
 // [decision.State.PossibleMoves].
 func (node *mctsNode) expandAll(policy []float64) {
-	possibleMoves := node.state.PossibleMoves()
+	possibleMoves := node.getPossibleMoves()
 	if len(policy) != len(possibleMoves) {
 		panic(fmt.Sprintf("mcts: policy length %d does not match possible moves count %d", len(policy), len(possibleMoves)))
 	}
