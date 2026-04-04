@@ -54,6 +54,17 @@ type mctsNode struct {
 	// éviter les allocations répétées dans isFullyExpanded() et expand().
 	cachedMoves         []decision.State
 	cachedMovesComputed bool
+
+	// expandedIndex est le nombre d'enfants déjà créés par expand().
+	// Il sert de curseur dans le slice cachedMoves : le prochain coup
+	// non exploré est cachedMoves[expandedIndex].
+	//
+	// Cette approche remplace la détection de doublons par comparaison d'ID
+	// (boucle O(n²) avec appels à State.ID()) par un simple incrément O(1).
+	// Elle est correcte car getPossibleMoves() est cachée et retourne
+	// toujours les coups dans le même ordre déterministe (contrat de
+	// decision.State.PossibleMoves).
+	expandedIndex int
 }
 
 // isTerminal returns true if this node represents a terminal state (win, loss, or draw).
