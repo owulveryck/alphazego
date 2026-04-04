@@ -20,10 +20,12 @@ func (node *mctsNode) simulate() decision.ActorID {
 	currentState := node.state
 
 	// Continue simulating random moves until the game reaches a terminal state.
-	for currentState.Evaluate() == decision.Undecided {
+	for {
+		result := currentState.Evaluate()
+		if result != decision.Undecided {
+			return result
+		}
 		possibleMoves := currentState.PossibleMoves()
 		currentState = possibleMoves[rng(len(possibleMoves))]
 	}
-
-	return currentState.Evaluate()
 }

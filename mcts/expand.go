@@ -4,22 +4,26 @@ import "fmt"
 
 // expand adds one new child node for an untried move from the current game state.
 // It returns the newly created child node, or nil if no untried moves remain.
+// La recherche de doublons utilise un scan linéaire sur les enfants existants,
+// ce qui est plus efficace qu'une map pour les branching factors typiques (< 20).
 func (node *mctsNode) expand() *mctsNode {
 	possibleMoves := node.state.PossibleMoves()
 
-	// Build a set of already-expanded board IDs
-	existingIDs := make(map[string]bool)
-	for _, child := range node.children {
-		existingIDs[child.state.ID()] = true
-	}
-
-	// Find the first untried move and expand it
+	// Find the first untried move via linear scan of existing children
 	for _, move := range possibleMoves {
-		if !existingIDs[move.ID()] {
+		moveID := move.ID()
+		found := false
+		for _, child := range node.children {
+			if child.state.ID() == moveID {
+				found = true
+				break
+			}
+		}
+		if !found {
 			child := &mctsNode{
 				state:    move,
 				parent:   node,
-				children: []*mctsNode{},
+				children: make([]*mctsNode, 0, len(possibleMoves)),
 				mcts:     node.mcts,
 			}
 			node.children = append(node.children, child)
@@ -40,13 +44,13 @@ func (node *mctsNode) expandAll(policy []float64) {
 	if len(policy) != len(possibleMoves) {
 		panic(fmt.Sprintf("mcts: policy length %d does not match possible moves count %d", len(policy), len(possibleMoves)))
 	}
+	node.children = make([]*mctsNode, 0, len(possibleMoves))
 	for i, move := range possibleMoves {
 		child := &mctsNode{
-			state:    move,
-			parent:   node,
-			children: []*mctsNode{},
-			prior:    policy[i],
-			mcts:     node.mcts,
+			state:  move,
+			parent: node,
+			prior:  policy[i],
+			mcts:   node.mcts,
 		}
 		node.children = append(node.children, child)
 	}

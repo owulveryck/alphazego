@@ -16,10 +16,8 @@ func (n *mctsNode) ucb1() float64 {
 		return math.Inf(1)
 	}
 
-	// Exploration constant, typically sqrt(2), to balance exploration and exploitation.
-	// Adjusting this constant can make the algorithm prefer exploring new nodes
-	// or exploiting nodes with high average rewards.
-	C := math.Sqrt(2)
+	// Exploration constant sqrt(2), balancing exploration and exploitation.
+	C := math.Sqrt2
 
 	// avgReward represents the Q value, which is the average reward of taking a specific
 	// action from this state, as observed from past simulations.

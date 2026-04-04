@@ -191,13 +191,6 @@ func TestLastAction(t *testing.T) {
 	}
 }
 
-func TestToDecisionState(t *testing.T) {
-	games := []*TicTacToe{NewTicTacToe(), NewTicTacToe()}
-	states := toDecisionState(games)
-	if len(states) != 2 {
-		t.Errorf("expected 2 states, got %d", len(states))
-	}
-}
 
 func TestFeatures(t *testing.T) {
 	ttt := NewTicTacToe()

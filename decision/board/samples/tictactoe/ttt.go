@@ -123,32 +123,23 @@ func (t *TicTacToe) Evaluate() decision.ActorID {
 	return decision.Undecided
 }
 
-func toDecisionState(t []*TicTacToe) []decision.State {
-	output := make([]decision.State, len(t))
-	for i := range t {
-		output[i] = t[i]
-	}
-	return output
-}
-
 // PossibleMoves returns a slice of all reachable game states from the current
 // position. Each returned state has one additional move played (at an empty cell)
 // and the turn switched to the other actor.
 func (t *TicTacToe) PossibleMoves() []decision.State {
-	games := make([]*TicTacToe, 0)
+	moves := make([]decision.State, 0, BoardSize)
 	for i := 0; i < BoardSize; i++ {
 		if t.board[i] == 0 {
 			game := t.board // copie par valeur (tableau fixe)
 			game[i] = uint8(t.actorTurn)
-			games = append(games, &TicTacToe{
+			moves = append(moves, &TicTacToe{
 				board:      game,
 				actorTurn:  3 - t.actorTurn,
 				lastAction: i,
 			})
 		}
 	}
-	// Return a slice of possible next states
-	return toDecisionState(games)
+	return moves
 }
 
 var winningPositions = [8][3]uint8{
