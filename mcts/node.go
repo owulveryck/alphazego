@@ -47,13 +47,23 @@ type mctsNode struct {
 	// formule PUCT pour guider la sélection.
 	prior float64
 
-	// mcts holds a reference back to the MCTS instance for inventory access during expansion.
+	// mcts holds a reference back to the MCTS instance.
 	mcts *MCTS
 
 	// cachedMoves stocke le résultat de PossibleMoves(), mis en cache pour
 	// éviter les allocations répétées dans isFullyExpanded() et expand().
 	cachedMoves         []decision.State
 	cachedMovesComputed bool
+
+	// logVisits est le logarithme naturel de visits, pré-calculé par
+	// selectChildUCB avant la boucle sur les enfants. Cela évite de
+	// recalculer math.Log(parent.visits) pour chaque enfant dans ucb1().
+	logVisits float64
+
+	// cachedEval stocke le résultat de state.Evaluate(), mis en cache par
+	// isTerminal() pour éviter un double appel dans la boucle RunMCTS.
+	cachedEval         decision.ActorID
+	cachedEvalComputed bool
 
 	// expandedIndex est le nombre d'enfants déjà créés par expand().
 	// Il sert de curseur dans le slice cachedMoves : le prochain coup
@@ -68,8 +78,13 @@ type mctsNode struct {
 }
 
 // isTerminal returns true if this node represents a terminal state (win, loss, or draw).
+// Le résultat d'Evaluate est caché pour éviter les appels redondants.
 func (n *mctsNode) isTerminal() bool {
-	return n.state.Evaluate() != decision.Undecided
+	if !n.cachedEvalComputed {
+		n.cachedEval = n.state.Evaluate()
+		n.cachedEvalComputed = true
+	}
+	return n.cachedEval != decision.Undecided
 }
 
 // getPossibleMoves retourne les coups possibles, en les cachant au premier appel.
@@ -96,6 +111,9 @@ func (n *mctsNode) selectChildUCB() *mctsNode {
 	if n.mcts != nil && n.mcts.selectionFn != nil {
 		scoreFn = n.mcts.selectionFn
 	}
+	// Pré-calculer log(visits) une seule fois pour tous les enfants.
+	// ucb1() et puct() utilisent n.parent.logVisits au lieu de recalculer.
+	n.logVisits = math.Log(n.visits)
 	for _, child := range n.children {
 		score := scoreFn(child)
 		if score > bestScore {

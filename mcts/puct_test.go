@@ -136,7 +136,7 @@ func TestBackpropagateValue_UpdatesVisits(t *testing.T) {
 func TestExpandAll_CreatesAllChildren(t *testing.T) {
 	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
-	node := m.getOrCreateNode(ttt, nil)
+	node := m.newNode(ttt, nil)
 
 	policy := make([]float64, 9)
 	for i := range policy {
@@ -152,7 +152,7 @@ func TestExpandAll_CreatesAllChildren(t *testing.T) {
 func TestExpandAll_AssignsPriors(t *testing.T) {
 	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
-	node := m.getOrCreateNode(ttt, nil)
+	node := m.newNode(ttt, nil)
 
 	policy := []float64{0.5, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05}
 	node.expandAll(policy)
@@ -173,7 +173,7 @@ func TestExpandAll_AssignsPriors(t *testing.T) {
 func TestExpandAll_IsFullyExpanded(t *testing.T) {
 	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
-	node := m.getOrCreateNode(ttt, nil)
+	node := m.newNode(ttt, nil)
 
 	policy := make([]float64, 9)
 	for i := range policy {
@@ -192,7 +192,7 @@ func TestSelectChildUCB_UsesPUCTWithEvaluator(t *testing.T) {
 	eval := &uniformEvaluator{}
 	m := NewAlphaMCTS(eval, 1.0)
 	ttt := tictactoe.NewTicTacToe()
-	node := m.getOrCreateNode(ttt, nil)
+	node := m.newNode(ttt, nil)
 	node.visits = 100
 
 	// Create two children with different priors

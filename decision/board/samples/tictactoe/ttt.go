@@ -126,20 +126,33 @@ func (t *TicTacToe) Evaluate() decision.ActorID {
 // PossibleMoves returns a slice of all reachable game states from the current
 // position. Each returned state has one additional move played (at an empty cell)
 // and the turn switched to the other actor.
+//
+// Les structs TicTacToe sont allouées en un seul batch (slice de valeurs)
+// pour réduire le nombre d'allocations de N à 1.
 func (t *TicTacToe) PossibleMoves() []decision.State {
 	if t.Evaluate() != decision.Undecided {
 		return nil
 	}
-	moves := make([]decision.State, 0, BoardSize)
+	// Compter les cases vides pour une allocation exacte.
+	count := 0
 	for i := 0; i < BoardSize; i++ {
 		if t.board[i] == 0 {
-			game := t.board // copie par valeur (tableau fixe)
-			game[i] = uint8(t.actorTurn)
-			moves = append(moves, &TicTacToe{
-				board:      game,
-				actorTurn:  3 - t.actorTurn,
-				lastAction: i,
-			})
+			count++
+		}
+	}
+	// Allouer tous les TicTacToe en un seul bloc contigu.
+	batch := make([]TicTacToe, count)
+	moves := make([]decision.State, 0, count)
+	idx := 0
+	nextActor := 3 - t.actorTurn
+	for i := 0; i < BoardSize; i++ {
+		if t.board[i] == 0 {
+			batch[idx].board = t.board
+			batch[idx].board[i] = uint8(t.actorTurn)
+			batch[idx].actorTurn = nextActor
+			batch[idx].lastAction = i
+			moves = append(moves, &batch[idx])
+			idx++
 		}
 	}
 	return moves

@@ -25,6 +25,10 @@ func (node *mctsNode) expand() *mctsNode {
 		return nil
 	}
 
+	// Pré-allouer le slice children au premier expand pour éviter les resize.
+	if node.children == nil {
+		node.children = make([]*mctsNode, 0, len(possibleMoves))
+	}
 	child := &mctsNode{
 		state:  possibleMoves[node.expandedIndex],
 		parent: node,

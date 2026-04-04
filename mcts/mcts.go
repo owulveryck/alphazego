@@ -7,12 +7,10 @@ import (
 )
 
 // NewMCTS initializes a new MCTS structure.
-// The inventory map stores nodes encountered during the search,
-// allowing reuse if the same game state is reached via different paths (transpositions)
-// au sein d'un appel RunMCTS ou entre plusieurs appels successifs sur la même instance.
+// Chaque nœud est créé indépendamment (pas de table de transposition)
+// pour que la backpropagation remonte correctement via parent.
 func NewMCTS() *MCTS {
 	return &MCTS{
-		inventory:   make(map[string]*mctsNode),
 		selectionFn: (*mctsNode).ucb1,
 		rng:         rand.New(rand.NewSource(rand.Int63())),
 	}
@@ -29,13 +27,11 @@ type selectionFunc func(child *mctsNode) float64
 // value, et la sélection utilise PUCT.
 //
 // MCTS n'est pas thread-safe : chaque goroutine doit utiliser sa propre instance.
-// L'inventory (map) et le générateur aléatoire ne sont pas synchronisés.
 type MCTS struct {
-	inventory   map[string]*mctsNode // Stores nodes by their state ID for potential reuse within a search.
-	evaluator   Evaluator            // nil = MCTS pur, non-nil = AlphaZero
-	cpuct       float64              // constante d'exploration pour PUCT (utilisé uniquement avec evaluator)
-	selectionFn selectionFunc        // stratégie de sélection (ucb1 ou puct)
-	rng         *rand.Rand           // générateur aléatoire pour les rollouts (reproductibilité)
+	evaluator   Evaluator     // nil = MCTS pur, non-nil = AlphaZero
+	cpuct       float64       // constante d'exploration pour PUCT (utilisé uniquement avec evaluator)
+	selectionFn selectionFunc // stratégie de sélection (ucb1 ou puct)
+	rng         *rand.Rand    // générateur aléatoire pour les rollouts (reproductibilité)
 }
 
 // NewAlphaMCTS initialise un MCTS guidé par un réseau de neurones (style AlphaZero).
@@ -44,7 +40,6 @@ type MCTS struct {
 // dans la formule PUCT (typiquement entre 1.0 et 5.0).
 func NewAlphaMCTS(eval Evaluator, cpuct float64) *MCTS {
 	return &MCTS{
-		inventory:   make(map[string]*mctsNode),
 		evaluator:   eval,
 		cpuct:       cpuct,
 		selectionFn: (*mctsNode).puct,
@@ -52,28 +47,20 @@ func NewAlphaMCTS(eval Evaluator, cpuct float64) *MCTS {
 	}
 }
 
-// getOrCreateNode retrieves a node from the inventory or creates a new one if it doesn't exist.
-func (m *MCTS) getOrCreateNode(s decision.State, parent *mctsNode) *mctsNode {
-	boardID := s.ID()
-	if node, ok := m.inventory[boardID]; ok {
-		return node
+// newNode crée un nouveau nœud pour l'état donné.
+func (m *MCTS) newNode(s decision.State, parent *mctsNode) *mctsNode {
+	return &mctsNode{
+		state:  s,
+		parent: parent,
+		mcts:   m,
 	}
-
-	newNode := &mctsNode{
-		state:    s,
-		parent:   parent,
-		children: []*mctsNode{},
-		mcts:     m,
-	}
-	m.inventory[boardID] = newNode
-	return newNode
 }
 
 // RunMCTS runs the Monte Carlo Tree Search algorithm for a specified number of iterations.
 // It takes the current state 's' and the number of iterations 'iterations' as input.
 // It returns the state resulting from the best move found.
 func (m *MCTS) RunMCTS(s decision.State, iterations int) decision.State {
-	root := m.getOrCreateNode(s, nil)
+	root := m.newNode(s, nil)
 
 	for i := 0; i < iterations; i++ {
 		// Selection: descend the tree using UCB until a leaf node is found.
@@ -104,8 +91,9 @@ func (m *MCTS) RunMCTS(s decision.State, iterations int) decision.State {
 			if m.evaluator != nil {
 				node.backpropagateTerminal()
 			} else {
-				result := node.simulate()
-				node.backpropagate(result)
+				// Le nœud est terminal : utiliser le résultat caché par isTerminal()
+				// au lieu de relancer simulate() qui rappellerait Evaluate().
+				node.backpropagate(node.cachedEval)
 			}
 		}
 	}

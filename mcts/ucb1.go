@@ -37,7 +37,7 @@ func (n *mctsNode) ucb1() float64 {
 	// where N(p) is the number of visits to the parent node and N(s, a) is the number of visits
 	// to this node. This formula helps in balancing the exploration of less visited nodes
 	// and exploitation of nodes with high average rewards.
-	ucbValue := avgReward + C*math.Sqrt(math.Log(float64(n.parent.visits))/float64(n.visits))
+	ucbValue := avgReward + C*math.Sqrt(n.parent.logVisits/n.visits)
 
 	return ucbValue
 }

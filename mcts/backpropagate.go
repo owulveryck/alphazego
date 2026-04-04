@@ -11,7 +11,7 @@ func (node *mctsNode) backpropagate(result decision.ActorID) {
 	// Starting from the current node, loop through all ancestors until the root node is reached.
 	// The loop uses 'n' to traverse the tree upwards, with 'n.parent' moving to each parent node.
 	for n := node; n != nil; n = n.parent {
-		n.visits += 1
+		n.visits++
 
 		// Credit wins to the actor who made the move leading to this node.
 		// PreviousActor() retourne l'acteur qui a effectué l'action menant à cet état,

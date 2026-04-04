@@ -19,7 +19,7 @@ func TestUCB1_UnvisitedNode(t *testing.T) {
 }
 
 func TestUCB1_WithParent(t *testing.T) {
-	parent := &mctsNode{visits: 10}
+	parent := &mctsNode{visits: 10, logVisits: math.Log(10)}
 	child := &mctsNode{visits: 5, wins: 3, parent: parent}
 	score := child.ucb1()
 	expected := 0.6 + math.Sqrt(2)*math.Sqrt(math.Log(10)/5)
@@ -145,7 +145,7 @@ func TestSelectBestMove_NoChildren(t *testing.T) {
 func TestExpand_CreatesOneChild(t *testing.T) {
 	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
-	node := m.getOrCreateNode(ttt, nil)
+	node := m.newNode(ttt, nil)
 
 	child := node.expand()
 	if child == nil {
@@ -162,7 +162,7 @@ func TestExpand_CreatesOneChild(t *testing.T) {
 func TestExpand_ExpandsIncrementally(t *testing.T) {
 	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
-	node := m.getOrCreateNode(ttt, nil)
+	node := m.newNode(ttt, nil)
 
 	for i := 1; i <= 9; i++ {
 		child := node.expand()
@@ -183,7 +183,7 @@ func TestExpand_ExpandsIncrementally(t *testing.T) {
 func TestExpand_ChildHasCorrectParent(t *testing.T) {
 	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
-	node := m.getOrCreateNode(ttt, nil)
+	node := m.newNode(ttt, nil)
 
 	child := node.expand()
 	if child.mcts != m {
@@ -338,10 +338,10 @@ func TestBackpropagate_DeepChain(t *testing.T) {
 
 // --- GetOrCreateNode Tests ---
 
-func TestGetOrCreateNode_New(t *testing.T) {
+func TestNewNode(t *testing.T) {
 	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
-	node := m.getOrCreateNode(ttt, nil)
+	node := m.newNode(ttt, nil)
 
 	if node == nil {
 		t.Fatal("expected non-nil node")
@@ -357,24 +357,10 @@ func TestGetOrCreateNode_New(t *testing.T) {
 	}
 }
 
-func TestGetOrCreateNode_Existing(t *testing.T) {
-	m := NewMCTS()
-	ttt := tictactoe.NewTicTacToe()
-	node1 := m.getOrCreateNode(ttt, nil)
-	node2 := m.getOrCreateNode(ttt, nil)
-
-	if node1 != node2 {
-		t.Error("expected same node for same state")
-	}
-}
-
 func TestNewMCTS(t *testing.T) {
 	m := NewMCTS()
 	if m == nil {
 		t.Fatal("expected non-nil MCTS")
-	}
-	if m.inventory == nil {
-		t.Error("expected initialized inventory")
 	}
 }
 
