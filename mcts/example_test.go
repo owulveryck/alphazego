@@ -6,8 +6,8 @@ import (
 
 	"github.com/owulveryck/alphazego/decision"
 	"github.com/owulveryck/alphazego/decision/board"
-	"github.com/owulveryck/alphazego/decision/board/taquin"
-	"github.com/owulveryck/alphazego/decision/board/tictactoe"
+	"github.com/owulveryck/alphazego/decision/board/samples/taquin"
+	"github.com/owulveryck/alphazego/decision/board/samples/tictactoe"
 	"github.com/owulveryck/alphazego/mcts"
 )
 

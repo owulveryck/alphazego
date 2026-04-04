@@ -1,12 +1,3 @@
-// Package vertexai fournit des implémentations de [reasoning.Generator] et
-// [reasoning.Judge] utilisant Google Vertex AI (Gemini).
-//
-// Le [Generator] utilise gemini-3.1-pro-preview pour générer des étapes de
-// raisonnement candidates. Le [Judge] utilise gemini-3.1-flash-lite-preview
-// (avec thinking level "low") pour évaluer la qualité des raisonnements.
-//
-// La configuration se fait via les variables d'environnement GCP_PROJECT
-// et GCP_REGION, ou directement via les constructeurs.
 package vertexai
 
 import (

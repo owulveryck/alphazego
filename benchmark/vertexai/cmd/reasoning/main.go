@@ -7,10 +7,10 @@ import (
 	"log"
 	"os"
 
+	"github.com/owulveryck/alphazego/benchmark/vertexai"
 	"github.com/owulveryck/alphazego/decision"
 	"github.com/owulveryck/alphazego/decision/reasoning"
 	"github.com/owulveryck/alphazego/mcts"
-	"github.com/owulveryck/alphazego/vertexai"
 )
 
 func main() {

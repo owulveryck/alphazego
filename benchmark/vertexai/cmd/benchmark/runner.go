@@ -7,10 +7,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/owulveryck/alphazego/benchmark/problems"
+	"github.com/owulveryck/alphazego/benchmark/vertexai"
 	"github.com/owulveryck/alphazego/decision"
 	"github.com/owulveryck/alphazego/decision/reasoning"
 	"github.com/owulveryck/alphazego/mcts"
-	"github.com/owulveryck/alphazego/vertexai"
 
 	"google.golang.org/genai"
 )
@@ -62,7 +63,7 @@ func AllConfigs() []Config {
 }
 
 // RunOneShot résout le problème en un seul appel au modèle.
-func RunOneShot(ctx context.Context, client *genai.Client, model string, problem Problem, tokens *TokenStats) (string, error) {
+func RunOneShot(ctx context.Context, client *genai.Client, model string, problem problems.Problem, tokens *TokenStats) (string, error) {
 	prompt := problem.FormatPrompt()
 	prompt += "\nDonne l'ordonnancement optimal sous forme de liste numérotée. "
 	prompt += "Indique le makespan total. "
@@ -88,7 +89,7 @@ func RunOneShot(ctx context.Context, client *genai.Client, model string, problem
 }
 
 // RunMCTSReasoning résout le problème via le reasoning package + MCTS.
-func RunMCTSReasoning(ctx context.Context, client *genai.Client, model string, problem Problem, iterations int, tokens *TokenStats) (string, error) {
+func RunMCTSReasoning(ctx context.Context, client *genai.Client, model string, problem problems.Problem, iterations int, tokens *TokenStats) (string, error) {
 	gen := &modelGenerator{client: client, model: model, tokens: tokens}
 	judge := &modelJudge{client: client, model: model, tokens: tokens}
 

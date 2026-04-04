@@ -7,16 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/genai"
+	"github.com/owulveryck/alphazego/benchmark/ollama"
+	"github.com/owulveryck/alphazego/benchmark/problems"
 )
-
-// JudgeModel est le modèle utilisé pour évaluer les résultats du benchmark.
-// On utilise le gros modèle pour un jugement fiable.
-const JudgeModelName = "gemini-2.5-flash"
 
 // Result contient le résultat d'une exécution.
 type Result struct {
-	Problem  Problem
+	Problem  problems.Problem
 	Config   Config
 	Answer   string
 	Score    float64
@@ -26,8 +23,8 @@ type Result struct {
 	Tokens   *TokenStats
 }
 
-// Judge évalue une réponse en utilisant un LLM.
-func Judge(ctx context.Context, client *genai.Client, problem Problem, answer string, tokens *TokenStats) (float64, string, error) {
+// Judge évalue une réponse en utilisant le modèle Ollama local.
+func Judge(ctx context.Context, baseURL, model string, problem problems.Problem, answer string, tokens *TokenStats) (float64, string, error) {
 	prompt := fmt.Sprintf(`Tu es un évaluateur expert en ordonnancement de tâches.
 
 Problème :
@@ -53,17 +50,13 @@ VERDICT: <explication courte>
 SCORE: <0.0 ou 0.5 ou 1.0>`,
 		problem.FormatPrompt(), problem.Optimal, answer, problem.Optimal)
 
-	config := &genai.GenerateContentConfig{
-		Temperature: genai.Ptr(float32(0.0)),
-	}
-
-	resp, err := client.Models.GenerateContent(ctx, JudgeModelName, genai.Text(prompt), config)
+	resp, err := ollama.DoGenerate(ctx, baseURL, model, prompt, 0.0)
 	if err != nil {
 		return 0, "", fmt.Errorf("judge: %w", err)
 	}
 
-	tokens.Add(resp)
-	text := extractText(resp)
+	tokens.Add(resp.PromptEvalCount, resp.EvalCount)
+	text := strings.TrimSpace(resp.Response)
 
 	if verbose {
 		log.Printf("[judge] Verdict complet:\n%s", text)

@@ -6,7 +6,7 @@ import (
 
 	"github.com/owulveryck/alphazego/decision"
 	"github.com/owulveryck/alphazego/decision/board"
-	"github.com/owulveryck/alphazego/decision/board/tictactoe"
+	"github.com/owulveryck/alphazego/decision/board/samples/tictactoe"
 )
 
 // --- UCB1 Tests ---

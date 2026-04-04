@@ -1,4 +1,4 @@
-package main
+package problems
 
 import (
 	"fmt"
@@ -38,8 +38,8 @@ func (p Problem) FormatPrompt() string {
 	return b.String()
 }
 
-// AllProblems retourne les 10 problèmes du benchmark, de difficulté croissante.
-func AllProblems() []Problem {
+// All retourne les 10 problèmes du benchmark, de difficulté croissante.
+func All() []Problem {
 	return []Problem{
 		// 1. Linéaire (4 tâches) — Facile
 		{

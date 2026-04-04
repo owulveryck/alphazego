@@ -42,9 +42,9 @@ L'`Evaluator` est le point d'injection de la connaissance du domaine. Il peut ê
 
 Le package [`board`](https://pkg.go.dev/github.com/owulveryck/alphazego/decision/board) spécialise `State` pour les jeux de plateau avec l'interface `Boarder` (= `State` + `ActionRecorder`) et `Tensorizable` pour la conversion en tenseur.
 
-### Morpion (`decision/board/tictactoe`)
+### Morpion (`decision/board/samples/tictactoe`)
 
-Le [morpion](https://pkg.go.dev/github.com/owulveryck/alphazego/decision/board/tictactoe) est l'implémentation de référence. Il sert à valider le moteur MCTS sur un jeu simple avant d'attaquer des domaines plus complexes.
+Le [morpion](https://pkg.go.dev/github.com/owulveryck/alphazego/decision/board/samples/tictactoe) est l'implémentation de référence. Il sert à valider le moteur MCTS sur un jeu simple avant d'attaquer des domaines plus complexes.
 
 ## Utilisation
 
@@ -59,7 +59,7 @@ best := m.RunMCTS(state, 800)
 ```
 
 ```bash
-go run main.go  # jouer au morpion contre l'IA
+go run decision/board/samples/tictactoe/cmd/main.go  # jouer au morpion contre l'IA
 ```
 
 ## Structure
@@ -67,7 +67,7 @@ go run main.go  # jouer au morpion contre l'IA
 ```
 decision/              Problème de décision générique (State, ActorID)
 decision/board/        Abstractions plateau (Boarder, ActionRecorder, Tensorizable)
-decision/board/tictactoe/  Morpion (implémentation de référence)
+decision/board/samples/tictactoe/  Morpion (implémentation de référence)
 mcts/                  Moteur MCTS (UCB1, PUCT, Evaluator)
 ```
 

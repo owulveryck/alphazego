@@ -1,4 +1,4 @@
-module github.com/owulveryck/alphazego/vertexai
+module github.com/owulveryck/alphazego/benchmark/vertexai
 
 go 1.24
 
@@ -28,4 +28,4 @@ require (
 	google.golang.org/protobuf v1.34.2 // indirect
 )
 
-replace github.com/owulveryck/alphazego => ../
+replace github.com/owulveryck/alphazego => ../../

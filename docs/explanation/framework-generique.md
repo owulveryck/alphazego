@@ -43,7 +43,7 @@ Les noms sont génériques (`Actor`, `Moves`) et chaque méthode a une significa
 
 ## Le morpion comme implémentation de référence
 
-Le morpion (`decision/board/tictactoe`) n'est pas le framework -- c'est **une** implémentation de `State` :
+Le morpion (`decision/board/samples/tictactoe`) n'est pas le framework -- c'est **une** implémentation de `State` :
 
 ```
 decision/

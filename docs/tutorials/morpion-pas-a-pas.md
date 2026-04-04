@@ -8,7 +8,7 @@ Dans ce tutoriel, vous allez construire un morpion (tic-tac-toe) jouable contre 
 - Une IA basée sur le MCTS (Monte Carlo Tree Search)
 - Une boucle de jeu interactive dans le terminal
 
-Le code final correspond à l'implémentation dans `decision/board/tictactoe/` et `main.go`.
+Le code final correspond à l'implémentation dans `decision/board/samples/tictactoe/` et `main.go`.
 
 ## Prérequis
 
@@ -324,7 +324,7 @@ func main() {
 ```
 
 ```bash
-go run main.go
+go run decision/board/samples/tictactoe/cmd/main.go
 ```
 
 ## Pour aller plus loin

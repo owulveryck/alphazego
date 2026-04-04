@@ -5,43 +5,46 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
+	"net/http"
 	"strings"
 	"time"
 
-	"github.com/owulveryck/alphazego/vertexai"
+	"github.com/owulveryck/alphazego/benchmark/problems"
 )
 
 func main() {
+	model := flag.String("model", "", "Modèle Ollama à utiliser (requis, ex: qwen2.5:7b)")
+	baseURL := flag.String("url", "http://localhost:11434", "URL du serveur Ollama")
 	problemFilter := flag.String("problem", "", "Filtrer par nom de problème (substring)")
-	configFilter := flag.String("config", "", "Filtrer par config: A, B, C, D")
+	configFilter := flag.String("config", "", "Filtrer par config: E, F")
 	flag.BoolVar(&verbose, "v", false, "Mode verbose : afficher les logs détaillés")
 	flag.Parse()
 
-	project := os.Getenv("GCP_PROJECT")
-	region := os.Getenv("GCP_REGION")
-	if project == "" || region == "" {
-		log.Fatal("Variables d'environnement GCP_PROJECT et GCP_REGION requises")
+	if *model == "" {
+		log.Fatal("Le flag -model est requis (ex: -model qwen2.5:7b)")
 	}
+
+	// Vérifier qu'Ollama est accessible
+	resp, err := http.Get(*baseURL + "/api/tags")
+	if err != nil {
+		log.Fatalf("Impossible de contacter Ollama à %s: %v", *baseURL, err)
+	}
+	resp.Body.Close()
 
 	ctx := context.Background()
-	client, err := vertexai.NewClient(ctx, project, region)
-	if err != nil {
-		log.Fatalf("Erreur de connexion: %v", err)
-	}
 
-	problems := AllProblems()
+	allProblems := problems.All()
 	configs := AllConfigs()
 
 	// Filtrer si demandé
 	if *problemFilter != "" {
-		var filtered []Problem
-		for _, p := range problems {
+		var filtered []problems.Problem
+		for _, p := range allProblems {
 			if strings.Contains(strings.ToLower(p.Name), strings.ToLower(*problemFilter)) {
 				filtered = append(filtered, p)
 			}
 		}
-		problems = filtered
+		allProblems = filtered
 	}
 	if *configFilter != "" {
 		var filtered []Config
@@ -53,18 +56,18 @@ func main() {
 		configs = filtered
 	}
 
-	fmt.Printf("Benchmark : %d problèmes × %d configurations\n", len(problems), len(configs))
-	fmt.Printf("Projet: %s, Région: %s\n\n", project, region)
+	fmt.Printf("Benchmark Ollama : %d problèmes × %d configurations\n", len(allProblems), len(configs))
+	fmt.Printf("Modèle: %s, URL: %s\n\n", *model, *baseURL)
 
 	// Matrice de résultats [problème][config]
-	results := make([][]Result, len(problems))
+	results := make([][]Result, len(allProblems))
 	for i := range results {
 		results[i] = make([]Result, len(configs))
 	}
 
-	for i, problem := range problems {
+	for i, problem := range allProblems {
 		fmt.Printf("━━━ %d/%d : %s (%d tâches, optimal=%d) ━━━\n",
-			i+1, len(problems), problem.Name, len(problem.Tasks), problem.Optimal)
+			i+1, len(allProblems), problem.Name, len(problem.Tasks), problem.Optimal)
 
 		for j, config := range configs {
 			fmt.Printf("  %s ... ", config.Name)
@@ -76,9 +79,9 @@ func main() {
 			var runErr error
 
 			if config.UseMCTS {
-				answer, runErr = RunMCTSReasoning(ctx, client, config.Model, problem, config.Iterations, tokens)
+				answer, runErr = RunMCTSReasoning(ctx, *baseURL, *model, problem, config.Iterations, tokens)
 			} else {
-				answer, runErr = RunOneShot(ctx, client, config.Model, problem, tokens)
+				answer, runErr = RunOneShot(ctx, *baseURL, *model, problem, tokens)
 			}
 
 			if runErr != nil {
@@ -94,8 +97,8 @@ func main() {
 				continue
 			}
 
-			// Évaluer avec le juge
-			score, verdict, judgeErr := Judge(ctx, client, problem, answer, tokens)
+			// Évaluer avec le juge (même modèle local)
+			score, verdict, judgeErr := Judge(ctx, *baseURL, *model, problem, answer, tokens)
 			elapsed := time.Since(start)
 
 			if judgeErr != nil {
@@ -127,10 +130,10 @@ func main() {
 	}
 
 	// Rapport final
-	printReport(problems, configs, results)
+	printReport(allProblems, configs, results)
 }
 
-func printReport(problems []Problem, configs []Config, results [][]Result) {
+func printReport(allProblems []problems.Problem, configs []Config, results [][]Result) {
 	fmt.Println("\n" + strings.Repeat("═", 80))
 	fmt.Println("RAPPORT FINAL")
 	fmt.Println(strings.Repeat("═", 80))
@@ -146,10 +149,10 @@ func printReport(problems []Problem, configs []Config, results [][]Result) {
 	// Lignes
 	totals := make([]float64, len(configs))
 	counts := make([]int, len(configs))
-	totalTokens := make([]int32, len(configs))
+	totalTokens := make([]int, len(configs))
 	totalDuration := make([]time.Duration, len(configs))
 
-	for i, problem := range problems {
+	for i, problem := range allProblems {
 		name := problem.Name
 		if len(name) > 28 {
 			name = name[:28]
@@ -202,7 +205,7 @@ func printReport(problems []Problem, configs []Config, results [][]Result) {
 }
 
 // formatTokenCount formate un nombre de tokens de manière lisible.
-func formatTokenCount(n int32) string {
+func formatTokenCount(n int) string {
 	if n >= 1000 {
 		return fmt.Sprintf("%.1fk", float64(n)/1000)
 	}
