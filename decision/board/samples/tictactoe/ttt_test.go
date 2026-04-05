@@ -20,14 +20,14 @@ func TestNewTicTacToe(t *testing.T) {
 
 func TestPlay(t *testing.T) {
 	ttt := NewTicTacToe()
-	ttt.Play(0)
+	_ = ttt.Play(0)
 	if ttt.board[0] != uint8(Cross) {
 		t.Errorf("expected Actor1 at position 0, got %d", ttt.board[0])
 	}
 	if ttt.CurrentActor() != Circle {
 		t.Errorf("expected Actor2 turn after Actor1 plays, got %d", ttt.CurrentActor())
 	}
-	ttt.Play(4)
+	_ = ttt.Play(4)
 	if ttt.board[4] != uint8(Circle) {
 		t.Errorf("expected Actor2 at position 4, got %d", ttt.board[4])
 	}
@@ -57,7 +57,7 @@ func TestCurrentActor(t *testing.T) {
 	if ttt.CurrentActor() != Cross {
 		t.Errorf("expected Actor1, got %d", ttt.CurrentActor())
 	}
-	ttt.Play(0)
+	_ = ttt.Play(0)
 	if ttt.CurrentActor() != Circle {
 		t.Errorf("expected Actor2, got %d", ttt.CurrentActor())
 	}
@@ -72,7 +72,7 @@ func TestID(t *testing.T) {
 
 	// Two different states should have different IDs
 	ttt2 := NewTicTacToe()
-	ttt2.Play(0)
+	_ = ttt2.Play(0)
 	id2 := ttt2.ID()
 	if id == id2 {
 		t.Error("expected different IDs for different states")
@@ -147,7 +147,7 @@ func TestPossibleMoves(t *testing.T) {
 	}
 
 	// After one move, should have 8 possible moves
-	ttt.Play(0)
+	_ = ttt.Play(0)
 	moves = ttt.PossibleMoves()
 	if len(moves) != 8 {
 		t.Errorf("expected 8 possible moves, got %d", len(moves))
@@ -175,7 +175,7 @@ func TestPossibleMoves_FullBoard(t *testing.T) {
 
 func TestLastAction(t *testing.T) {
 	ttt := NewTicTacToe()
-	ttt.Play(4) // Actor1 plays at 4
+	_ = ttt.Play(4) // Actor1 plays at 4
 	if ttt.LastAction() != 4 {
 		t.Errorf("expected LastAction 4, got %d", ttt.LastAction())
 	}
@@ -211,8 +211,8 @@ func TestFeatures(t *testing.T) {
 	}
 
 	// After Actor1 plays at 0, Actor2 plays at 4
-	ttt.Play(0)
-	ttt.Play(4)
+	_ = ttt.Play(0)
+	_ = ttt.Play(4)
 	// Now it's Actor1's turn
 	features = ttt.Features()
 	// Plan 0 (current = Actor1): position 0 should be 1.0
@@ -231,7 +231,7 @@ func TestFeatures(t *testing.T) {
 
 func TestFeatures_Actor2Turn(t *testing.T) {
 	ttt := NewTicTacToe()
-	ttt.Play(0) // Actor1 plays, now Actor2's turn
+	_ = ttt.Play(0) // Actor1 plays, now Actor2's turn
 	features := ttt.Features()
 	// Plan 2: Actor2's turn, so indicator should be 0.0
 	for i := 18; i < 27; i++ {
@@ -295,7 +295,7 @@ func TestEvaluate_AllWinningPositions(t *testing.T) {
 // PossibleMoves n'affecte pas les autres états ni l'état parent.
 func TestPossibleMoves_Independence(t *testing.T) {
 	ttt := NewTicTacToe()
-	ttt.Play(0)
+	_ = ttt.Play(0)
 	moves := ttt.PossibleMoves()
 	if len(moves) < 2 {
 		t.Fatal("expected at least 2 moves")
@@ -323,8 +323,8 @@ func TestPossibleMoves_Independence(t *testing.T) {
 // TestPossibleMoves_SingleMove vérifie le comportement avec un seul coup légal.
 func TestRandomMove(t *testing.T) {
 	ttt := NewTicTacToe()
-	ttt.Play(0) // X at 0, now O's turn
-	ttt.Play(4) // O at 4, now X's turn
+	_ = ttt.Play(0) // X at 0, now O's turn
+	_ = ttt.Play(4) // O at 4, now X's turn
 
 	// Utiliser un rng déterministe qui retourne toujours 0
 	child := ttt.RandomMove(func(n int) int { return 0 }).(*TicTacToe)
@@ -352,7 +352,7 @@ func TestRandomMove(t *testing.T) {
 
 func TestRandomMove_Independence(t *testing.T) {
 	ttt := NewTicTacToe()
-	ttt.Play(0)
+	_ = ttt.Play(0)
 
 	child := ttt.RandomMove(func(n int) int { return 0 }).(*TicTacToe)
 	parentID := ttt.ID()
@@ -366,8 +366,8 @@ func TestRandomMove_Independence(t *testing.T) {
 
 func TestRandomMove_Distribution(t *testing.T) {
 	ttt := NewTicTacToe()
-	ttt.Play(0) // X at 0
-	ttt.Play(4) // O at 4
+	_ = ttt.Play(0) // X at 0
+	_ = ttt.Play(4) // O at 4
 	// 7 cases vides : 1,2,3,5,6,7,8
 
 	emptyCells := []int{1, 2, 3, 5, 6, 7, 8}

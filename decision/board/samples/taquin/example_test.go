@@ -41,7 +41,7 @@ func Example_mctsResolve() {
 			break // état terminal
 		}
 		dir := bestState.(board.ActionRecorder).LastAction()
-		puzzle.Play(dir)
+		_ = puzzle.Play(dir)
 		if puzzle.Evaluate() == taquin.Player {
 			solved = true
 			break

@@ -164,11 +164,11 @@ func BenchmarkRunMCTS_1000_WithoutRandomMover(b *testing.B) {
 // BenchmarkRunMCTS_MidGame mesure le MCTS depuis un état en milieu de partie (5 coups joués).
 func BenchmarkRunMCTS_MidGame(b *testing.B) {
 	ttt := tictactoe.NewTicTacToe()
-	ttt.Play(0) // X
-	ttt.Play(3) // O
-	ttt.Play(1) // X
-	ttt.Play(4) // O
-	ttt.Play(6) // X
+	_ = ttt.Play(0) // X
+	_ = ttt.Play(3) // O
+	_ = ttt.Play(1) // X
+	_ = ttt.Play(4) // O
+	_ = ttt.Play(6) // X
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {

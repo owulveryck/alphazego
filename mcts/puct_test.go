@@ -75,11 +75,11 @@ func TestPUCT_HigherPriorGivesHigherScore(t *testing.T) {
 func TestBackpropagateValue_TwoActors(t *testing.T) {
 	root := testNode(tictactoe.NewTicTacToe(), nil)
 	ttt1 := tictactoe.NewTicTacToe()
-	ttt1.Play(0)
+	_ = ttt1.Play(0)
 	child := testNode(ttt1, root)
 	ttt2 := tictactoe.NewTicTacToe()
-	ttt2.Play(0)
-	ttt2.Play(1)
+	_ = ttt2.Play(0)
+	_ = ttt2.Play(1)
 	grandchild := testNode(ttt2, child)
 
 	// values map: Cross=0.8 (favorable), Circle=-0.8 (défavorable)
@@ -106,7 +106,7 @@ func TestBackpropagateValue_TwoActors(t *testing.T) {
 func TestBackpropagateValue_UpdatesVisits(t *testing.T) {
 	root := testNode(tictactoe.NewTicTacToe(), nil)
 	ttt1 := tictactoe.NewTicTacToe()
-	ttt1.Play(0)
+	_ = ttt1.Play(0)
 	child := testNode(ttt1, root)
 
 	values := map[decision.ActorID]float64{
@@ -204,10 +204,10 @@ func TestSelectChildUCB_UsesPUCTWithEvaluator(t *testing.T) {
 
 	// Create two children with different priors
 	ttt1 := tictactoe.NewTicTacToe()
-	ttt1.Play(0)
+	_ = ttt1.Play(0)
 	child1 := &mctsNode{state: ttt1, parent: node, prior: 0.1, visits: 0, mcts: m}
 	ttt2 := tictactoe.NewTicTacToe()
-	ttt2.Play(4)
+	_ = ttt2.Play(4)
 	child2 := &mctsNode{state: ttt2, parent: node, prior: 0.9, visits: 0, mcts: m}
 	node.children = []*mctsNode{child1, child2}
 
@@ -268,10 +268,10 @@ func TestRunMCTS_WithEvaluator_TakesWin(t *testing.T) {
 	m := NewAlphaMCTS(eval, 1.0)
 	// Actor1's turn, can win at position 2
 	ttt := tictactoe.NewTicTacToe()
-	ttt.Play(0) // A1
-	ttt.Play(3) // A2
-	ttt.Play(1) // A1
-	ttt.Play(7) // A2
+	_ = ttt.Play(0) // A1
+	_ = ttt.Play(3) // A2
+	_ = ttt.Play(1) // A1
+	_ = ttt.Play(7) // A2
 
 	result := m.RunMCTS(ttt, 5000)
 
@@ -363,11 +363,12 @@ func (r *rolloutEvaluator) Evaluate(state decision.State) ([]float64, map[decisi
 	previous := state.PreviousActor()
 	values := make(map[decision.ActorID]float64)
 	for _, actor := range []decision.ActorID{current, previous} {
-		if result == actor {
+		switch result {
+		case actor:
 			values[actor] = 1.0
-		} else if result == decision.Stalemate {
+		case decision.Stalemate:
 			values[actor] = 0.0
-		} else {
+		default:
 			values[actor] = -1.0
 		}
 	}

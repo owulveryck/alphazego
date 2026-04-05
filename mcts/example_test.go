@@ -55,10 +55,10 @@ func ExampleMCTS_RunMCTS_takesWin() {
 	// X X _ | Actor1's turn
 	// O _ _
 	// _ _ O
-	game.Play(0) // X
-	game.Play(3) // O
-	game.Play(1) // X
-	game.Play(8) // O
+	_ = game.Play(0) // X
+	_ = game.Play(3) // O
+	_ = game.Play(1) // X
+	_ = game.Play(8) // O
 
 	// MCTS should find the winning move
 	bestState := m.RunMCTS(game, 5000)
@@ -76,9 +76,9 @@ func ExampleMCTS_RunMCTS_blocksOpponent() {
 	// X X _ | Actor2's turn
 	// _ _ _
 	// _ _ O
-	game.Play(0) // X
-	game.Play(8) // O
-	game.Play(1) // X
+	_ = game.Play(0) // X
+	_ = game.Play(8) // O
+	_ = game.Play(1) // X
 
 	// MCTS (playing as Actor2) should block at position 2
 	bestState := m.RunMCTS(game, 5000)
@@ -93,11 +93,11 @@ func ExampleMCTS_RunMCTS_terminalState() {
 	game := tictactoe.NewTicTacToe()
 
 	// Play until Actor1 wins
-	game.Play(0) // X
-	game.Play(3) // O
-	game.Play(1) // X
-	game.Play(4) // O
-	game.Play(2) // X wins (top row)
+	_ = game.Play(0) // X
+	_ = game.Play(3) // O
+	_ = game.Play(1) // X
+	_ = game.Play(4) // O
+	_ = game.Play(2) // X wins (top row)
 
 	// MCTS on a terminal state returns the same state
 	result := m.RunMCTS(game, 100)
@@ -115,7 +115,7 @@ func ExampleMCTS_RunMCTS_fullGame() {
 	for game.Evaluate() == decision.Undecided {
 		bestState := m.RunMCTS(game, 500)
 		move := bestState.(board.ActionRecorder).LastAction()
-		game.Play(uint8(move))
+		_ = game.Play(uint8(move))
 		moves++
 	}
 
@@ -162,7 +162,7 @@ func ExampleNewAlphaMCTS_singleActor() {
 			break
 		}
 		dir := bestState.(board.ActionRecorder).LastAction()
-		puzzle.Play(dir)
+		_ = puzzle.Play(dir)
 		if puzzle.Evaluate() == taquin.Player {
 			solved = true
 			break

@@ -21,11 +21,11 @@ func ExampleTicTacToe_Play() {
 	game := tictactoe.NewTicTacToe()
 
 	// Actor1 plays at center (position 4)
-	game.Play(4)
+	_ = game.Play(4)
 	fmt.Println("After Actor1 plays at 4, current actor:", game.CurrentActor())
 
 	// Actor2 plays at top-left (position 0)
-	game.Play(0)
+	_ = game.Play(0)
 	fmt.Println("After Actor2 plays at 0, current actor:", game.CurrentActor())
 	// Output:
 	// After Actor1 plays at 4, current actor: 2
@@ -34,8 +34,8 @@ func ExampleTicTacToe_Play() {
 
 func ExampleTicTacToe_Evaluate_gameOn() {
 	game := tictactoe.NewTicTacToe()
-	game.Play(0) // X at top-left
-	game.Play(4) // O at center
+	_ = game.Play(0) // X at top-left
+	_ = game.Play(4) // O at center
 
 	result := game.Evaluate()
 	fmt.Println("Game still in progress:", result == decision.Undecided)
@@ -46,11 +46,11 @@ func ExampleTicTacToe_Evaluate_gameOn() {
 func ExampleTicTacToe_Evaluate_actor1Wins() {
 	game := tictactoe.NewTicTacToe()
 	// Actor1 takes the top row: 0, 1, 2
-	game.Play(0) // X
-	game.Play(3) // O
-	game.Play(1) // X
-	game.Play(4) // O
-	game.Play(2) // X wins!
+	_ = game.Play(0) // X
+	_ = game.Play(3) // O
+	_ = game.Play(1) // X
+	_ = game.Play(4) // O
+	_ = game.Play(2) // X wins!
 
 	result := game.Evaluate()
 	fmt.Println("Actor1 wins:", result == tictactoe.Cross)
@@ -64,15 +64,15 @@ func ExampleTicTacToe_Evaluate_draw() {
 	// X O X
 	// X X O
 	// O X O
-	game.Play(0) // X
-	game.Play(1) // O
-	game.Play(2) // X
-	game.Play(5) // O
-	game.Play(3) // X
-	game.Play(6) // O
-	game.Play(4) // X
-	game.Play(8) // O
-	game.Play(7) // X
+	_ = game.Play(0) // X
+	_ = game.Play(1) // O
+	_ = game.Play(2) // X
+	_ = game.Play(5) // O
+	_ = game.Play(3) // X
+	_ = game.Play(6) // O
+	_ = game.Play(4) // X
+	_ = game.Play(8) // O
+	_ = game.Play(7) // X
 
 	result := game.Evaluate()
 	fmt.Println("Draw:", result == decision.Stalemate)
@@ -88,7 +88,7 @@ func ExampleTicTacToe_PossibleMoves() {
 	fmt.Println("Moves from empty board:", len(moves))
 
 	// After one move, 8 remain
-	game.Play(4)
+	_ = game.Play(4)
 	moves = game.PossibleMoves()
 	fmt.Println("Moves after one play:", len(moves))
 	// Output:
@@ -118,10 +118,10 @@ func ExampleTicTacToe_PreviousActor() {
 	// PreviousActor retourne Actor2 (le "dernier" dans l'alternance).
 	fmt.Println("Previous actor (initial):", game.PreviousActor())
 
-	game.Play(4) // Actor1 joue au centre
+	_ = game.Play(4) // Actor1 joue au centre
 	fmt.Println("Previous actor after A1 plays:", game.PreviousActor())
 
-	game.Play(0) // Actor2 joue en haut à gauche
+	_ = game.Play(0) // Actor2 joue en haut à gauche
 	fmt.Println("Previous actor after A2 plays:", game.PreviousActor())
 	// Output:
 	// Previous actor (initial): 2
@@ -131,7 +131,7 @@ func ExampleTicTacToe_PreviousActor() {
 
 func ExampleTicTacToe_LastAction() {
 	game := tictactoe.NewTicTacToe()
-	game.Play(0) // Actor1 at position 0
+	_ = game.Play(0) // Actor1 at position 0
 	// Now it's Actor2's turn. Each possible next state knows its LastAction.
 
 	moves := game.PossibleMoves()
@@ -155,7 +155,7 @@ func ExampleTicTacToe_ID() {
 	fmt.Println("Same state, same ID:", game1.ID() == game2.ID())
 
 	// Different state produces a different ID
-	game2.Play(0)
+	_ = game2.Play(0)
 	fmt.Println("Different state, same ID:", game1.ID() == game2.ID())
 	// Output:
 	// Same state, same ID: true
@@ -165,9 +165,9 @@ func ExampleTicTacToe_ID() {
 func ExampleTicTacToe_CurrentActor() {
 	game := tictactoe.NewTicTacToe()
 	fmt.Println("First actor:", game.CurrentActor())
-	game.Play(0)
+	_ = game.Play(0)
 	fmt.Println("Second actor:", game.CurrentActor())
-	game.Play(1)
+	_ = game.Play(1)
 	fmt.Println("Back to first:", game.CurrentActor())
 	// Output:
 	// First actor: 1
@@ -177,8 +177,8 @@ func ExampleTicTacToe_CurrentActor() {
 
 func ExampleTicTacToe_String() {
 	game := tictactoe.NewTicTacToe()
-	game.Play(4) // X at center
-	game.Play(0) // O at top-left
+	_ = game.Play(4) // X at center
+	_ = game.Play(0) // O at top-left
 
 	// String() returns a board with ANSI colors
 	s := game.String()
@@ -189,8 +189,8 @@ func ExampleTicTacToe_String() {
 
 func ExampleTicTacToe_RandomMove() {
 	game := tictactoe.NewTicTacToe()
-	game.Play(4) // X at center
-	game.Play(0) // O at top-left
+	_ = game.Play(4) // X at center
+	_ = game.Play(0) // O at top-left
 
 	// Choisir un coup aléatoire parmi les 7 cases vides
 	rng := func(n int) int { return 0 } // toujours la première case vide

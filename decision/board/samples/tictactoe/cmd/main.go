@@ -18,7 +18,7 @@ func main() {
 	for ttt.Evaluate() == decision.Undecided {
 		fmt.Println(ttt)
 		fmt.Print("Enter your move (0-8): ")
-		fmt.Scan(&move)
+		_, _ = fmt.Scan(&move)
 		val, err := strconv.ParseUint(move, 10, 8)
 		if err != nil {
 			fmt.Println("Entrée invalide, veuillez entrer un chiffre entre 0 et 8")

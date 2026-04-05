@@ -29,9 +29,10 @@ func (node *mctsNode) backpropagate(result decision.ActorID) {
 		n.logVisits = fastLog(n.visits)
 		n.sqrtVisits = fastSqrt(n.visits)
 
-		if result == n.previousActor {
+		switch result {
+		case n.previousActor:
 			n.wins += 1
-		} else if result == decision.Stalemate {
+		case decision.Stalemate:
 			n.wins += 0.5
 		}
 	}

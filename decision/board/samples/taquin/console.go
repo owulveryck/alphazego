@@ -18,7 +18,7 @@ func (t *Taquin) String() string {
 	size := t.rows * t.cols
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf("Steps: %d/%d\n", t.steps, t.maxSteps))
+	fmt.Fprintf(&b, "Steps: %d/%d\n", t.steps, t.maxSteps)
 
 	// Ligne du haut
 	b.WriteString(" " + topBorder(t.cols, size))
@@ -28,9 +28,9 @@ func (t *Taquin) String() string {
 		for c := 0; c < t.cols; c++ {
 			val := t.board[r*t.cols+c]
 			if val == 0 {
-				b.WriteString(fmt.Sprintf(" %*s ", cellWidth(size), ""))
+				fmt.Fprintf(&b, " %*s ", cellWidth(size), "")
 			} else {
-				b.WriteString(fmt.Sprintf(" %s%s%*d%s ", reset, bold+yellow, cellWidth(size), val, reset))
+				fmt.Fprintf(&b, " %s%s%*d%s ", reset, bold+yellow, cellWidth(size), val, reset)
 			}
 			b.WriteString("│")
 		}

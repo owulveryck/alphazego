@@ -26,11 +26,11 @@ func BenchmarkEvaluate(b *testing.B) {
 // BenchmarkEvaluate_MidGame mesure Evaluate en milieu de partie (5 coups joués).
 func BenchmarkEvaluate_MidGame(b *testing.B) {
 	t := NewTicTacToe()
-	t.Play(0) // X
-	t.Play(3) // O
-	t.Play(1) // X
-	t.Play(4) // O
-	t.Play(6) // X
+	_ = t.Play(0) // X
+	_ = t.Play(3) // O
+	_ = t.Play(1) // X
+	_ = t.Play(4) // O
+	_ = t.Play(6) // X
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
@@ -52,11 +52,11 @@ func BenchmarkPossibleMoves(b *testing.B) {
 // BenchmarkPossibleMoves_MidGame mesure PossibleMoves avec moins de cases libres.
 func BenchmarkPossibleMoves_MidGame(b *testing.B) {
 	t := NewTicTacToe()
-	t.Play(0)
-	t.Play(3)
-	t.Play(1)
-	t.Play(4)
-	t.Play(6)
+	_ = t.Play(0)
+	_ = t.Play(3)
+	_ = t.Play(1)
+	_ = t.Play(4)
+	_ = t.Play(6)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
@@ -78,11 +78,11 @@ func BenchmarkRandomMove(b *testing.B) {
 // BenchmarkRandomMove_MidGame mesure RandomMove en milieu de partie (4 cases vides).
 func BenchmarkRandomMove_MidGame(b *testing.B) {
 	t := NewTicTacToe()
-	t.Play(0)
-	t.Play(3)
-	t.Play(1)
-	t.Play(4)
-	t.Play(6)
+	_ = t.Play(0)
+	_ = t.Play(3)
+	_ = t.Play(1)
+	_ = t.Play(4)
+	_ = t.Play(6)
 	rng := func(n int) int { return n / 2 }
 	b.ReportAllocs()
 	b.ResetTimer()

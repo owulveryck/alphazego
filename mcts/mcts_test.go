@@ -232,7 +232,7 @@ func TestSimulate_AlreadyTerminal(t *testing.T) {
 func TestBackpropagate_UpdatesVisits(t *testing.T) {
 	root := testNode(tictactoe.NewTicTacToe(), nil)
 	ttt := tictactoe.NewTicTacToe()
-	ttt.Play(0)
+	_ = ttt.Play(0)
 	child := testNode(ttt, root)
 
 	child.backpropagate(tictactoe.Cross)
@@ -250,7 +250,7 @@ func TestBackpropagate_CreditsCorrectActor(t *testing.T) {
 	root := testNode(tictactoe.NewTicTacToe(), nil)
 	// Child: Actor2's turn (Actor1 just moved)
 	ttt := tictactoe.NewTicTacToe()
-	ttt.Play(0)
+	_ = ttt.Play(0)
 	child := testNode(ttt, root)
 
 	child.backpropagate(tictactoe.Cross)
@@ -268,7 +268,7 @@ func TestBackpropagate_CreditsCorrectActor(t *testing.T) {
 func TestBackpropagate_Actor2Wins(t *testing.T) {
 	root := testNode(tictactoe.NewTicTacToe(), nil)
 	ttt := tictactoe.NewTicTacToe()
-	ttt.Play(0)
+	_ = ttt.Play(0)
 	child := testNode(ttt, root)
 
 	child.backpropagate(tictactoe.Circle)
@@ -286,7 +286,7 @@ func TestBackpropagate_Actor2Wins(t *testing.T) {
 func TestBackpropagate_Draw(t *testing.T) {
 	root := testNode(tictactoe.NewTicTacToe(), nil)
 	ttt := tictactoe.NewTicTacToe()
-	ttt.Play(0)
+	_ = ttt.Play(0)
 	child := testNode(ttt, root)
 
 	child.backpropagate(decision.Stalemate)
@@ -303,12 +303,12 @@ func TestBackpropagate_DeepChain(t *testing.T) {
 	root := testNode(tictactoe.NewTicTacToe(), nil)
 
 	ttt1 := tictactoe.NewTicTacToe()
-	ttt1.Play(0)
+	_ = ttt1.Play(0)
 	child := testNode(ttt1, root)
 
 	ttt2 := tictactoe.NewTicTacToe()
-	ttt2.Play(0)
-	ttt2.Play(1)
+	_ = ttt2.Play(0)
+	_ = ttt2.Play(1)
 	grandchild := testNode(ttt2, child)
 
 	grandchild.backpropagate(tictactoe.Cross)
@@ -376,10 +376,10 @@ func TestRunMCTS_BlocksWin(t *testing.T) {
 
 func TestRunMCTS_TakesWin(t *testing.T) {
 	ttt := tictactoe.NewTicTacToe()
-	ttt.Play(0) // A1
-	ttt.Play(3) // A2
-	ttt.Play(1) // A1
-	ttt.Play(7) // A2 plays somewhere else (not blocking)
+	_ = ttt.Play(0) // A1
+	_ = ttt.Play(3) // A2
+	_ = ttt.Play(1) // A1
+	_ = ttt.Play(7) // A2 plays somewhere else (not blocking)
 	// Board: [1,1,0,0,0,0,0,2,0], A1's turn, can win at 2
 
 	m := NewMCTS()
@@ -426,7 +426,7 @@ func TestRunMCTS_FullGame(t *testing.T) {
 			t.Fatal("MCTS returned same state for non-terminal game")
 		}
 		move := next.(board.ActionRecorder).LastAction()
-		ttt.Play(uint8(move))
+		_ = ttt.Play(uint8(move))
 	}
 
 	result := ttt.Evaluate()
@@ -824,7 +824,7 @@ func newDeterministicRNG(seed int64) *rand.Rand {
 func playMoves(moves ...uint8) *tictactoe.TicTacToe {
 	ttt := tictactoe.NewTicTacToe()
 	for _, m := range moves {
-		ttt.Play(m)
+		_ = ttt.Play(m)
 	}
 	return ttt
 }
