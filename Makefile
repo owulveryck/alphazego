@@ -1,8 +1,21 @@
-.PHONY: all clean tictactoe taquin ollama-benchmark vertexai-benchmark vertexai-reasoning
+.PHONY: all clean test test-cover lint benchmark tictactoe taquin ollama-benchmark vertexai-benchmark vertexai-reasoning
 
 BIN := bin
 
 all: tictactoe taquin ollama-benchmark vertexai-benchmark vertexai-reasoning
+
+test:
+	go test ./...
+
+test-cover:
+	go test -cover ./...
+
+lint:
+	go vet ./...
+	golangci-lint run ./...
+
+benchmark:
+	go test -bench=. -benchmem ./mcts/ ./decision/board/samples/tictactoe/ ./decision/board/samples/taquin/
 
 tictactoe:
 	go build -o $(BIN)/tictactoe ./decision/board/samples/tictactoe/cmd

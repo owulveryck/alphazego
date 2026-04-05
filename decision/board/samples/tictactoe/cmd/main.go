@@ -21,7 +21,8 @@ func main() {
 		fmt.Scan(&move)
 		val, err := strconv.ParseUint(move, 10, 8)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println("Entrée invalide, veuillez entrer un chiffre entre 0 et 8")
+			continue
 		}
 		if err := ttt.Play(uint8(val)); err != nil {
 			fmt.Println("Coup invalide :", err)

@@ -828,3 +828,70 @@ func playMoves(moves ...uint8) *tictactoe.TicTacToe {
 	}
 	return ttt
 }
+
+// --- P1 : backpropagateTerminal utilise cachedEval ---
+
+// evaluateCounterState wraps a real state and counts Evaluate() calls.
+type evaluateCounterState struct {
+	inner     decision.State
+	evalCount int
+}
+
+func (s *evaluateCounterState) CurrentActor() decision.ActorID  { return s.inner.CurrentActor() }
+func (s *evaluateCounterState) PreviousActor() decision.ActorID { return s.inner.PreviousActor() }
+func (s *evaluateCounterState) ID() string                      { return s.inner.ID() }
+func (s *evaluateCounterState) Evaluate() decision.ActorID {
+	s.evalCount++
+	return s.inner.Evaluate()
+}
+func (s *evaluateCounterState) PossibleMoves() []decision.State { return s.inner.PossibleMoves() }
+
+func TestBackpropagateTerminal_NoDoubleEvaluate(t *testing.T) {
+	// État terminal (X gagne : 0,3,1,4,2)
+	ttt := playMoves(0, 3, 1, 4, 2)
+	counter := &evaluateCounterState{inner: ttt}
+
+	node := testNode(counter, nil)
+	// isTerminal() doit cacher le résultat — premier appel à Evaluate()
+	if !node.isTerminal() {
+		t.Fatal("expected terminal state")
+	}
+	before := counter.evalCount
+	// backpropagateTerminal() doit utiliser cachedEval, pas ré-appeler Evaluate()
+	node.backpropagateTerminal()
+	after := counter.evalCount
+	if after != before {
+		t.Errorf("backpropagateTerminal() called Evaluate() %d extra time(s), expected 0", after-before)
+	}
+}
+
+// --- P2 : ExpandErrors() ---
+
+// wrongSizeEvaluator retourne une policy de mauvaise taille pour déclencher expandAll error.
+type wrongSizeEvaluator struct{}
+
+func (e *wrongSizeEvaluator) Evaluate(s decision.State) (policy []float64, values map[decision.ActorID]float64) {
+	// Retourner une policy de taille 1 quel que soit le nombre de coups
+	return []float64{1.0}, map[decision.ActorID]float64{1: 0.5, 2: -0.5}
+}
+
+func TestExpandErrors_CountsBrokenEvaluator(t *testing.T) {
+	m := NewAlphaMCTS(&wrongSizeEvaluator{}, 1.5)
+	ttt := tictactoe.NewTicTacToe()
+	m.RunMCTS(ttt, 10)
+	if m.ExpandErrors() == 0 {
+		t.Error("expected ExpandErrors() > 0 with broken evaluator")
+	}
+	if m.ExpandErrors() > 10 {
+		t.Errorf("expected ExpandErrors() <= 10, got %d", m.ExpandErrors())
+	}
+}
+
+func TestExpandErrors_ZeroWithGoodEvaluator(t *testing.T) {
+	m := NewMCTS()
+	ttt := tictactoe.NewTicTacToe()
+	m.RunMCTS(ttt, 100)
+	if m.ExpandErrors() != 0 {
+		t.Errorf("expected 0 ExpandErrors with pure MCTS, got %d", m.ExpandErrors())
+	}
+}

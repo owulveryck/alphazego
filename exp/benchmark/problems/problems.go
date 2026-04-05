@@ -5,21 +5,43 @@ import (
 	"strings"
 )
 
-// Task représente une tâche à ordonnancer.
+// Task représente une tâche individuelle dans un problème d'ordonnancement.
+// Une tâche a un nom unique, une durée en jours, et éventuellement des
+// dépendances vers d'autres tâches (identifiées par leur nom).
+//
+// Une tâche sans dépendances peut commencer immédiatement ;
+// une tâche avec dépendances ne peut commencer qu'après la fin
+// de toutes ses dépendances.
 type Task struct {
-	Name         string
-	Duration     int
+	// Name est le nom unique de la tâche dans le problème.
+	Name string
+	// Duration est la durée d'exécution en jours.
+	Duration int
+	// Dependencies est la liste des noms de tâches prérequises.
+	// Nil ou vide signifie que la tâche peut commencer immédiatement.
 	Dependencies []string
 }
 
 // Problem représente un problème d'ordonnancement avec sa solution de référence.
+// Il contient un ensemble de [Task] liées par des contraintes de précédence,
+// et le makespan optimal (durée du chemin critique) calculé manuellement.
+//
+// Le makespan optimal sert de ground truth pour évaluer la qualité des
+// réponses d'un LLM : une réponse correcte doit trouver exactement cette valeur.
 type Problem struct {
-	Name    string
-	Tasks   []Task
-	Optimal int // makespan optimal (chemin critique)
+	// Name est le nom descriptif du problème (ex: "Construction maison").
+	Name string
+	// Tasks est l'ensemble des tâches à ordonnancer, dans l'ordre de déclaration.
+	Tasks []Task
+	// Optimal est le makespan optimal en jours, correspondant à la longueur
+	// du chemin critique dans le graphe de dépendances.
+	Optimal int
 }
 
-// FormatPrompt retourne la description du problème en langage naturel.
+// FormatPrompt retourne la description du problème en langage naturel,
+// prête à être envoyée à un LLM. Le prompt liste les tâches avec leurs
+// durées et dépendances, puis les règles d'ordonnancement (respect des
+// dépendances, parallélisme possible, objectif de minimisation du makespan).
 func (p Problem) FormatPrompt() string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Problème d'ordonnancement : %s\n\n", p.Name))
@@ -38,7 +60,13 @@ func (p Problem) FormatPrompt() string {
 	return b.String()
 }
 
-// All retourne les 10 problèmes du benchmark, de difficulté croissante.
+// All retourne les 10 problèmes du benchmark, ordonnés par difficulté
+// croissante : facile (1-3), moyen (4-6), difficile (7-9) et très difficile (10).
+// Le nombre de tâches va de 4 à 12, et le makespan optimal de 6 à 25 jours.
+//
+// Les problèmes faciles ont des topologies simples (chaîne, fourche, diamant).
+// Les problèmes moyens et difficiles combinent branches parallèles et
+// dépendances croisées, rendant le chemin critique moins évident.
 func All() []Problem {
 	return []Problem{
 		// 1. Linéaire (4 tâches) — Facile

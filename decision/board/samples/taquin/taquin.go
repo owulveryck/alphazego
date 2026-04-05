@@ -187,12 +187,13 @@ func (t *Taquin) isSolved() bool {
 // atteint à des profondeurs différentes.
 func (t *Taquin) ID() string {
 	size := t.rows * t.cols
-	// board + 2 bytes pour steps (little-endian, supporte jusqu'à 65535)
-	id := make([]byte, size+2)
-	copy(id, t.board[:size])
+	// board + 2 bytes pour steps (little-endian, supporte jusqu'à 65535).
+	// Tableau fixe pour éviter l'allocation make() à chaque appel.
+	var id [MaxBoardSize + 2]byte
+	copy(id[:], t.board[:size])
 	id[size] = byte(t.steps)
 	id[size+1] = byte(t.steps >> 8)
-	return string(id)
+	return string(id[:size+2])
 }
 
 // PossibleMoves retourne tous les états atteignables en un mouvement.

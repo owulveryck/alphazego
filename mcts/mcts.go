@@ -35,6 +35,9 @@ type MCTS struct {
 	// individuelles (~140 B/nœud) en blocs contigus de nodeBatchSize.
 	nodeBatch []mctsNode
 	nodeIdx   int
+	// expandErrors compte les itérations perdues à cause d'une erreur
+	// dans expandAll (policy incompatible avec les coups possibles).
+	expandErrors int
 }
 
 // NewAlphaMCTS initialise un MCTS guidé par un réseau de neurones (style AlphaZero).
@@ -99,6 +102,7 @@ func (m *MCTS) RunMCTS(s decision.State, iterations int) decision.State {
 					// L'évaluateur a retourné une policy incompatible (taille,
 					// nil). L'itération est perdue ; on continue plutôt que
 					// de planter, car l'erreur vient du code appelant.
+					m.expandErrors++
 					continue
 				}
 				node.backpropagateValue(values)
@@ -127,4 +131,13 @@ func (m *MCTS) RunMCTS(s decision.State, iterations int) decision.State {
 	}
 
 	return bestChild.state
+}
+
+// ExpandErrors retourne le nombre d'itérations perdues à cause d'une erreur
+// d'expansion (policy incompatible avec les coups possibles). Ce compteur est
+// incrémenté quand [Evaluator.Evaluate] retourne une policy dont la taille ne
+// correspond pas au nombre de coups légaux.
+// Utile pour diagnostiquer les problèmes d'implémentation de l'Evaluator.
+func (m *MCTS) ExpandErrors() int {
+	return m.expandErrors
 }

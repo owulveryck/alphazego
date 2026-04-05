@@ -62,12 +62,20 @@ func (node *mctsNode) backpropagateValue(values map[decision.ActorID]float64) {
 // jusqu'à la racine. Chaque nœud reçoit 1.0 si PreviousActor a gagné, -1.0
 // s'il a perdu, ou 0.0 en cas de match nul (convention [-1, 1]).
 //
+// Si le résultat a déjà été caché par [mctsNode.isTerminal], il est lu
+// depuis cachedEval pour éviter un appel redondant à Evaluate().
+//
 // Cette convention [-1, 1] est celle du chemin AlphaZero, cohérente avec les
 // valeurs retournées par [Evaluator.Evaluate]. Elle diffère de [backpropagate]
 // qui utilise [0, 0.5, 1] pour le MCTS pur avec UCB1.
 // Voir aussi [backpropagateValue] qui propage des valeurs continues depuis l'Evaluator.
 func (node *mctsNode) backpropagateTerminal() {
-	result := node.state.Evaluate()
+	var result decision.ActorID
+	if node.cachedEvalComputed {
+		result = node.cachedEval
+	} else {
+		result = node.state.Evaluate()
+	}
 	for n := node; n != nil; n = n.parent {
 		n.visits++
 		n.logVisits = math.Log(n.visits)

@@ -15,7 +15,14 @@ func TestTaquin_String(t *testing.T) {
 	if len(s) == 0 {
 		t.Fatal("String() should not return empty")
 	}
-	t.Log("\n" + s)
+	// Vérifier la présence des caractères de grille.
+	if !strings.Contains(s, "┌") || !strings.Contains(s, "┘") {
+		t.Error("String() should contain grid border characters")
+	}
+	// Vérifier que le compteur de steps est affiché.
+	if !strings.Contains(s, "Steps:") {
+		t.Error("String() should contain 'Steps:' header")
+	}
 }
 
 func TestTaquin_String_Solved(t *testing.T) {
@@ -24,7 +31,10 @@ func TestTaquin_String_Solved(t *testing.T) {
 	if len(s) == 0 {
 		t.Fatal("String() should not return empty")
 	}
-	t.Log("\n" + s)
+	// Un taquin résolu affiche "Steps: 0".
+	if !strings.Contains(s, "Steps: 0") {
+		t.Error("solved taquin should display 'Steps: 0'")
+	}
 }
 
 func TestTaquin_String_LargeGrid(t *testing.T) {
