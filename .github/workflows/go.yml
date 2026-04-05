@@ -26,7 +26,9 @@ jobs:
 
     - name: Coverage threshold
       run: |
-        COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+        # Exclure les packages cmd/ (exécutables sans tests) du calcul de couverture.
+        grep -v '/cmd/' coverage.out > coverage_lib.out || cp coverage.out coverage_lib.out
+        COVERAGE=$(go tool cover -func=coverage_lib.out | grep total | awk '{print $3}' | sed 's/%//')
         echo "Total coverage: ${COVERAGE}%"
         if [ "$(echo "$COVERAGE < 90" | bc -l)" -eq 1 ]; then
           echo "::error::Coverage ${COVERAGE}% is below 90% threshold"
