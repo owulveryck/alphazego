@@ -641,6 +641,54 @@ func TestBackpropagateTerminal_ThreeActors(t *testing.T) {
 	}
 }
 
+// --- Simulate Statistical Tests ---
+
+func TestSimulate_StatisticalConvergence(t *testing.T) {
+	// Vérifie que les rollouts à partir de la position initiale produisent
+	// une distribution raisonnable (chaque résultat > 10%).
+	ttt := tictactoe.NewTicTacToe()
+	node := &mctsNode{state: ttt}
+
+	counts := map[decision.ActorID]int{
+		tictactoe.Cross:    0,
+		tictactoe.Circle:   0,
+		decision.Stalemate: 0,
+	}
+	n := 1000
+	for i := 0; i < n; i++ {
+		result := node.simulate()
+		counts[result]++
+	}
+
+	for actor, count := range counts {
+		ratio := float64(count) / float64(n)
+		if ratio < 0.10 {
+			t.Errorf("actor %d has only %.1f%% of outcomes (expected >10%%)", actor, ratio*100)
+		}
+	}
+}
+
+// --- RunMCTS with broken evaluator ---
+
+// brokenEvaluator retourne nil policy pour tester la robustesse de RunMCTS.
+type brokenEvaluator struct{}
+
+func (b *brokenEvaluator) Evaluate(state decision.State) ([]float64, map[decision.ActorID]float64) {
+	return nil, nil
+}
+
+func TestRunMCTS_WithBrokenEvaluator(t *testing.T) {
+	// Un évaluateur retournant nil ne doit pas provoquer de panic.
+	m := NewAlphaMCTS(&brokenEvaluator{}, 1.0)
+	ttt := tictactoe.NewTicTacToe()
+
+	// Ne doit pas paniquer
+	result := m.RunMCTS(ttt, 100)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+}
+
 // --- RandomMover Tests ---
 
 // randomMoverMock est un State qui implémente RandomMover et compte les appels.

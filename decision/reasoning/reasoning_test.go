@@ -2,6 +2,7 @@ package reasoning
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"testing"
 
@@ -21,6 +22,13 @@ func (m *mockGenerator) Generate(_ context.Context, _ string, _ int) ([]string, 
 	r := m.responses[m.callIdx]
 	m.callIdx++
 	return r, nil
+}
+
+// errorGenerator retourne toujours une erreur.
+type errorGenerator struct{}
+
+func (e *errorGenerator) Generate(_ context.Context, _ string, _ int) ([]string, error) {
+	return nil, fmt.Errorf("connection refused")
 }
 
 // mockJudge retourne des scores pré-programmés.
@@ -273,5 +281,52 @@ func TestEvaluator_EmptyMoves(t *testing.T) {
 	}
 	if len(values) != 0 {
 		t.Errorf("values should be empty for terminal state")
+	}
+}
+
+func TestPossibleMoves_GeneratorError(t *testing.T) {
+	gen := &errorGenerator{}
+	s := New(context.Background(), "question", "critère", gen)
+
+	moves := s.PossibleMoves()
+	if moves != nil {
+		t.Errorf("PossibleMoves() = %v, want nil on Generator error", moves)
+	}
+	if s.LastError() == nil {
+		t.Fatal("LastError() should be non-nil after Generator error")
+	}
+	if s.LastError().Error() == "" {
+		t.Error("LastError() should contain a message")
+	}
+}
+
+func TestPossibleMoves_EmptyCandidates(t *testing.T) {
+	gen := &mockGenerator{
+		responses: [][]string{
+			{}, // retourne une liste vide
+		},
+	}
+	s := New(context.Background(), "question", "critère", gen)
+
+	moves := s.PossibleMoves()
+	if moves != nil {
+		t.Errorf("PossibleMoves() = %v, want nil for empty candidates", moves)
+	}
+	if s.LastError() == nil {
+		t.Fatal("LastError() should be non-nil when Generator returns empty candidates")
+	}
+}
+
+func TestLastError_NilByDefault(t *testing.T) {
+	s := New(context.Background(), "q", "c", &mockGenerator{
+		responses: [][]string{{"a"}},
+	})
+	if s.LastError() != nil {
+		t.Errorf("LastError() = %v, want nil", s.LastError())
+	}
+	// Après un appel réussi, LastError reste nil
+	s.PossibleMoves()
+	if s.LastError() != nil {
+		t.Errorf("LastError() = %v after successful PossibleMoves, want nil", s.LastError())
 	}
 }

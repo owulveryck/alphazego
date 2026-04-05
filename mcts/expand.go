@@ -1,6 +1,9 @@
 package mcts
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // expand adds one new child node for an untried move from the current game state.
 // It returns the newly created child node, or nil if no untried moves remain.
@@ -47,10 +50,16 @@ func (node *mctsNode) expand() *mctsNode {
 // retourne une distribution de probabilités sur tous les coups légaux
 // en un seul appel. Les priors doivent être dans le même ordre que
 // [decision.State.PossibleMoves].
-func (node *mctsNode) expandAll(policy []float64) {
+//
+// Retourne une erreur si la taille de policy ne correspond pas au nombre
+// de coups possibles, ou si policy est nil.
+func (node *mctsNode) expandAll(policy []float64) error {
 	possibleMoves := node.getPossibleMoves()
+	if policy == nil {
+		return errors.New("mcts: policy is nil")
+	}
 	if len(policy) != len(possibleMoves) {
-		panic(fmt.Sprintf("mcts: policy length %d does not match possible moves count %d", len(policy), len(possibleMoves)))
+		return fmt.Errorf("mcts: policy length %d does not match possible moves count %d", len(policy), len(possibleMoves))
 	}
 	node.children = make([]*mctsNode, 0, len(possibleMoves))
 	for i, move := range possibleMoves {
@@ -65,4 +74,5 @@ func (node *mctsNode) expandAll(policy []float64) {
 		node.children = append(node.children, child)
 	}
 	node.expandedIndex = len(possibleMoves)
+	return nil
 }

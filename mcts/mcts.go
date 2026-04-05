@@ -95,7 +95,9 @@ func (m *MCTS) RunMCTS(s decision.State, iterations int) decision.State {
 		if !node.isTerminal() && !node.isFullyExpanded() {
 			if m.evaluator != nil {
 				policy, values := m.evaluator.Evaluate(node.state)
-				node.expandAll(policy)
+				if err := node.expandAll(policy); err != nil {
+					continue
+				}
 				node.backpropagateValue(values)
 			} else {
 				expandedNode := node.expand()

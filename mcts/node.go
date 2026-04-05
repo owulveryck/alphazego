@@ -92,6 +92,9 @@ func (n *mctsNode) isFullyExpanded() bool {
 // la formule PUCT est utilisée. Les deux formules sont appelées directement
 // (pas via pointeur de fonction) pour permettre leur inlining par le compilateur.
 func (n *mctsNode) selectChildUCB() *mctsNode {
+	if len(n.children) == 0 {
+		return nil
+	}
 	bestScore := math.Inf(-1)
 	var bestChild *mctsNode
 	useAlphaZero := n.mcts != nil && n.mcts.evaluator != nil

@@ -142,7 +142,9 @@ func TestExpandAll_CreatesAllChildren(t *testing.T) {
 	for i := range policy {
 		policy[i] = 1.0 / 9.0
 	}
-	node.expandAll(policy)
+	if err := node.expandAll(policy); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if len(node.children) != 9 {
 		t.Errorf("expected 9 children, got %d", len(node.children))
@@ -155,7 +157,9 @@ func TestExpandAll_AssignsPriors(t *testing.T) {
 	node := m.newNode(ttt, nil)
 
 	policy := []float64{0.5, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05}
-	node.expandAll(policy)
+	if err := node.expandAll(policy); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	for i, child := range node.children {
 		if math.Abs(child.prior-policy[i]) > 1e-9 {
@@ -179,7 +183,9 @@ func TestExpandAll_IsFullyExpanded(t *testing.T) {
 	for i := range policy {
 		policy[i] = 1.0 / 9.0
 	}
-	node.expandAll(policy)
+	if err := node.expandAll(policy); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if !node.isFullyExpanded() {
 		t.Error("expected fully expanded after ExpandAll")
@@ -367,19 +373,27 @@ func (r *rolloutEvaluator) Evaluate(state decision.State) ([]float64, map[decisi
 	return policy, values
 }
 
-// TestExpandAll_PolicyLengthMismatch vérifie que expandAll panique
+// TestExpandAll_PolicyLengthMismatch vérifie que expandAll retourne une erreur
 // lorsque la taille de la policy ne correspond pas aux coups possibles.
 func TestExpandAll_PolicyLengthMismatch(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("expected panic for policy length mismatch")
-		}
-	}()
-
 	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
 	node := m.newNode(ttt, nil)
 	// Le morpion a 9 coups possibles au départ, on en fournit seulement 3
-	node.expandAll([]float64{0.3, 0.3, 0.4})
+	err := node.expandAll([]float64{0.3, 0.3, 0.4})
+	if err == nil {
+		t.Fatal("expected error for policy length mismatch")
+	}
+}
+
+// TestExpandAll_NilPolicy vérifie que expandAll retourne une erreur
+// lorsque la policy est nil.
+func TestExpandAll_NilPolicy(t *testing.T) {
+	m := NewMCTS()
+	ttt := tictactoe.NewTicTacToe()
+	node := m.newNode(ttt, nil)
+	err := node.expandAll(nil)
+	if err == nil {
+		t.Fatal("expected error for nil policy")
+	}
 }

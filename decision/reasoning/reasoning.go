@@ -3,6 +3,7 @@ package reasoning
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -64,6 +65,9 @@ func WithBranchFactor(n int) Option {
 // L'état contient la question initiale, un critère de succès, et les étapes
 // de raisonnement accumulées. [State.PossibleMoves] génère des étapes candidates
 // via le [Generator] et les cache pour garantir le déterminisme.
+//
+// En cas d'erreur du [Generator], [State.PossibleMoves] retourne nil (traité
+// comme un état terminal par le MCTS). L'erreur est accessible via [State.LastError].
 type State struct {
 	question     string
 	criterion    string
@@ -73,6 +77,7 @@ type State struct {
 	maxDepth     int
 	branchFactor int
 	cachedMoves  []decision.State
+	lastErr      error
 }
 
 // New crée un état de raisonnement initial avec la question et le critère de
@@ -136,11 +141,13 @@ func (s *State) PossibleMoves() []decision.State {
 	prompt := formatGeneratePrompt(s.question, s.criterion, s.steps)
 	candidates, err := s.generator.Generate(s.ctx, prompt, s.branchFactor)
 	if err != nil {
-		log.Printf("reasoning: erreur du Generator: %v", err)
+		s.lastErr = fmt.Errorf("reasoning: erreur du Generator: %w", err)
+		log.Printf("%v", s.lastErr)
 		return nil
 	}
 	if len(candidates) == 0 {
-		log.Printf("reasoning: le Generator n'a retourné aucun candidat")
+		s.lastErr = fmt.Errorf("reasoning: le Generator n'a retourné aucun candidat (question=%q, étapes=%d)", s.question, len(s.steps))
+		log.Printf("%v", s.lastErr)
 		return nil
 	}
 
@@ -190,4 +197,19 @@ func (s *State) Question() string {
 // Criterion retourne le critère de succès.
 func (s *State) Criterion() string {
 	return s.criterion
+}
+
+// LastError retourne la dernière erreur survenue lors de l'appel à
+// [State.PossibleMoves]. Retourne nil si aucune erreur ne s'est produite.
+// Cette méthode permet de diagnostiquer pourquoi PossibleMoves a retourné nil
+// (erreur du [Generator] vs état terminal légitime).
+func (s *State) LastError() error {
+	return s.lastErr
+}
+
+// Errors retourne une erreur joignant toutes les erreurs de cet état et de
+// ses ancêtres (via [errors.Join]). Utile pour diagnostiquer un raisonnement
+// qui s'est terminé prématurément.
+func (s *State) Errors() error {
+	return errors.Join(s.lastErr)
 }

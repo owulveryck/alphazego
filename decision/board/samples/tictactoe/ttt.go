@@ -196,7 +196,7 @@ var winningPositions = [8][3]uint8{
 func (t *TicTacToe) Features() []float32 {
 	features := make([]float32, 3*3*3) // [3][3][3]
 	current := uint8(t.CurrentActor())
-	opponent := uint8(3 - t.actorTurn)
+	opponent := uint8(3 - current)
 
 	for i := 0; i < BoardSize; i++ {
 		if t.board[i] == current {
