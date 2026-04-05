@@ -14,7 +14,7 @@ import (
 
 func TestPUCT_UnvisitedWithParent(t *testing.T) {
 	m := &MCTS{cpuct: 1.5}
-	parent := &mctsNode{visits: 100, mcts: m}
+	parent := &mctsNode{visits: 100, sqrtVisits: 10, mcts: m}
 	child := &mctsNode{visits: 0, prior: 0.3, parent: parent, mcts: m}
 
 	score := child.puct()
@@ -37,7 +37,7 @@ func TestPUCT_UnvisitedRoot(t *testing.T) {
 
 func TestPUCT_VisitedWithParent(t *testing.T) {
 	m := &MCTS{cpuct: 2.0}
-	parent := &mctsNode{visits: 100, mcts: m}
+	parent := &mctsNode{visits: 100, sqrtVisits: 10, mcts: m}
 	child := &mctsNode{visits: 10, wins: 6, prior: 0.4, parent: parent, mcts: m}
 
 	score := child.puct()
@@ -61,7 +61,7 @@ func TestPUCT_VisitedRoot(t *testing.T) {
 
 func TestPUCT_HigherPriorGivesHigherScore(t *testing.T) {
 	m := &MCTS{cpuct: 1.0}
-	parent := &mctsNode{visits: 100, mcts: m}
+	parent := &mctsNode{visits: 100, sqrtVisits: 10, mcts: m}
 	lowPrior := &mctsNode{visits: 0, prior: 0.1, parent: parent, mcts: m}
 	highPrior := &mctsNode{visits: 0, prior: 0.9, parent: parent, mcts: m}
 
@@ -200,6 +200,7 @@ func TestSelectChildUCB_UsesPUCTWithEvaluator(t *testing.T) {
 	ttt := tictactoe.NewTicTacToe()
 	node := m.newNode(ttt, nil)
 	node.visits = 100
+	node.sqrtVisits = 10
 
 	// Create two children with different priors
 	ttt1 := tictactoe.NewTicTacToe()
@@ -400,7 +401,7 @@ func TestExpandAll_EmptyPolicy(t *testing.T) {
 
 func TestPUCT_NegativePrior(t *testing.T) {
 	m := &MCTS{cpuct: 1.5}
-	parent := &mctsNode{visits: 100, mcts: m}
+	parent := &mctsNode{visits: 100, sqrtVisits: 10, mcts: m}
 	child := &mctsNode{visits: 0, prior: -0.5, parent: parent, mcts: m}
 
 	score := child.puct()
@@ -413,7 +414,7 @@ func TestPUCT_NegativePrior(t *testing.T) {
 
 func TestPUCT_NegativePrior_Visited(t *testing.T) {
 	m := &MCTS{cpuct: 2.0}
-	parent := &mctsNode{visits: 100, mcts: m}
+	parent := &mctsNode{visits: 100, sqrtVisits: 10, mcts: m}
 	child := &mctsNode{visits: 10, wins: 6, prior: -0.3, parent: parent, mcts: m}
 
 	score := child.puct()

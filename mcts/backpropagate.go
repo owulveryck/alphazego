@@ -1,8 +1,6 @@
 package mcts
 
 import (
-	"math"
-
 	"github.com/owulveryck/alphazego/decision"
 )
 
@@ -28,7 +26,8 @@ import (
 func (node *mctsNode) backpropagate(result decision.ActorID) {
 	for n := node; n != nil; n = n.parent {
 		n.visits++
-		n.logVisits = math.Log(n.visits)
+		n.logVisits = fastLog(n.visits)
+		n.sqrtVisits = fastSqrt(n.visits)
 
 		if result == n.previousActor {
 			n.wins += 1
@@ -53,7 +52,8 @@ func (node *mctsNode) backpropagate(result decision.ActorID) {
 func (node *mctsNode) backpropagateValue(values map[decision.ActorID]float64) {
 	for n := node; n != nil; n = n.parent {
 		n.visits++
-		n.logVisits = math.Log(n.visits)
+		n.logVisits = fastLog(n.visits)
+		n.sqrtVisits = fastSqrt(n.visits)
 		n.wins += values[n.previousActor]
 	}
 }
@@ -78,7 +78,8 @@ func (node *mctsNode) backpropagateTerminal() {
 	}
 	for n := node; n != nil; n = n.parent {
 		n.visits++
-		n.logVisits = math.Log(n.visits)
+		n.logVisits = fastLog(n.visits)
+		n.sqrtVisits = fastSqrt(n.visits)
 		if result == n.previousActor {
 			n.wins += 1.0
 		} else if result != decision.Stalemate {

@@ -97,8 +97,12 @@ func BenchmarkSelectChildUCB(b *testing.B) {
 	for i, child := range node.children {
 		child.visits = float64(10 + i)
 		child.wins = float64(5 + i)
+		child.logVisits = fastLog(child.visits)
+		child.sqrtVisits = fastSqrt(child.visits)
 	}
 	node.visits = 100
+	node.logVisits = fastLog(100)
+	node.sqrtVisits = fastSqrt(100)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {

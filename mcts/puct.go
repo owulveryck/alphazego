@@ -1,7 +1,5 @@
 package mcts
 
-import "math"
-
 // puct calcule le score Polynomial Upper Confidence Trees pour ce nœud.
 // Cette formule est utilisée dans AlphaZero pour la sélection, en remplacement
 // de ucb1. Elle intègre la probabilité a priori P(s,a) fournie par le
@@ -12,12 +10,15 @@ import "math"
 // Contrairement à UCB1, les nœuds non visités reçoivent un score fini
 // proportionnel à leur prior, permettant un élagage implicite des coups
 // jugés peu prometteurs par le réseau.
+//
+// sqrtVisits est lu depuis parent au lieu de recalculer math.Sqrt(parent.visits)
+// pour chaque enfant. La valeur est mise à jour dans backpropagate.
 func (n *mctsNode) puct() float64 {
 	if n.visits == 0 {
 		if n.parent == nil {
 			return n.prior
 		}
-		return n.mcts.cpuct * n.prior * math.Sqrt(n.parent.visits)
+		return n.mcts.cpuct * n.prior * n.parent.sqrtVisits
 	}
 
 	q := n.wins / n.visits
@@ -25,6 +26,6 @@ func (n *mctsNode) puct() float64 {
 		return q
 	}
 
-	exploration := n.mcts.cpuct * n.prior * math.Sqrt(n.parent.visits) / (1 + n.visits)
+	exploration := n.mcts.cpuct * n.prior * n.parent.sqrtVisits / (1 + n.visits)
 	return q + exploration
 }

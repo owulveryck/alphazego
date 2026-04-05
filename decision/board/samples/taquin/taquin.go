@@ -199,14 +199,18 @@ func (t *Taquin) ID() string {
 // PossibleMoves retourne tous les états atteignables en un mouvement.
 // Chaque état enfant est une copie indépendante grâce au tableau fixe
 // [MaxBoardSize]uint8.
+//
+// Les structs Taquin sont allouées en un seul batch (slice de valeurs)
+// pour réduire le nombre d'allocations de N à 2 (batch + moves).
 func (t *Taquin) PossibleMoves() []decision.State {
 	if t.Evaluate() != decision.Undecided {
 		return nil
 	}
 	dirs := t.validDirections()
+	batch := make([]Taquin, len(dirs))
 	moves := make([]decision.State, 0, len(dirs))
-	for _, dir := range dirs {
-		child := &Taquin{
+	for i, dir := range dirs {
+		batch[i] = Taquin{
 			board:    t.board, // copie par valeur (tableau fixe)
 			rows:     t.rows,
 			cols:     t.cols,
@@ -214,9 +218,9 @@ func (t *Taquin) PossibleMoves() []decision.State {
 			steps:    t.steps,
 			maxSteps: t.maxSteps,
 		}
-		child.move(dir)
-		child.lastDir = dir
-		moves = append(moves, child)
+		batch[i].move(dir)
+		batch[i].lastDir = dir
+		moves = append(moves, &batch[i])
 	}
 	return moves
 }

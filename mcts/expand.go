@@ -80,5 +80,6 @@ func (node *mctsNode) expandAll(policy []float64) error {
 		node.children = append(node.children, child)
 	}
 	node.expandedIndex = len(possibleMoves)
+	node.cachedMovesCount = len(possibleMoves)
 	return nil
 }
