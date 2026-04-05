@@ -16,9 +16,8 @@ import "fmt"
 //  3. expand() est le seul chemin qui ajoute des enfants un par un
 //     (expandAll utilise son propre mécanisme).
 //
-// Impact performance : élimine tous les appels à State.ID() dans expand(),
-// qui représentaient ~27% des allocations totales d'après le profiling pprof
-// (4.6M objets, 70 MB sur BenchmarkRunMCTS_10000).
+// Les nœuds enfants sont alloués par batch via MCTS.allocNode() pour
+// réduire la pression GC (660K allocs → ~2600 pour RunMCTS_10000).
 func (node *mctsNode) expand() *mctsNode {
 	possibleMoves := node.getPossibleMoves()
 	if node.expandedIndex >= len(possibleMoves) {
@@ -29,10 +28,13 @@ func (node *mctsNode) expand() *mctsNode {
 	if node.children == nil {
 		node.children = make([]*mctsNode, 0, len(possibleMoves))
 	}
-	child := &mctsNode{
-		state:  possibleMoves[node.expandedIndex],
-		parent: node,
-		mcts:   node.mcts,
+	childState := possibleMoves[node.expandedIndex]
+	child := node.mcts.allocNode()
+	*child = mctsNode{
+		state:         childState,
+		parent:        node,
+		mcts:          node.mcts,
+		previousActor: childState.PreviousActor(),
 	}
 	node.children = append(node.children, child)
 	node.expandedIndex++
@@ -52,12 +54,15 @@ func (node *mctsNode) expandAll(policy []float64) {
 	}
 	node.children = make([]*mctsNode, 0, len(possibleMoves))
 	for i, move := range possibleMoves {
-		child := &mctsNode{
-			state:  move,
-			parent: node,
-			prior:  policy[i],
-			mcts:   node.mcts,
+		child := node.mcts.allocNode()
+		*child = mctsNode{
+			state:         move,
+			parent:        node,
+			prior:         policy[i],
+			mcts:          node.mcts,
+			previousActor: move.PreviousActor(),
 		}
 		node.children = append(node.children, child)
 	}
+	node.expandedIndex = len(possibleMoves)
 }

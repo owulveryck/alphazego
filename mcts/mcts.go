@@ -6,19 +6,19 @@ import (
 	"github.com/owulveryck/alphazego/decision"
 )
 
+// nodeBatchSize est la taille des blocs pré-alloués de mctsNode.
+// Un batch de 256 nœuds réduit le nombre d'allocations heap de N à N/256,
+// tout en conservant une localité mémoire favorable au cache CPU.
+const nodeBatchSize = 256
+
 // NewMCTS initializes a new MCTS structure.
 // Chaque nœud est créé indépendamment (pas de table de transposition)
 // pour que la backpropagation remonte correctement via parent.
 func NewMCTS() *MCTS {
 	return &MCTS{
-		selectionFn: (*mctsNode).ucb1,
-		rng:         rand.New(rand.NewSource(rand.Int63())),
+		rng: rand.New(rand.NewSource(rand.Int63())),
 	}
 }
-
-// selectionFunc calcule le score d'un nœud enfant pour la phase de sélection.
-// UCB1 est utilisé en MCTS pur, PUCT en mode AlphaZero.
-type selectionFunc func(child *mctsNode) float64
 
 // MCTS holds the state for the Monte Carlo Tree Search.
 // En mode MCTS pur (créé par [NewMCTS]), le champ evaluator est nil et
@@ -28,10 +28,13 @@ type selectionFunc func(child *mctsNode) float64
 //
 // MCTS n'est pas thread-safe : chaque goroutine doit utiliser sa propre instance.
 type MCTS struct {
-	evaluator   Evaluator     // nil = MCTS pur, non-nil = AlphaZero
-	cpuct       float64       // constante d'exploration pour PUCT (utilisé uniquement avec evaluator)
-	selectionFn selectionFunc // stratégie de sélection (ucb1 ou puct)
-	rng         *rand.Rand    // générateur aléatoire pour les rollouts (reproductibilité)
+	evaluator Evaluator  // nil = MCTS pur, non-nil = AlphaZero
+	cpuct     float64    // constante d'exploration pour PUCT (utilisé uniquement avec evaluator)
+	rng       *rand.Rand // générateur aléatoire pour les rollouts (reproductibilité)
+	// Allocateur par batch pour les mctsNode. Réduit les allocations
+	// individuelles (~140 B/nœud) en blocs contigus de nodeBatchSize.
+	nodeBatch []mctsNode
+	nodeIdx   int
 }
 
 // NewAlphaMCTS initialise un MCTS guidé par un réseau de neurones (style AlphaZero).
@@ -40,20 +43,35 @@ type MCTS struct {
 // dans la formule PUCT (typiquement entre 1.0 et 5.0).
 func NewAlphaMCTS(eval Evaluator, cpuct float64) *MCTS {
 	return &MCTS{
-		evaluator:   eval,
-		cpuct:       cpuct,
-		selectionFn: (*mctsNode).puct,
-		rng:         rand.New(rand.NewSource(rand.Int63())),
+		evaluator: eval,
+		cpuct:     cpuct,
+		rng:       rand.New(rand.NewSource(rand.Int63())),
 	}
+}
+
+// allocNode retourne un *mctsNode pré-alloué depuis le batch courant.
+// Quand le batch est épuisé, un nouveau batch est alloué en une seule
+// allocation heap, réduisant la pression GC.
+func (m *MCTS) allocNode() *mctsNode {
+	if m.nodeIdx >= len(m.nodeBatch) {
+		m.nodeBatch = make([]mctsNode, nodeBatchSize)
+		m.nodeIdx = 0
+	}
+	node := &m.nodeBatch[m.nodeIdx]
+	m.nodeIdx++
+	return node
 }
 
 // newNode crée un nouveau nœud pour l'état donné.
 func (m *MCTS) newNode(s decision.State, parent *mctsNode) *mctsNode {
-	return &mctsNode{
-		state:  s,
-		parent: parent,
-		mcts:   m,
+	node := m.allocNode()
+	*node = mctsNode{
+		state:         s,
+		parent:        parent,
+		mcts:          m,
+		previousActor: s.PreviousActor(),
 	}
+	return node
 }
 
 // RunMCTS runs the Monte Carlo Tree Search algorithm for a specified number of iterations.

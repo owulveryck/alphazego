@@ -80,10 +80,14 @@ func TestIsFullyExpanded_NoChildren(t *testing.T) {
 }
 
 func TestIsFullyExpanded_AllExpanded(t *testing.T) {
+	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
-	node := &mctsNode{state: ttt, children: make([]*mctsNode, 9)}
+	node := m.newNode(ttt, nil)
+	// Expand all 9 children
+	for node.expand() != nil {
+	}
 	if !node.isFullyExpanded() {
-		t.Error("expected fully expanded when children count matches possible moves")
+		t.Error("expected fully expanded when all moves have been expanded")
 	}
 }
 
@@ -225,16 +229,10 @@ func TestSimulate_AlreadyTerminal(t *testing.T) {
 // --- Backpropagate Tests ---
 
 func TestBackpropagate_UpdatesVisits(t *testing.T) {
-	root := &mctsNode{
-		state:  tictactoe.NewTicTacToe(),
-		parent: nil,
-	}
+	root := testNode(tictactoe.NewTicTacToe(), nil)
 	ttt := tictactoe.NewTicTacToe()
 	ttt.Play(0)
-	child := &mctsNode{
-		state:  ttt,
-		parent: root,
-	}
+	child := testNode(ttt, root)
 
 	child.backpropagate(tictactoe.Cross)
 
@@ -248,17 +246,11 @@ func TestBackpropagate_UpdatesVisits(t *testing.T) {
 
 func TestBackpropagate_CreditsCorrectActor(t *testing.T) {
 	// Root: Actor1's turn
-	root := &mctsNode{
-		state:  tictactoe.NewTicTacToe(),
-		parent: nil,
-	}
+	root := testNode(tictactoe.NewTicTacToe(), nil)
 	// Child: Actor2's turn (Actor1 just moved)
 	ttt := tictactoe.NewTicTacToe()
 	ttt.Play(0)
-	child := &mctsNode{
-		state:  ttt,
-		parent: root,
-	}
+	child := testNode(ttt, root)
 
 	child.backpropagate(tictactoe.Cross)
 
@@ -273,16 +265,10 @@ func TestBackpropagate_CreditsCorrectActor(t *testing.T) {
 }
 
 func TestBackpropagate_Actor2Wins(t *testing.T) {
-	root := &mctsNode{
-		state:  tictactoe.NewTicTacToe(),
-		parent: nil,
-	}
+	root := testNode(tictactoe.NewTicTacToe(), nil)
 	ttt := tictactoe.NewTicTacToe()
 	ttt.Play(0)
-	child := &mctsNode{
-		state:  ttt,
-		parent: root,
-	}
+	child := testNode(ttt, root)
 
 	child.backpropagate(tictactoe.Circle)
 
@@ -297,16 +283,10 @@ func TestBackpropagate_Actor2Wins(t *testing.T) {
 }
 
 func TestBackpropagate_Draw(t *testing.T) {
-	root := &mctsNode{
-		state:  tictactoe.NewTicTacToe(),
-		parent: nil,
-	}
+	root := testNode(tictactoe.NewTicTacToe(), nil)
 	ttt := tictactoe.NewTicTacToe()
 	ttt.Play(0)
-	child := &mctsNode{
-		state:  ttt,
-		parent: root,
-	}
+	child := testNode(ttt, root)
 
 	child.backpropagate(decision.Stalemate)
 
@@ -319,16 +299,16 @@ func TestBackpropagate_Draw(t *testing.T) {
 }
 
 func TestBackpropagate_DeepChain(t *testing.T) {
-	root := &mctsNode{state: tictactoe.NewTicTacToe()}
+	root := testNode(tictactoe.NewTicTacToe(), nil)
 
 	ttt1 := tictactoe.NewTicTacToe()
 	ttt1.Play(0)
-	child := &mctsNode{state: ttt1, parent: root}
+	child := testNode(ttt1, root)
 
 	ttt2 := tictactoe.NewTicTacToe()
 	ttt2.Play(0)
 	ttt2.Play(1)
-	grandchild := &mctsNode{state: ttt2, parent: child}
+	grandchild := testNode(ttt2, child)
 
 	grandchild.backpropagate(tictactoe.Cross)
 
@@ -473,9 +453,9 @@ func (s *threeActorState) ID() string                      { return s.id }
 func TestBackpropagate_ThreeActors(t *testing.T) {
 	// Simule une chaîne de 3 nœuds : acteur 10 → acteur 11 → acteur 12
 	// avec un résultat où l'acteur 10 gagne (Result = 10).
-	root := &mctsNode{state: &threeActorState{current: 10, previous: 12, result: decision.Undecided, id: "root"}}
-	child := &mctsNode{state: &threeActorState{current: 11, previous: 10, result: decision.Undecided, id: "child"}, parent: root}
-	grandchild := &mctsNode{state: &threeActorState{current: 12, previous: 11, result: decision.ActorID(10), id: "gchild"}, parent: child}
+	root := testNode(&threeActorState{current: 10, previous: 12, result: decision.Undecided, id: "root"}, nil)
+	child := testNode(&threeActorState{current: 11, previous: 10, result: decision.Undecided, id: "child"}, root)
+	grandchild := testNode(&threeActorState{current: 12, previous: 11, result: decision.ActorID(10), id: "gchild"}, child)
 
 	// L'acteur 10 gagne
 	grandchild.backpropagate(decision.ActorID(10))
@@ -500,8 +480,8 @@ func TestBackpropagate_ThreeActors(t *testing.T) {
 }
 
 func TestBackpropagate_ThreeActors_Draw(t *testing.T) {
-	root := &mctsNode{state: &threeActorState{current: 10, previous: 12, result: decision.Undecided, id: "root"}}
-	child := &mctsNode{state: &threeActorState{current: 11, previous: 10, result: decision.Undecided, id: "child"}, parent: root}
+	root := testNode(&threeActorState{current: 10, previous: 12, result: decision.Undecided, id: "root"}, nil)
+	child := testNode(&threeActorState{current: 11, previous: 10, result: decision.Undecided, id: "child"}, root)
 
 	child.backpropagate(decision.Stalemate)
 
@@ -531,9 +511,9 @@ func (s *singleActorState) PossibleMoves() []decision.State { return nil }
 func (s *singleActorState) ID() string                      { return s.id }
 
 func TestBackpropagate_SingleActor_Win(t *testing.T) {
-	root := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "root"}}
-	child := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "child"}, parent: root}
-	grandchild := &mctsNode{state: &singleActorState{actor: 1, result: 1, id: "gchild"}, parent: child}
+	root := testNode(&singleActorState{actor: 1, result: decision.Undecided, id: "root"}, nil)
+	child := testNode(&singleActorState{actor: 1, result: decision.Undecided, id: "child"}, root)
+	grandchild := testNode(&singleActorState{actor: 1, result: 1, id: "gchild"}, child)
 
 	grandchild.backpropagate(decision.ActorID(1))
 
@@ -550,8 +530,8 @@ func TestBackpropagate_SingleActor_Win(t *testing.T) {
 }
 
 func TestBackpropagate_SingleActor_Stalemate(t *testing.T) {
-	root := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "root"}}
-	child := &mctsNode{state: &singleActorState{actor: 1, result: decision.Stalemate, id: "child"}, parent: root}
+	root := testNode(&singleActorState{actor: 1, result: decision.Undecided, id: "root"}, nil)
+	child := testNode(&singleActorState{actor: 1, result: decision.Stalemate, id: "child"}, root)
 
 	child.backpropagate(decision.Stalemate)
 
@@ -564,9 +544,9 @@ func TestBackpropagate_SingleActor_Stalemate(t *testing.T) {
 }
 
 func TestBackpropagateValue_SingleActor(t *testing.T) {
-	root := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "root"}}
-	child := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "child"}, parent: root}
-	grandchild := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "gchild"}, parent: child}
+	root := testNode(&singleActorState{actor: 1, result: decision.Undecided, id: "root"}, nil)
+	child := testNode(&singleActorState{actor: 1, result: decision.Undecided, id: "child"}, root)
+	grandchild := testNode(&singleActorState{actor: 1, result: decision.Undecided, id: "gchild"}, child)
 
 	// value=0.8 pour l'acteur unique
 	values := map[decision.ActorID]float64{1: 0.8}
@@ -585,9 +565,9 @@ func TestBackpropagateValue_SingleActor(t *testing.T) {
 }
 
 func TestBackpropagateValue_ThreeActors(t *testing.T) {
-	root := &mctsNode{state: &threeActorState{current: 10, previous: 12, result: decision.Undecided, id: "root"}}
-	child := &mctsNode{state: &threeActorState{current: 11, previous: 10, result: decision.Undecided, id: "child"}, parent: root}
-	grandchild := &mctsNode{state: &threeActorState{current: 12, previous: 11, result: decision.Undecided, id: "gchild"}, parent: child}
+	root := testNode(&threeActorState{current: 10, previous: 12, result: decision.Undecided, id: "root"}, nil)
+	child := testNode(&threeActorState{current: 11, previous: 10, result: decision.Undecided, id: "child"}, root)
+	grandchild := testNode(&threeActorState{current: 12, previous: 11, result: decision.Undecided, id: "gchild"}, child)
 
 	values := map[decision.ActorID]float64{
 		10: 0.6,
@@ -611,8 +591,8 @@ func TestBackpropagateValue_ThreeActors(t *testing.T) {
 }
 
 func TestBackpropagateTerminal_SingleActor_Win(t *testing.T) {
-	root := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "root"}}
-	child := &mctsNode{state: &singleActorState{actor: 1, result: 1, id: "solved"}, parent: root}
+	root := testNode(&singleActorState{actor: 1, result: decision.Undecided, id: "root"}, nil)
+	child := testNode(&singleActorState{actor: 1, result: 1, id: "solved"}, root)
 
 	child.backpropagateTerminal()
 
@@ -626,8 +606,8 @@ func TestBackpropagateTerminal_SingleActor_Win(t *testing.T) {
 }
 
 func TestBackpropagateTerminal_SingleActor_Stalemate(t *testing.T) {
-	root := &mctsNode{state: &singleActorState{actor: 1, result: decision.Undecided, id: "root"}}
-	child := &mctsNode{state: &singleActorState{actor: 1, result: decision.Stalemate, id: "stuck"}, parent: root}
+	root := testNode(&singleActorState{actor: 1, result: decision.Undecided, id: "root"}, nil)
+	child := testNode(&singleActorState{actor: 1, result: decision.Stalemate, id: "stuck"}, root)
 
 	child.backpropagateTerminal()
 
@@ -641,9 +621,9 @@ func TestBackpropagateTerminal_SingleActor_Stalemate(t *testing.T) {
 }
 
 func TestBackpropagateTerminal_ThreeActors(t *testing.T) {
-	root := &mctsNode{state: &threeActorState{current: 10, previous: 12, result: decision.Undecided, id: "root"}}
-	child := &mctsNode{state: &threeActorState{current: 11, previous: 10, result: decision.Undecided, id: "child"}, parent: root}
-	grandchild := &mctsNode{state: &threeActorState{current: 12, previous: 11, result: 10, id: "gchild"}, parent: child}
+	root := testNode(&threeActorState{current: 10, previous: 12, result: decision.Undecided, id: "root"}, nil)
+	child := testNode(&threeActorState{current: 11, previous: 10, result: decision.Undecided, id: "child"}, root)
+	grandchild := testNode(&threeActorState{current: 12, previous: 11, result: 10, id: "gchild"}, child)
 
 	grandchild.backpropagateTerminal()
 
@@ -702,7 +682,18 @@ func TestSimulate_UsesRandomMover(t *testing.T) {
 	}
 }
 
-// --- Helper ---
+// --- Helpers ---
+
+// testNode crée un mctsNode correctement initialisé pour les tests unitaires.
+// Il met en cache previousActor pour que backpropagate() fonctionne sans
+// passer par MCTS.newNode().
+func testNode(s decision.State, parent *mctsNode) *mctsNode {
+	return &mctsNode{
+		state:         s,
+		parent:        parent,
+		previousActor: s.PreviousActor(),
+	}
+}
 
 func playMoves(moves ...uint8) *tictactoe.TicTacToe {
 	ttt := tictactoe.NewTicTacToe()

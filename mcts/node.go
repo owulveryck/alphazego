@@ -13,32 +13,19 @@ import (
 // navigation and expansion of the search tree as the algorithm progresses.
 type mctsNode struct {
 	// state holds the current state that this node represents.
-	// The state includes all necessary information to continue play or simulation
-	// from this point, such as the board configuration, the actor whose turn it is, etc.
 	state decision.State
 
-	// parent is a pointer to the parent node in the search tree. The root node of the tree
-	// will have a nil parent. This link is used to traverse back up the tree during the
-	// backpropagation phase of the MCTS algorithm, updating statistics along the way.
+	// parent is a pointer to the parent node in the search tree.
 	parent *mctsNode
 
-	// children is a slice of pointers to the child nodes of this node. Each child represents
-	// a possible future state that can be reached from the current state. The children
-	// are the result of expanding the search tree by exploring the outcomes of possible moves
-	// from the current state.
+	// children is a slice of pointers to the child nodes of this node.
 	children []*mctsNode
 
-	// wins records the total number of wins (or other positive outcomes, depending on the
-	// game and scoring system) observed in simulations that have passed through this node.
-	// This value is used in conjunction with visits to calculate the node's value and
-	// determine the most promising paths through the search tree.
+	// wins records the total number of wins observed in simulations
+	// that have passed through this node.
 	wins float64
 
-	// visits records the total number of times this node has been visited during the
-	// simulation phase of the MCTS algorithm. This includes both passing through the node
-	// in simulations and selecting it during the selection phase. The visit count is used
-	// to balance exploration and exploitation in the selection strategy, ensuring that
-	// the search explores a wide range of moves while also concentrating on promising areas.
+	// visits records the total number of times this node has been visited.
 	visits float64
 
 	// prior est la probabilité a priori P(s,a) attribuée par le policy network.
@@ -55,9 +42,9 @@ type mctsNode struct {
 	cachedMoves         []decision.State
 	cachedMovesComputed bool
 
-	// logVisits est le logarithme naturel de visits, pré-calculé par
-	// selectChildUCB avant la boucle sur les enfants. Cela évite de
-	// recalculer math.Log(parent.visits) pour chaque enfant dans ucb1().
+	// logVisits est le logarithme naturel de visits, mis à jour dans
+	// backpropagate() pour éviter de recalculer math.Log() dans la boucle
+	// de sélection. ucb1() et puct() lisent parent.logVisits directement.
 	logVisits float64
 
 	// cachedEval stocke le résultat de state.Evaluate(), mis en cache par
@@ -68,13 +55,12 @@ type mctsNode struct {
 	// expandedIndex est le nombre d'enfants déjà créés par expand().
 	// Il sert de curseur dans le slice cachedMoves : le prochain coup
 	// non exploré est cachedMoves[expandedIndex].
-	//
-	// Cette approche remplace la détection de doublons par comparaison d'ID
-	// (boucle O(n²) avec appels à State.ID()) par un simple incrément O(1).
-	// Elle est correcte car getPossibleMoves() est cachée et retourne
-	// toujours les coups dans le même ordre déterministe (contrat de
-	// decision.State.PossibleMoves).
 	expandedIndex int
+
+	// previousActor est l'acteur qui a effectué l'action menant à cet état,
+	// mis en cache à la création du nœud pour éviter l'appel d'interface
+	// PreviousActor() dans la boucle de backpropagation.
+	previousActor decision.ActorID
 }
 
 // isTerminal returns true if this node represents a terminal state (win, loss, or draw).
@@ -98,24 +84,24 @@ func (n *mctsNode) getPossibleMoves() []decision.State {
 
 // isFullyExpanded returns true if all possible moves from this state have been expanded as children.
 func (n *mctsNode) isFullyExpanded() bool {
-	return len(n.children) >= len(n.getPossibleMoves())
+	return n.expandedIndex >= len(n.getPossibleMoves())
 }
 
 // selectChildUCB selects the immediate child with the highest score.
-// La stratégie de sélection (ucb1 ou puct) est déterminée par selectionFn,
-// configurée au moment de la construction de l'instance MCTS.
+// En MCTS pur, la formule UCB1 est utilisée. En mode AlphaZero (evaluator != nil),
+// la formule PUCT est utilisée. Les deux formules sont appelées directement
+// (pas via pointeur de fonction) pour permettre leur inlining par le compilateur.
 func (n *mctsNode) selectChildUCB() *mctsNode {
 	bestScore := math.Inf(-1)
 	var bestChild *mctsNode
-	scoreFn := (*mctsNode).ucb1 // fallback pour les nœuds sans MCTS (tests)
-	if n.mcts != nil && n.mcts.selectionFn != nil {
-		scoreFn = n.mcts.selectionFn
-	}
-	// Pré-calculer log(visits) une seule fois pour tous les enfants.
-	// ucb1() et puct() utilisent n.parent.logVisits au lieu de recalculer.
-	n.logVisits = math.Log(n.visits)
+	useAlphaZero := n.mcts != nil && n.mcts.evaluator != nil
 	for _, child := range n.children {
-		score := scoreFn(child)
+		var score float64
+		if useAlphaZero {
+			score = child.puct()
+		} else {
+			score = child.ucb1()
+		}
 		if score > bestScore {
 			bestScore = score
 			bestChild = child

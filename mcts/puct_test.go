@@ -73,14 +73,14 @@ func TestPUCT_HigherPriorGivesHigherScore(t *testing.T) {
 // --- BackpropagateValue Tests ---
 
 func TestBackpropagateValue_TwoActors(t *testing.T) {
-	root := &mctsNode{state: tictactoe.NewTicTacToe()}
+	root := testNode(tictactoe.NewTicTacToe(), nil)
 	ttt1 := tictactoe.NewTicTacToe()
 	ttt1.Play(0)
-	child := &mctsNode{state: ttt1, parent: root}
+	child := testNode(ttt1, root)
 	ttt2 := tictactoe.NewTicTacToe()
 	ttt2.Play(0)
 	ttt2.Play(1)
-	grandchild := &mctsNode{state: ttt2, parent: child}
+	grandchild := testNode(ttt2, child)
 
 	// values map: Cross=0.8 (favorable), Circle=-0.8 (défavorable)
 	values := map[decision.ActorID]float64{
@@ -104,10 +104,10 @@ func TestBackpropagateValue_TwoActors(t *testing.T) {
 }
 
 func TestBackpropagateValue_UpdatesVisits(t *testing.T) {
-	root := &mctsNode{state: tictactoe.NewTicTacToe()}
+	root := testNode(tictactoe.NewTicTacToe(), nil)
 	ttt1 := tictactoe.NewTicTacToe()
 	ttt1.Play(0)
-	child := &mctsNode{state: ttt1, parent: root}
+	child := testNode(ttt1, root)
 
 	values := map[decision.ActorID]float64{
 		tictactoe.Cross:  1.0,
@@ -279,9 +279,8 @@ func TestRunMCTS_WithEvaluator_TakesWin(t *testing.T) {
 func TestBackpropagateTerminal_Actor1Wins(t *testing.T) {
 	// Actor1 wins, it's Actor2's turn (meaning Actor1 just moved)
 	ttt := playMoves(0, 3, 1, 4, 2) // A1 wins top row
-	node := &mctsNode{state: ttt}
-	root := &mctsNode{state: tictactoe.NewTicTacToe()}
-	node.parent = root
+	root := testNode(tictactoe.NewTicTacToe(), nil)
+	node := testNode(ttt, root)
 
 	node.backpropagateTerminal()
 
@@ -300,7 +299,7 @@ func TestBackpropagateTerminal_Draw(t *testing.T) {
 	if ttt.Evaluate() != decision.Stalemate {
 		t.Skipf("sequence didn't produce a draw, got %d", ttt.Evaluate())
 	}
-	node := &mctsNode{state: ttt}
+	node := testNode(ttt, nil)
 	node.backpropagateTerminal()
 
 	// Stalemate : wins += 0.0
@@ -378,8 +377,9 @@ func TestExpandAll_PolicyLengthMismatch(t *testing.T) {
 		}
 	}()
 
+	m := NewMCTS()
 	ttt := tictactoe.NewTicTacToe()
-	node := &mctsNode{state: ttt, children: []*mctsNode{}}
+	node := m.newNode(ttt, nil)
 	// Le morpion a 9 coups possibles au départ, on en fournit seulement 3
 	node.expandAll([]float64{0.3, 0.3, 0.4})
 }
