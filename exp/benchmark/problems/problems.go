@@ -44,14 +44,14 @@ type Problem struct {
 // dépendances, parallélisme possible, objectif de minimisation du makespan).
 func (p Problem) FormatPrompt() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Problème d'ordonnancement : %s\n\n", p.Name))
+	fmt.Fprintf(&b, "Problème d'ordonnancement : %s\n\n", p.Name)
 	b.WriteString("Tâches à planifier :\n")
 	for _, t := range p.Tasks {
 		deps := "aucune"
 		if len(t.Dependencies) > 0 {
 			deps = strings.Join(t.Dependencies, ", ")
 		}
-		b.WriteString(fmt.Sprintf("  - %s (durée: %d jours, dépendances: %s)\n", t.Name, t.Duration, deps))
+		fmt.Fprintf(&b, "  - %s (durée: %d jours, dépendances: %s)\n", t.Name, t.Duration, deps)
 	}
 	b.WriteString("\nRègles :\n")
 	b.WriteString("  - Une tâche ne peut commencer que lorsque toutes ses dépendances sont terminées\n")
