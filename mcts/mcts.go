@@ -96,6 +96,9 @@ func (m *MCTS) RunMCTS(s decision.State, iterations int) decision.State {
 			if m.evaluator != nil {
 				policy, values := m.evaluator.Evaluate(node.state)
 				if err := node.expandAll(policy); err != nil {
+					// L'évaluateur a retourné une policy incompatible (taille,
+					// nil). L'itération est perdue ; on continue plutôt que
+					// de planter, car l'erreur vient du code appelant.
 					continue
 				}
 				node.backpropagateValue(values)

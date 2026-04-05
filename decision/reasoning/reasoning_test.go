@@ -317,6 +317,94 @@ func TestPossibleMoves_EmptyCandidates(t *testing.T) {
 	}
 }
 
+func TestErrors_NilByDefault(t *testing.T) {
+	s := New(context.Background(), "q", "c", &mockGenerator{
+		responses: [][]string{{"a"}},
+	})
+	if s.Errors() != nil {
+		t.Errorf("Errors() = %v, want nil", s.Errors())
+	}
+}
+
+func TestErrors_ReturnsLastError(t *testing.T) {
+	gen := &errorGenerator{}
+	s := New(context.Background(), "q", "c", gen)
+	s.PossibleMoves() // déclenche l'erreur
+	if s.Errors() == nil {
+		t.Fatal("Errors() should be non-nil after Generator error")
+	}
+	if s.Errors().Error() != s.LastError().Error() {
+		t.Errorf("Errors() = %v, want same as LastError() = %v", s.Errors(), s.LastError())
+	}
+}
+
+// --- Evaluator fallback Tests ---
+
+// nonReasoningState is a decision.State that is NOT a *reasoning.State,
+// triggering the type assertion fallback in Evaluator.Evaluate.
+type nonReasoningState struct {
+	moves []decision.State
+}
+
+func (s *nonReasoningState) CurrentActor() decision.ActorID  { return Player }
+func (s *nonReasoningState) PreviousActor() decision.ActorID { return Player }
+func (s *nonReasoningState) Evaluate() decision.ActorID      { return decision.Undecided }
+func (s *nonReasoningState) ID() string                      { return "non-reasoning" }
+func (s *nonReasoningState) PossibleMoves() []decision.State { return s.moves }
+
+func TestEvaluator_NonReasoningState_UniformFallback(t *testing.T) {
+	state := &nonReasoningState{
+		moves: []decision.State{
+			&nonReasoningState{},
+			&nonReasoningState{},
+		},
+	}
+	eval := NewEvaluator(context.Background(), &mockJudge{})
+
+	policy, values := eval.Evaluate(state)
+	if len(policy) != 2 {
+		t.Fatalf("policy length = %d, want 2", len(policy))
+	}
+	for i, p := range policy {
+		if math.Abs(p-0.5) > 1e-9 {
+			t.Errorf("policy[%d] = %f, want 0.5 (uniform)", i, p)
+		}
+	}
+	if v, ok := values[Player]; !ok || math.Abs(v) > 1e-9 {
+		t.Errorf("values[Player] = %f, want 0.0 (neutral)", values[Player])
+	}
+}
+
+// errorJudge retourne toujours une erreur.
+type errorJudge struct{}
+
+func (e *errorJudge) Score(_ context.Context, _ string) (float64, error) {
+	return 0, fmt.Errorf("judge error")
+}
+
+func TestEvaluator_JudgeError_FallbackScore(t *testing.T) {
+	gen := &mockGenerator{
+		responses: [][]string{{"step1", "step2"}},
+	}
+	s := New(context.Background(), "q", "c", gen, WithBranchFactor(2))
+	eval := NewEvaluator(context.Background(), &errorJudge{})
+
+	policy, values := eval.Evaluate(s)
+	if len(policy) != 2 {
+		t.Fatalf("policy length = %d, want 2", len(policy))
+	}
+	// Both children get fallback score 1/n, then normalized → 0.5 each
+	for i, p := range policy {
+		if math.Abs(p-0.5) > 1e-6 {
+			t.Errorf("policy[%d] = %f, want 0.5", i, p)
+		}
+	}
+	// Value: error → score=0.0, converted to [-1,1] → -1.0
+	if math.Abs(values[Player]-(-1.0)) > 1e-6 {
+		t.Errorf("values[Player] = %f, want -1.0 (error fallback)", values[Player])
+	}
+}
+
 func TestLastError_NilByDefault(t *testing.T) {
 	s := New(context.Background(), "q", "c", &mockGenerator{
 		responses: [][]string{{"a"}},

@@ -3,6 +3,7 @@ package mcts
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"testing"
 
 	"github.com/owulveryck/alphazego/decision"
@@ -730,6 +731,79 @@ func TestSimulate_UsesRandomMover(t *testing.T) {
 	}
 }
 
+// --- Déterminisme ---
+
+// TestRunMCTS_DeterministicWithSeed vérifie que deux exécutions MCTS avec la
+// même seed produisent le même résultat.
+func TestRunMCTS_DeterministicWithSeed(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		m1 := &MCTS{rng: newDeterministicRNG(42)}
+		r1 := m1.RunMCTS(tictactoe.NewTicTacToe(), 500)
+
+		m2 := &MCTS{rng: newDeterministicRNG(42)}
+		r2 := m2.RunMCTS(tictactoe.NewTicTacToe(), 500)
+
+		if r1.ID() != r2.ID() {
+			t.Fatalf("iteration %d: MCTS with same seed produced different results: %v vs %v", i, r1.ID(), r2.ID())
+		}
+	}
+}
+
+// --- Interface assertions ---
+
+var _ decision.State = (*tictactoe.TicTacToe)(nil)
+var _ decision.RandomMover = (*tictactoe.TicTacToe)(nil)
+var _ board.Boarder = (*tictactoe.TicTacToe)(nil)
+
+// --- Simulate fallback path Tests ---
+
+// fallbackState does NOT implement RandomMover, exercising the PossibleMoves path in simulate().
+type fallbackState struct {
+	moves  int // countdown to terminal
+	result decision.ActorID
+}
+
+func (s *fallbackState) CurrentActor() decision.ActorID  { return 1 }
+func (s *fallbackState) PreviousActor() decision.ActorID { return 1 }
+func (s *fallbackState) ID() string                      { return fmt.Sprintf("fb-%d", s.moves) }
+func (s *fallbackState) Evaluate() decision.ActorID {
+	if s.moves <= 0 {
+		return s.result
+	}
+	return decision.Undecided
+}
+func (s *fallbackState) PossibleMoves() []decision.State {
+	if s.moves <= 0 {
+		return nil
+	}
+	return []decision.State{&fallbackState{moves: s.moves - 1, result: s.result}}
+}
+
+func TestSimulate_FallbackPath(t *testing.T) {
+	node := &mctsNode{state: &fallbackState{moves: 3, result: decision.ActorID(1)}}
+	result := node.simulate()
+	if result != 1 {
+		t.Errorf("expected result 1, got %d", result)
+	}
+}
+
+// malformedState returns Undecided but empty PossibleMoves -- tests the crash guard.
+type malformedState struct{}
+
+func (s *malformedState) CurrentActor() decision.ActorID  { return 1 }
+func (s *malformedState) PreviousActor() decision.ActorID { return 1 }
+func (s *malformedState) ID() string                      { return "malformed" }
+func (s *malformedState) Evaluate() decision.ActorID      { return decision.Undecided }
+func (s *malformedState) PossibleMoves() []decision.State { return nil }
+
+func TestSimulate_MalformedState_NoPanic(t *testing.T) {
+	node := &mctsNode{state: &malformedState{}}
+	result := node.simulate()
+	if result != decision.Stalemate {
+		t.Errorf("expected Stalemate for malformed state, got %d", result)
+	}
+}
+
 // --- Helpers ---
 
 // testNode crée un mctsNode correctement initialisé pour les tests unitaires.
@@ -741,6 +815,10 @@ func testNode(s decision.State, parent *mctsNode) *mctsNode {
 		parent:        parent,
 		previousActor: s.PreviousActor(),
 	}
+}
+
+func newDeterministicRNG(seed int64) *rand.Rand {
+	return rand.New(rand.NewSource(seed))
 }
 
 func playMoves(moves ...uint8) *tictactoe.TicTacToe {

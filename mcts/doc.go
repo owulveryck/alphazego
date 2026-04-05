@@ -25,24 +25,24 @@
 //  3. Simulation: random rollout until a terminal state.
 //  4. Backpropagation: propagate the result back up to the root.
 //
-// # Mode AlphaZero
+// # AlphaZero Mode
 //
-// Create an [MCTS] instance with [NewAlphaMCTS] en fournissant un
-// [Evaluator] (réseau de neurones) et une constante d'exploration cpuct :
+// Create an [MCTS] instance with [NewAlphaMCTS], providing an
+// [Evaluator] (neural network) and an exploration constant cpuct:
 //
 //	m := mcts.NewAlphaMCTS(evaluator, 1.5)
 //	bestState := m.RunMCTS(currentState, 800)
 //
 // Each iteration performs:
 //
-//  1. Selection: descend the tree using PUCT (avec priors du
-//     policy network) au lieu de UCB1.
-//  2. Expansion + Évaluation : appel unique à [Evaluator.Evaluate] pour
-//     obtenir policy et value. Tous les enfants sont créés d'un coup avec
-//     leurs priors.
-//  3. Pas de simulation : la value du réseau remplace le rollout.
-//  4. Backpropagation : propage les values par acteur (une valeur par
-//     [decision.ActorID]), sans hypothèse de somme nulle.
+//  1. Selection: descend the tree using PUCT (with priors from the
+//     policy network) instead of UCB1.
+//  2. Expansion + Evaluation: single call to [Evaluator.Evaluate] to
+//     obtain policy and value. All children are created at once with
+//     their priors.
+//  3. No simulation: the network value replaces the rollout.
+//  4. Backpropagation: propagates per-actor values (one value per
+//     [decision.ActorID]), without zero-sum assumption.
 //
 // After all iterations, the child of the root with the most visits is
 // selected as the best move.

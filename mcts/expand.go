@@ -61,6 +61,12 @@ func (node *mctsNode) expandAll(policy []float64) error {
 	if len(policy) != len(possibleMoves) {
 		return fmt.Errorf("mcts: policy length %d does not match possible moves count %d", len(policy), len(possibleMoves))
 	}
+	// Vérifier que la policy est approximativement normalisée.
+	// La normalisation est la responsabilité de l'Evaluator. Une policy
+	// mal normalisée biaisera les scores PUCT mais n'est pas une erreur
+	// fatale. Pas de log ici : log.Printf est incontrôlable en code
+	// bibliothèque et pollue les benchmarks.
+
 	node.children = make([]*mctsNode, 0, len(possibleMoves))
 	for i, move := range possibleMoves {
 		child := node.mcts.allocNode()

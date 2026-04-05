@@ -207,9 +207,9 @@ func (s *State) LastError() error {
 	return s.lastErr
 }
 
-// Errors retourne une erreur joignant toutes les erreurs de cet état et de
-// ses ancêtres (via [errors.Join]). Utile pour diagnostiquer un raisonnement
-// qui s'est terminé prématurément.
+// Errors retourne la dernière erreur de cet état, ou nil si aucune erreur
+// ne s'est produite. Équivalent à [State.LastError] ; cette méthode existe
+// pour satisfaire des interfaces d'erreur composées.
 func (s *State) Errors() error {
 	return errors.Join(s.lastErr)
 }

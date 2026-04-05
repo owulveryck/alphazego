@@ -22,6 +22,9 @@ import (
 // previousActor est lu depuis le champ caché du nœud (calculé à la création)
 // pour éviter un appel d'interface à chaque étape de la remontée.
 // logVisits est mis à jour incrémentalement pour éviter un recalcul dans selectChildUCB.
+//
+// Voir [backpropagateValue] et [backpropagateTerminal] pour la convention [-1, 0, 1]
+// utilisée par le chemin AlphaZero.
 func (node *mctsNode) backpropagate(result decision.ActorID) {
 	for n := node; n != nil; n = n.parent {
 		n.visits++
@@ -41,7 +44,12 @@ func (node *mctsNode) backpropagate(result decision.ActorID) {
 //
 // La map values associe chaque [decision.ActorID] à sa valeur. À chaque nœud,
 // la valeur de previousActor (l'acteur qui a effectué l'action menant à ce
-// nœud) est ajoutée aux wins.
+// nœud) est ajoutée aux wins. Si previousActor est absent de la map, Go
+// retourne 0.0 (zero value) : l'acteur est traité comme neutre. C'est correct
+// pour les problèmes mono-acteur (ex. raisonnement) ; pour les jeux multi-acteurs,
+// le contrat de [Evaluator.Evaluate] exige que toutes les ActorIDs soient présentes.
+//
+// Convention [-1, 1] : voir [backpropagate] pour la convention [0, 0.5, 1] du MCTS pur.
 func (node *mctsNode) backpropagateValue(values map[decision.ActorID]float64) {
 	for n := node; n != nil; n = n.parent {
 		n.visits++
@@ -57,6 +65,7 @@ func (node *mctsNode) backpropagateValue(values map[decision.ActorID]float64) {
 // Cette convention [-1, 1] est celle du chemin AlphaZero, cohérente avec les
 // valeurs retournées par [Evaluator.Evaluate]. Elle diffère de [backpropagate]
 // qui utilise [0, 0.5, 1] pour le MCTS pur avec UCB1.
+// Voir aussi [backpropagateValue] qui propage des valeurs continues depuis l'Evaluator.
 func (node *mctsNode) backpropagateTerminal() {
 	result := node.state.Evaluate()
 	for n := node; n != nil; n = n.parent {

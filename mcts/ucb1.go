@@ -25,7 +25,7 @@ func (n *mctsNode) ucb1() float64 {
 	// number of visits to this node.
 	// Q(s, a) = 1/N(s, a) * Σ(Rᵢ) for i from 1 to N(s, a), where Rᵢ represents the reward
 	// received after the i-th visit to the node, and N(s, a) is the total number of visits.
-	avgReward := n.wins / float64(n.visits)
+	avgReward := n.wins / n.visits
 
 	// If there is no parent (root node), just return the average reward.
 	if n.parent == nil {

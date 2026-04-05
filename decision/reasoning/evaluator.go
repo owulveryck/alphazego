@@ -30,6 +30,12 @@ func NewEvaluator(ctx context.Context, judge Judge) *Evaluator {
 // enfant (étape candidate). Les scores sont normalisés pour sommer à 1.
 //
 // La value est l'estimation de progression de l'état courant vers la solution.
+// Le [Judge] retourne un score dans [0, 1] qui est converti en [-1, 1] pour
+// la backpropagation MCTS : value_mcts = value_judge * 2 - 1
+// (0 → -1, 0.5 → 0, 1 → +1).
+//
+// Si l'état n'est pas un *[State] (type assertion échoue), une policy uniforme
+// et une value neutre (0.0) sont retournées en fallback.
 func (e *Evaluator) Evaluate(state decision.State) ([]float64, map[decision.ActorID]float64) {
 	moves := state.PossibleMoves()
 	n := len(moves)
@@ -37,12 +43,24 @@ func (e *Evaluator) Evaluate(state decision.State) ([]float64, map[decision.Acto
 		return nil, map[decision.ActorID]float64{}
 	}
 
-	rs := state.(*State)
+	rs, ok := state.(*State)
+	if !ok {
+		// fallback : policy uniforme, value neutre
+		policy := make([]float64, n)
+		for i := range policy {
+			policy[i] = 1.0 / float64(n)
+		}
+		return policy, map[decision.ActorID]float64{Player: 0.0}
+	}
 
 	// Policy : scorer chaque candidat
 	policy := make([]float64, n)
 	for i, move := range moves {
-		child := move.(*State)
+		child, ok := move.(*State)
+		if !ok {
+			policy[i] = 1.0 / float64(n)
+			continue
+		}
 		prompt := formatJudgePrompt(child.question, child.criterion, child.steps)
 		score, err := e.judge.Score(e.ctx, prompt)
 		if err != nil {

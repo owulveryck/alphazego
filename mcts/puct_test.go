@@ -373,6 +373,98 @@ func (r *rolloutEvaluator) Evaluate(state decision.State) ([]float64, map[decisi
 	return policy, values
 }
 
+// --- Edge case Tests ---
+
+func TestSelectChildUCB_NoChildren_AlphaZero(t *testing.T) {
+	eval := &uniformEvaluator{}
+	m := NewAlphaMCTS(eval, 1.0)
+	node := &mctsNode{children: []*mctsNode{}, mcts: m}
+	if node.selectChildUCB() != nil {
+		t.Error("expected nil for node with no children in AlphaZero mode")
+	}
+}
+
+func TestExpandAll_EmptyPolicy(t *testing.T) {
+	m := NewMCTS()
+	// État terminal : PossibleMoves() retourne nil, donc expandAll avec policy vide.
+	ttt := playMoves(0, 3, 1, 4, 2) // terminal
+	node := m.newNode(ttt, nil)
+	err := node.expandAll([]float64{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(node.children) != 0 {
+		t.Errorf("expected 0 children, got %d", len(node.children))
+	}
+}
+
+func TestPUCT_NegativePrior(t *testing.T) {
+	m := &MCTS{cpuct: 1.5}
+	parent := &mctsNode{visits: 100, mcts: m}
+	child := &mctsNode{visits: 0, prior: -0.5, parent: parent, mcts: m}
+
+	score := child.puct()
+	// C_puct * P * sqrt(N_parent) = 1.5 * (-0.5) * 10 = -7.5
+	expected := 1.5 * (-0.5) * math.Sqrt(100)
+	if math.Abs(score-expected) > 1e-9 {
+		t.Errorf("expected PUCT ~ %f for negative prior, got %f", expected, score)
+	}
+}
+
+func TestPUCT_NegativePrior_Visited(t *testing.T) {
+	m := &MCTS{cpuct: 2.0}
+	parent := &mctsNode{visits: 100, mcts: m}
+	child := &mctsNode{visits: 10, wins: 6, prior: -0.3, parent: parent, mcts: m}
+
+	score := child.puct()
+	q := 6.0 / 10.0
+	exploration := 2.0 * (-0.3) * math.Sqrt(100) / (1 + 10)
+	expected := q + exploration
+	if math.Abs(score-expected) > 1e-9 {
+		t.Errorf("expected PUCT ~ %f, got %f", expected, score)
+	}
+}
+
+// TestExpandAll_PolicyWithNegativeValues vérifie que expandAll accepte une
+// policy contenant des valeurs négatives (l'évaluateur peut en produire).
+func TestExpandAll_PolicyWithNegativeValues(t *testing.T) {
+	m := NewMCTS()
+	ttt := tictactoe.NewTicTacToe()
+	node := m.newNode(ttt, nil)
+	policy := make([]float64, 9)
+	for i := range policy {
+		policy[i] = -0.5
+	}
+	// expandAll ne valide pas les valeurs individuelles, seulement la taille
+	err := node.expandAll(policy)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(node.children) != 9 {
+		t.Errorf("got %d children, want 9", len(node.children))
+	}
+}
+
+// TestExpandAll_PolicyNotNormalized vérifie que expandAll log un warning
+// quand la policy ne somme pas à ~1.0 mais ne retourne pas d'erreur.
+func TestExpandAll_PolicyNotNormalized(t *testing.T) {
+	m := NewMCTS()
+	ttt := tictactoe.NewTicTacToe()
+	node := m.newNode(ttt, nil)
+	// Policy qui somme à 9.0 (chaque élément = 1.0)
+	policy := make([]float64, 9)
+	for i := range policy {
+		policy[i] = 1.0
+	}
+	err := node.expandAll(policy)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(node.children) != 9 {
+		t.Errorf("got %d children, want 9", len(node.children))
+	}
+}
+
 // TestExpandAll_PolicyLengthMismatch vérifie que expandAll retourne une erreur
 // lorsque la taille de la policy ne correspond pas aux coups possibles.
 func TestExpandAll_PolicyLengthMismatch(t *testing.T) {
