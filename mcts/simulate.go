@@ -10,6 +10,9 @@ import (
 // It selects moves randomly and advances the state until it can be evaluated as a win, lose, or draw.
 // Le générateur aléatoire utilisé provient de l'instance MCTS parente (si disponible),
 // ce qui permet la reproductibilité via une graine fixée.
+//
+// Si l'état implémente [decision.RandomMover], RandomMove est utilisé à la place
+// de PossibleMoves pour réduire les allocations (N → 1 par étape de rollout).
 func (node *mctsNode) simulate() decision.ActorID {
 	rng := rand.Intn // fallback sur le générateur global
 	if node.mcts != nil && node.mcts.rng != nil {
@@ -25,7 +28,11 @@ func (node *mctsNode) simulate() decision.ActorID {
 		if result != decision.Undecided {
 			return result
 		}
-		possibleMoves := currentState.PossibleMoves()
-		currentState = possibleMoves[rng(len(possibleMoves))]
+		if rm, ok := currentState.(decision.RandomMover); ok {
+			currentState = rm.RandomMove(rng)
+		} else {
+			possibleMoves := currentState.PossibleMoves()
+			currentState = possibleMoves[rng(len(possibleMoves))]
+		}
 	}
 }

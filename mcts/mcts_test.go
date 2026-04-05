@@ -1,6 +1,7 @@
 package mcts
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -657,6 +658,47 @@ func TestBackpropagateTerminal_ThreeActors(t *testing.T) {
 	// root: PreviousActor = 12, result = 10 → 12 perd → -1.0
 	if math.Abs(root.wins-(-1.0)) > 1e-9 {
 		t.Errorf("expected root wins=-1.0, got %f", root.wins)
+	}
+}
+
+// --- RandomMover Tests ---
+
+// randomMoverMock est un State qui implémente RandomMover et compte les appels.
+type randomMoverMock struct {
+	calls         int
+	possibleCalls int
+}
+
+func (m *randomMoverMock) CurrentActor() decision.ActorID  { return 1 }
+func (m *randomMoverMock) PreviousActor() decision.ActorID { return 2 }
+func (m *randomMoverMock) Evaluate() decision.ActorID {
+	if m.calls >= 3 || m.possibleCalls >= 3 {
+		return 1 // terminal après 3 coups
+	}
+	return decision.Undecided
+}
+func (m *randomMoverMock) PossibleMoves() []decision.State {
+	m.possibleCalls++
+	return []decision.State{&randomMoverMock{calls: m.calls, possibleCalls: m.possibleCalls}}
+}
+func (m *randomMoverMock) ID() string { return fmt.Sprintf("rm-%d-%d", m.calls, m.possibleCalls) }
+func (m *randomMoverMock) RandomMove(rng func(int) int) decision.State {
+	m.calls++
+	return &randomMoverMock{calls: m.calls, possibleCalls: m.possibleCalls}
+}
+
+func TestSimulate_UsesRandomMover(t *testing.T) {
+	mock := &randomMoverMock{}
+	node := &mctsNode{state: mock}
+
+	result := node.simulate()
+	if result != 1 {
+		t.Errorf("expected result 1, got %d", result)
+	}
+	// RandomMove devrait avoir été appelé (calls > 0)
+	// et PossibleMoves ne devrait pas avoir été appelé (possibleCalls == 0)
+	if mock.possibleCalls != 0 {
+		t.Errorf("expected PossibleMoves not to be called, but was called %d times", mock.possibleCalls)
 	}
 }
 

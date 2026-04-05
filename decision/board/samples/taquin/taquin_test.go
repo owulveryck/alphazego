@@ -296,6 +296,54 @@ func TestCanMove_Corners(t *testing.T) {
 	}
 }
 
+func TestRandomMove(t *testing.T) {
+	taq := NewTaquin(3, 3, 50)
+	rng := rand.New(rand.NewSource(42))
+	taq.Shuffle(10, rng)
+
+	child := taq.RandomMove(func(n int) int { return 0 }).(*Taquin)
+
+	// L'enfant doit avoir un step de plus
+	if child.steps != taq.steps+1 {
+		t.Errorf("expected %d steps, got %d", taq.steps+1, child.steps)
+	}
+
+	// Le plateau doit être différent
+	if child.board == taq.board && child.blank == taq.blank {
+		t.Error("child board should differ from parent")
+	}
+}
+
+func TestRandomMove_Independence(t *testing.T) {
+	taq := NewTaquin(2, 3, 50)
+	rng := rand.New(rand.NewSource(42))
+	taq.Shuffle(10, rng)
+
+	child := taq.RandomMove(func(n int) int { return 0 }).(*Taquin)
+	parentBoard := taq.board
+
+	child.board[0] = 99
+	if taq.board[0] != parentBoard[0] {
+		t.Error("mutating RandomMove child affected the parent state")
+	}
+}
+
+func TestRandomMove_Distribution(t *testing.T) {
+	taq := NewTaquin(3, 3, 50)
+	// Case vide au centre (position 4) : 4 directions possibles
+	taq.blank = 4
+	// Remettre le board dans un état cohérent
+	taq.board[4], taq.board[8] = taq.board[8], taq.board[4]
+
+	dirs := taq.validDirections()
+	for idx := range dirs {
+		child := taq.RandomMove(func(n int) int { return idx }).(*Taquin)
+		if child.LastAction() != dirs[idx] {
+			t.Errorf("rng(%d): expected LastAction %d, got %d", idx, dirs[idx], child.LastAction())
+		}
+	}
+}
+
 func TestIsSolved(t *testing.T) {
 	taq := NewTaquin(2, 3, 50)
 	if !taq.isSolved() {

@@ -27,7 +27,7 @@ var dirNames = [4]string{"Up", "Down", "Left", "Right"}
 const MaxBoardSize = 25
 
 // Taquin représente l'état d'un puzzle à glissement.
-// Il implémente [decision.State] et [board.ActionRecorder].
+// Il implémente [decision.State], [decision.RandomMover] et [board.ActionRecorder].
 type Taquin struct {
 	board    [MaxBoardSize]uint8 // valeurs des tuiles (0 = case vide)
 	rows     int
@@ -218,6 +218,38 @@ func (t *Taquin) PossibleMoves() []decision.State {
 		moves = append(moves, child)
 	}
 	return moves
+}
+
+// RandomMove retourne un unique état successeur choisi aléatoirement
+// parmi les directions valides. Le paramètre rng(n) retourne un entier
+// uniforme dans [0, n). Implémente [decision.RandomMover].
+func (t *Taquin) RandomMove(rng func(int) int) decision.State {
+	count := 0
+	for d := Up; d <= Right; d++ {
+		if t.canMove(d) {
+			count++
+		}
+	}
+	target := rng(count)
+	for d := Up; d <= Right; d++ {
+		if t.canMove(d) {
+			if target == 0 {
+				child := &Taquin{
+					board:    t.board,
+					rows:     t.rows,
+					cols:     t.cols,
+					blank:    t.blank,
+					steps:    t.steps,
+					maxSteps: t.maxSteps,
+				}
+				child.move(d)
+				child.lastDir = d
+				return child
+			}
+			target--
+		}
+	}
+	return nil // unreachable
 }
 
 // Steps retourne le nombre de coups joués depuis l'état initial.

@@ -191,7 +191,6 @@ func TestLastAction(t *testing.T) {
 	}
 }
 
-
 func TestFeatures(t *testing.T) {
 	ttt := NewTicTacToe()
 	features := ttt.Features()
@@ -322,6 +321,64 @@ func TestPossibleMoves_Independence(t *testing.T) {
 }
 
 // TestPossibleMoves_SingleMove vérifie le comportement avec un seul coup légal.
+func TestRandomMove(t *testing.T) {
+	ttt := NewTicTacToe()
+	ttt.Play(0) // X at 0, now O's turn
+	ttt.Play(4) // O at 4, now X's turn
+
+	// Utiliser un rng déterministe qui retourne toujours 0
+	child := ttt.RandomMove(func(n int) int { return 0 }).(*TicTacToe)
+
+	// L'enfant doit avoir une case de plus remplie
+	parentFilled := 0
+	childFilled := 0
+	for i := 0; i < BoardSize; i++ {
+		if ttt.board[i] != 0 {
+			parentFilled++
+		}
+		if child.board[i] != 0 {
+			childFilled++
+		}
+	}
+	if childFilled != parentFilled+1 {
+		t.Errorf("expected %d filled cells in child, got %d", parentFilled+1, childFilled)
+	}
+
+	// L'acteur doit avoir changé
+	if child.CurrentActor() != Circle {
+		t.Errorf("expected Circle's turn in child, got %d", child.CurrentActor())
+	}
+}
+
+func TestRandomMove_Independence(t *testing.T) {
+	ttt := NewTicTacToe()
+	ttt.Play(0)
+
+	child := ttt.RandomMove(func(n int) int { return 0 }).(*TicTacToe)
+	parentID := ttt.ID()
+
+	// Muter l'enfant ne doit pas affecter le parent
+	child.board[8] = 42
+	if ttt.ID() != parentID {
+		t.Error("mutating RandomMove child affected the parent state")
+	}
+}
+
+func TestRandomMove_Distribution(t *testing.T) {
+	ttt := NewTicTacToe()
+	ttt.Play(0) // X at 0
+	ttt.Play(4) // O at 4
+	// 7 cases vides : 1,2,3,5,6,7,8
+
+	emptyCells := []int{1, 2, 3, 5, 6, 7, 8}
+	for idx, expected := range emptyCells {
+		child := ttt.RandomMove(func(n int) int { return idx }).(*TicTacToe)
+		if child.LastAction() != expected {
+			t.Errorf("rng(%d): expected LastAction %d, got %d", idx, expected, child.LastAction())
+		}
+	}
+}
+
 func TestPossibleMoves_SingleMove(t *testing.T) {
 	// Plateau presque complet : une seule case vide (position 8)
 	ttt := &TicTacToe{

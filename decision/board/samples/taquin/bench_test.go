@@ -53,3 +53,16 @@ func BenchmarkPossibleMoves(b *testing.B) {
 		t.PossibleMoves()
 	}
 }
+
+// BenchmarkRandomMove mesure le coût de RandomMove (1 seule allocation).
+func BenchmarkRandomMove(b *testing.B) {
+	t := NewTaquin(2, 3, 50)
+	rng := rand.New(rand.NewSource(42))
+	t.Shuffle(10, rng)
+	rngFn := func(n int) int { return n / 2 }
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		t.RandomMove(rngFn)
+	}
+}

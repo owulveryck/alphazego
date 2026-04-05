@@ -3,6 +3,7 @@ package mcts
 import (
 	"testing"
 
+	"github.com/owulveryck/alphazego/decision"
 	"github.com/owulveryck/alphazego/decision/board/samples/tictactoe"
 )
 
@@ -102,6 +103,57 @@ func BenchmarkSelectChildUCB(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		node.selectChildUCB()
+	}
+}
+
+// wrappedState enveloppe un State pour masquer l'interface RandomMover.
+type wrappedState struct {
+	decision.State
+}
+
+// BenchmarkSimulate_WithRandomMover mesure le rollout avec RandomMover (TicTacToe natif).
+func BenchmarkSimulate_WithRandomMover(b *testing.B) {
+	m := NewMCTS()
+	node := &mctsNode{
+		state: tictactoe.NewTicTacToe(),
+		mcts:  m,
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		node.simulate()
+	}
+}
+
+// BenchmarkSimulate_WithoutRandomMover mesure le rollout sans RandomMover (fallback PossibleMoves).
+func BenchmarkSimulate_WithoutRandomMover(b *testing.B) {
+	m := NewMCTS()
+	node := &mctsNode{
+		state: &wrappedState{tictactoe.NewTicTacToe()},
+		mcts:  m,
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		node.simulate()
+	}
+}
+
+// BenchmarkRunMCTS_1000_WithRandomMover mesure 1000 itérations avec RandomMover.
+func BenchmarkRunMCTS_1000_WithRandomMover(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		m := NewMCTS()
+		m.RunMCTS(tictactoe.NewTicTacToe(), 1000)
+	}
+}
+
+// BenchmarkRunMCTS_1000_WithoutRandomMover mesure 1000 itérations sans RandomMover.
+func BenchmarkRunMCTS_1000_WithoutRandomMover(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		m := NewMCTS()
+		m.RunMCTS(&wrappedState{tictactoe.NewTicTacToe()}, 1000)
 	}
 }
 

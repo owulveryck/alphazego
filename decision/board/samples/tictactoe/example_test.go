@@ -187,5 +187,23 @@ func ExampleTicTacToe_String() {
 	// Board contains grid: true
 }
 
+func ExampleTicTacToe_RandomMove() {
+	game := tictactoe.NewTicTacToe()
+	game.Play(4) // X at center
+	game.Play(0) // O at top-left
+
+	// Choisir un coup aléatoire parmi les 7 cases vides
+	rng := func(n int) int { return 0 } // toujours la première case vide
+	next := game.RandomMove(rng)
+	fmt.Println("Next actor:", next.CurrentActor())
+	fmt.Println("Game still going:", next.Evaluate() == decision.Undecided)
+	// Output:
+	// Next actor: 2
+	// Game still going: true
+}
+
 // Verify that TicTacToe implements Boarder (State + ActionRecorder).
 var _ board.Boarder = (*tictactoe.TicTacToe)(nil)
+
+// Verify that TicTacToe implements RandomMover.
+var _ decision.RandomMover = (*tictactoe.TicTacToe)(nil)

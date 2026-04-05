@@ -28,7 +28,7 @@ const (
 )
 
 // TicTacToe represents the state of a tic-tac-toe game.
-// It implements [decision.State] and [board.ActionRecorder].
+// It implements [decision.State], [decision.RandomMover], and [board.ActionRecorder].
 type TicTacToe struct {
 	board      [BoardSize]uint8
 	actorTurn  decision.ActorID
@@ -156,6 +156,30 @@ func (t *TicTacToe) PossibleMoves() []decision.State {
 		}
 	}
 	return moves
+}
+
+// RandomMove retourne un unique état successeur choisi aléatoirement
+// parmi les cases vides. Le paramètre rng(n) retourne un entier uniforme
+// dans [0, n). Implémente [decision.RandomMover].
+func (t *TicTacToe) RandomMove(rng func(int) int) decision.State {
+	count := 0
+	for i := 0; i < BoardSize; i++ {
+		if t.board[i] == 0 {
+			count++
+		}
+	}
+	target := rng(count)
+	for i := 0; i < BoardSize; i++ {
+		if t.board[i] == 0 {
+			if target == 0 {
+				game := t.board
+				game[i] = uint8(t.actorTurn)
+				return &TicTacToe{board: game, actorTurn: 3 - t.actorTurn, lastAction: i}
+			}
+			target--
+		}
+	}
+	return nil // unreachable
 }
 
 var winningPositions = [8][3]uint8{

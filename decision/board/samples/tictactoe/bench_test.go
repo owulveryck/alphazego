@@ -63,3 +63,30 @@ func BenchmarkPossibleMoves_MidGame(b *testing.B) {
 		t.PossibleMoves()
 	}
 }
+
+// BenchmarkRandomMove mesure le coût de RandomMove depuis un état initial (9 cases vides).
+func BenchmarkRandomMove(b *testing.B) {
+	t := NewTicTacToe()
+	rng := func(n int) int { return n / 2 }
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		t.RandomMove(rng)
+	}
+}
+
+// BenchmarkRandomMove_MidGame mesure RandomMove en milieu de partie (4 cases vides).
+func BenchmarkRandomMove_MidGame(b *testing.B) {
+	t := NewTicTacToe()
+	t.Play(0)
+	t.Play(3)
+	t.Play(1)
+	t.Play(4)
+	t.Play(6)
+	rng := func(n int) int { return n / 2 }
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		t.RandomMove(rng)
+	}
+}
