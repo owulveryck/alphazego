@@ -11,19 +11,19 @@ import (
 // est abouti.
 func formatGeneratePrompt(question, criterion string, steps []string) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Question : %s\n\n", question))
-	b.WriteString(fmt.Sprintf("Critère de succès : %s\n\n", criterion))
+	fmt.Fprintf(&b, "Question : %s\n\n", question)
+	fmt.Fprintf(&b, "Critère de succès : %s\n\n", criterion)
 
 	if len(steps) > 0 {
 		b.WriteString("Raisonnement en cours :\n")
 		for i, step := range steps {
-			b.WriteString(fmt.Sprintf("  Étape %d : %s\n", i+1, step))
+			fmt.Fprintf(&b, "  Étape %d : %s\n", i+1, step)
 		}
 		b.WriteString("\n")
 	}
 
 	b.WriteString("Propose la prochaine étape de raisonnement. ")
-	b.WriteString(fmt.Sprintf("Si tu as assez d'éléments pour conclure, commence ta réponse par \"%s\".", ConclusionPrefix))
+	fmt.Fprintf(&b, "Si tu as assez d'éléments pour conclure, commence ta réponse par \"%s\".", ConclusionPrefix)
 
 	return b.String()
 }
@@ -32,12 +32,12 @@ func formatGeneratePrompt(question, criterion string, steps []string) string {
 // chemin de raisonnement. Le Judge doit retourner un score entre 0 et 1.
 func formatJudgePrompt(question, criterion string, steps []string) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Question : %s\n\n", question))
-	b.WriteString(fmt.Sprintf("Critère de succès : %s\n\n", criterion))
+	fmt.Fprintf(&b, "Question : %s\n\n", question)
+	fmt.Fprintf(&b, "Critère de succès : %s\n\n", criterion)
 
 	b.WriteString("Raisonnement :\n")
 	for i, step := range steps {
-		b.WriteString(fmt.Sprintf("  Étape %d : %s\n", i+1, step))
+		fmt.Fprintf(&b, "  Étape %d : %s\n", i+1, step)
 	}
 
 	b.WriteString("\nÉvalue la qualité de ce raisonnement sur une échelle de 0 à 1. ")
@@ -51,15 +51,15 @@ func formatJudgePrompt(question, criterion string, steps []string) string {
 // entre 0 et 1.
 func formatValuePrompt(question, criterion string, steps []string) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Question : %s\n\n", question))
-	b.WriteString(fmt.Sprintf("Critère de succès : %s\n\n", criterion))
+	fmt.Fprintf(&b, "Question : %s\n\n", question)
+	fmt.Fprintf(&b, "Critère de succès : %s\n\n", criterion)
 
 	if len(steps) == 0 {
 		b.WriteString("Aucune étape de raisonnement n'a encore été effectuée.\n")
 	} else {
 		b.WriteString("Raisonnement en cours :\n")
 		for i, step := range steps {
-			b.WriteString(fmt.Sprintf("  Étape %d : %s\n", i+1, step))
+			fmt.Fprintf(&b, "  Étape %d : %s\n", i+1, step)
 		}
 	}
 
