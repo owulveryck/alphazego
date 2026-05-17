@@ -13,12 +13,19 @@ func (m *mockAnnotator) Annotate(_ context.Context, _ string) (string, error) {
 	return m.response, nil
 }
 
+const testWTG2 = `title: test
+question: "question?"
+stages: Genesis, Custom, Product, Commodity
+
+App : III.5
+DB : II.5
+
+App -> DB
+`
+
 func TestGenerateAnnotations(t *testing.T) {
-	comps := []Component{
-		{Name: "App", Phase: Product},
-		{Name: "DB", Phase: Custom},
-	}
-	s := NewState("test", "question?", comps, nil, 5)
+	proposer := &mockProposerInternal{}
+	s := NewState(testWTG2, "test", "question?", 5, proposer, context.Background())
 
 	annotator := &mockAnnotator{
 		response: `[{"kind":"note","text":"Evolved to Product","target":"App"},{"kind":"warning","text":"Still in Custom","target":"DB"}]`,
@@ -43,10 +50,8 @@ func TestGenerateAnnotations(t *testing.T) {
 }
 
 func TestGenerateAnnotationsSkipsUnknownTargets(t *testing.T) {
-	comps := []Component{
-		{Name: "App", Phase: Product},
-	}
-	s := NewState("test", "q", comps, nil, 5)
+	proposer := &mockProposerInternal{}
+	s := NewState(testWTG2, "test", "q", 5, proposer, context.Background())
 
 	annotator := &mockAnnotator{
 		response: `[{"kind":"note","text":"Valid","target":"App"},{"kind":"note","text":"Invalid","target":"NonExistent"}]`,
@@ -63,10 +68,8 @@ func TestGenerateAnnotationsSkipsUnknownTargets(t *testing.T) {
 }
 
 func TestGenerateAnnotationsSkipsEmptyText(t *testing.T) {
-	comps := []Component{
-		{Name: "App", Phase: Product},
-	}
-	s := NewState("test", "q", comps, nil, 5)
+	proposer := &mockProposerInternal{}
+	s := NewState(testWTG2, "test", "q", 5, proposer, context.Background())
 
 	annotator := &mockAnnotator{
 		response: `[{"kind":"note","text":"","target":"App"},{"kind":"note","text":"Valid","target":"App"}]`,
@@ -86,9 +89,9 @@ func TestParseAnnotationsWithSurroundingText(t *testing.T) {
 	text := `Voici les annotations :
 [{"kind":"note","text":"Annotation","target":"App"}]
 Fin.`
-	comps := []Component{{Name: "App", Phase: Product}}
+	names := map[string]bool{"App": true}
 
-	annotations, err := parseAnnotations(text, comps)
+	annotations, err := parseAnnotations(text, names)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,35 +100,8 @@ Fin.`
 	}
 }
 
-func TestSerializeWithAnnotations(t *testing.T) {
-	comps := []Component{
-		{Name: "App", Phase: Product},
-	}
-	s := NewState("test", "q", comps, nil, 5)
-	s.SetAnnotations([]Annotation{
-		{Kind: "note", Text: "Important note", Target: "App"},
-		{Kind: "warning", Text: "Risk here", Target: "App"},
-	})
+type mockProposerInternal struct{}
 
-	output := SerializeWTG2(s)
-
-	if !contains(output, `note "Important note" on App`) {
-		t.Errorf("output missing note annotation:\n%s", output)
-	}
-	if !contains(output, `warning "Risk here" on App`) {
-		t.Errorf("output missing warning annotation:\n%s", output)
-	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstr(s, substr))
-}
-
-func containsSubstr(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
+func (p *mockProposerInternal) Propose(_ context.Context, _ string, _ int) ([]Candidate, error) {
+	return nil, nil
 }

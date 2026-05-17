@@ -1,11 +1,11 @@
 package wardley
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
-	"slices"
-	"sort"
-	"strings"
+	"log"
+	"math"
 
 	"github.com/owulveryck/alphazego/decision"
 )
@@ -13,90 +13,17 @@ import (
 // Player est l'unique acteur de l'exploration stratégique.
 const Player decision.ActorID = 1
 
-// Phase représente la phase d'évolution d'un composant sur l'axe horizontal.
-type Phase int
-
-const (
-	// Genesis — composant nouveau, mal compris, forte incertitude.
-	Genesis Phase = iota
-	// Custom — compris mais bespoke, nécessite de l'expertise.
-	Custom
-	// Product — de plus en plus standardisé, disponible comme produit.
-	Product
-	// Commodity — hautement standardisé, pay-per-use, ubiquitaire.
-	Commodity
-)
-
-// String retourne le nom de la phase.
-func (p Phase) String() string {
-	switch p {
-	case Genesis:
-		return "Genesis"
-	case Custom:
-		return "Custom"
-	case Product:
-		return "Product"
-	case Commodity:
-		return "Commodity"
-	default:
-		return fmt.Sprintf("Phase(%d)", int(p))
-	}
+// Candidate représente une modification stratégique candidate proposée par le LLM.
+type Candidate struct {
+	Description string  // description lisible du move
+	WTG2        string  // texte WTG2 complet résultant
+	Confidence  float64 // [0,1]
 }
 
-// MoveType distingue les deux types de moves stratégiques.
-type MoveType int
-
-const (
-	// Evolve avance un composant d'une phase d'évolution.
-	Evolve MoveType = iota
-	// ApplyGameplay applique un gameplay stratégique à un composant.
-	ApplyGameplay
-)
-
-// AvailableGameplays liste les gameplays applicables par le MCTS.
-var AvailableGameplays = []string{
-	"open-source",
-	"ILC",
-	"land-grab",
-	"embrace-extend",
-	"tower-moat",
-	"strangler-fig",
-}
-
-// Component représente un composant de carte Wardley dans le modèle simplifié.
-type Component struct {
-	Name       string
-	Phase      Phase
-	Visibility int
-	Type       string
-	Inertia    int
-	Gameplays  []string
-}
-
-// Edge représente une dépendance entre deux composants.
-type Edge struct {
-	From  string
-	To    string
-	Label string
-}
-
-// Move représente une action stratégique sur la carte.
-type Move struct {
-	Type      MoveType
-	Component string
-	Gameplay  string
-}
-
-// String retourne une description lisible du move.
-func (m Move) String() string {
-	switch m.Type {
-	case Evolve:
-		return fmt.Sprintf("EVOLVE %q", m.Component)
-	case ApplyGameplay:
-		return fmt.Sprintf("GAMEPLAY %q sur %q", m.Gameplay, m.Component)
-	default:
-		return fmt.Sprintf("Move(%d)", int(m.Type))
-	}
+// Proposer génère des modifications stratégiques candidates pour une carte Wardley.
+// Les implémentations appellent un LLM et retournent des candidats structurés.
+type Proposer interface {
+	Propose(ctx context.Context, prompt string, n int) ([]Candidate, error)
 }
 
 // Annotation représente une note explicative attachée à un composant.
@@ -108,26 +35,54 @@ type Annotation struct {
 
 // State représente l'état d'une carte Wardley pour l'exploration MCTS.
 // Il implémente [decision.State] comme un puzzle mono-acteur.
+//
+// L'état stocke le texte WTG2 brut comme représentation canonique,
+// préservant les positions exactes, groupes, pipelines, notes et signaux.
+// Les candidats (enfants) sont générés par le [Proposer] lors du premier
+// appel à [State.PossibleMoves], puis cachés pour le déterminisme.
 type State struct {
-	title       string
-	question    string
-	components  []Component
-	edges       []Edge
-	history     []Move
-	annotations []Annotation
-	maxDepth    int
+	wtg2Text string
+	title    string
+	question string
+	history  []string // descriptions des moves appliqués
+	maxDepth int
+
+	proposer     Proposer
+	ctx          context.Context
+	branchFactor int
+
+	cachedMoves       []decision.State
+	cachedConfidences []float64
+	annotations       []Annotation
+	lastErr           error
 }
 
-// NewState crée un état initial à partir des composants et edges extraits
-// d'une carte Wardley. maxDepth limite la profondeur de l'arbre MCTS.
-func NewState(title, question string, components []Component, edges []Edge, maxDepth int) *State {
-	return &State{
-		title:      title,
-		question:   question,
-		components: components,
-		edges:      edges,
-		maxDepth:   maxDepth,
+// Option configure un [State] lors de sa construction.
+type Option func(*State)
+
+// WithBranchFactor définit le nombre de candidats générés par appel au [Proposer].
+// Par défaut : 5.
+func WithBranchFactor(n int) Option {
+	return func(s *State) {
+		s.branchFactor = n
 	}
+}
+
+// NewState crée un état initial à partir du texte WTG2 brut.
+func NewState(wtg2Text, title, question string, maxDepth int, proposer Proposer, ctx context.Context, opts ...Option) *State {
+	s := &State{
+		wtg2Text:     wtg2Text,
+		title:        title,
+		question:     question,
+		maxDepth:     maxDepth,
+		proposer:     proposer,
+		ctx:          ctx,
+		branchFactor: 5,
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // CurrentActor retourne [Player]. L'exploration stratégique est mono-acteur.
@@ -146,62 +101,79 @@ func (s *State) Evaluate() decision.ActorID {
 	return decision.Undecided
 }
 
-// PossibleMoves retourne tous les états atteignables par un move stratégique.
-// Deux types de moves : évoluer un composant ou appliquer un gameplay.
+// PossibleMoves retourne les états atteignables par une modification stratégique.
+// Les candidats sont générés par le [Proposer] au premier appel, puis cachés.
+// Retourne nil si l'état est terminal ou si le Proposer échoue.
 func (s *State) PossibleMoves() []decision.State {
 	if s.Evaluate() != decision.Undecided {
 		return nil
 	}
-
-	var moves []Move
-
-	for _, c := range s.components {
-		if c.Phase < Commodity && c.Inertia == 0 {
-			moves = append(moves, Move{Type: Evolve, Component: c.Name})
-		}
+	if s.cachedMoves != nil {
+		return s.cachedMoves
 	}
 
-	for _, c := range s.components {
-		for _, gp := range AvailableGameplays {
-			if !hasGameplay(c.Gameplays, gp) {
-				moves = append(moves, Move{Type: ApplyGameplay, Component: c.Name, Gameplay: gp})
-			}
-		}
+	prompt := formatProposalPrompt(s.wtg2Text, s.question, s.history, s.branchFactor)
+	candidates, err := s.proposer.Propose(s.ctx, prompt, s.branchFactor)
+	if err != nil {
+		s.lastErr = fmt.Errorf("wardley: erreur du Proposer: %w", err)
+		log.Printf("%v", s.lastErr)
+		return nil
 	}
-
-	if len(moves) == 0 {
+	if len(candidates) == 0 {
+		s.lastErr = fmt.Errorf("wardley: le Proposer n'a retourné aucun candidat")
+		log.Printf("%v", s.lastErr)
 		return nil
 	}
 
-	states := make([]decision.State, len(moves))
-	for i, m := range moves {
-		states[i] = s.applyMove(m)
+	var moves []decision.State
+	var confidences []float64
+	for _, c := range candidates {
+		if err := validateWTG2(c.WTG2); err != nil {
+			log.Printf("wardley: candidat rejeté (WTG2 invalide): %v", err)
+			continue
+		}
+		childHistory := make([]string, len(s.history), len(s.history)+1)
+		copy(childHistory, s.history)
+		childHistory = append(childHistory, c.Description)
+
+		child := &State{
+			wtg2Text:     c.WTG2,
+			title:        s.title,
+			question:     s.question,
+			history:      childHistory,
+			maxDepth:     s.maxDepth,
+			proposer:     s.proposer,
+			ctx:          s.ctx,
+			branchFactor: s.branchFactor,
+		}
+		moves = append(moves, child)
+		confidences = append(confidences, math.Max(c.Confidence, 1e-8))
 	}
-	return states
+
+	if len(moves) == 0 {
+		s.lastErr = fmt.Errorf("wardley: tous les candidats ont un WTG2 invalide")
+		log.Printf("%v", s.lastErr)
+		return nil
+	}
+
+	s.cachedMoves = moves
+	s.cachedConfidences = confidences
+	return s.cachedMoves
 }
 
-// ID retourne un identifiant unique basé sur les composants et leurs gameplays.
+// CachedConfidences retourne les scores de confiance des candidats cachés,
+// dans le même ordre que [State.PossibleMoves]. Utilisé par l'Evaluator
+// pour construire la policy MCTS.
+func (s *State) CachedConfidences() []float64 {
+	out := make([]float64, len(s.cachedConfidences))
+	copy(out, s.cachedConfidences)
+	return out
+}
+
+// ID retourne un identifiant unique basé sur le texte WTG2.
 func (s *State) ID() string {
 	h := sha256.New()
-	h.Write([]byte(s.question))
-
-	names := make([]string, len(s.components))
-	for i, c := range s.components {
-		names[i] = c.Name
-	}
-	sort.Strings(names)
-
-	for _, name := range names {
-		for _, c := range s.components {
-			if c.Name == name {
-				gps := make([]string, len(c.Gameplays))
-				copy(gps, c.Gameplays)
-				sort.Strings(gps)
-				fmt.Fprintf(h, "\n%s:%d:%s", c.Name, c.Phase, strings.Join(gps, ","))
-				break
-			}
-		}
-	}
+	h.Write([]byte(s.wtg2Text))
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
@@ -211,29 +183,22 @@ func (s *State) Title() string { return s.title }
 // Question retourne la question stratégique.
 func (s *State) Question() string { return s.question }
 
-// Components retourne une copie des composants.
-func (s *State) Components() []Component {
-	out := make([]Component, len(s.components))
-	for i, c := range s.components {
-		out[i] = c
-		out[i].Gameplays = make([]string, len(c.Gameplays))
-		copy(out[i].Gameplays, c.Gameplays)
-	}
-	return out
-}
+// WTG2Text retourne le texte WTG2 brut de la carte.
+func (s *State) WTG2Text() string { return s.wtg2Text }
 
-// Edges retourne une copie des edges.
-func (s *State) Edges() []Edge {
-	out := make([]Edge, len(s.edges))
-	copy(out, s.edges)
-	return out
-}
-
-// History retourne la séquence de moves appliqués.
-func (s *State) History() []Move {
-	out := make([]Move, len(s.history))
+// History retourne la séquence de descriptions des moves appliqués.
+func (s *State) History() []string {
+	out := make([]string, len(s.history))
 	copy(out, s.history)
 	return out
+}
+
+// LastDescription retourne la description du dernier move appliqué.
+func (s *State) LastDescription() string {
+	if len(s.history) == 0 {
+		return ""
+	}
+	return s.history[len(s.history)-1]
 }
 
 // Annotations retourne les annotations de la carte.
@@ -249,52 +214,8 @@ func (s *State) SetAnnotations(annotations []Annotation) {
 	copy(s.annotations, annotations)
 }
 
-// LastMove retourne le dernier move appliqué, ou un Move vide si aucun.
-func (s *State) LastMove() Move {
-	if len(s.history) == 0 {
-		return Move{}
-	}
-	return s.history[len(s.history)-1]
-}
-
-func (s *State) applyMove(m Move) *State {
-	comps := make([]Component, len(s.components))
-	for i, c := range s.components {
-		comps[i] = c
-		comps[i].Gameplays = make([]string, len(c.Gameplays))
-		copy(comps[i].Gameplays, c.Gameplays)
-	}
-
-	for i, c := range comps {
-		if c.Name != m.Component {
-			continue
-		}
-		switch m.Type {
-		case Evolve:
-			comps[i].Phase++
-		case ApplyGameplay:
-			comps[i].Gameplays = append(comps[i].Gameplays, m.Gameplay)
-		}
-		break
-	}
-
-	hist := make([]Move, len(s.history), len(s.history)+1)
-	copy(hist, s.history)
-	hist = append(hist, m)
-
-	edges := make([]Edge, len(s.edges))
-	copy(edges, s.edges)
-
-	return &State{
-		title:      s.title,
-		question:   s.question,
-		components: comps,
-		edges:      edges,
-		history:    hist,
-		maxDepth:   s.maxDepth,
-	}
-}
-
-func hasGameplay(gameplays []string, gp string) bool {
-	return slices.Contains(gameplays, gp)
+// LastError retourne la dernière erreur survenue lors de l'appel à
+// [State.PossibleMoves]. Retourne nil si aucune erreur ne s'est produite.
+func (s *State) LastError() error {
+	return s.lastErr
 }

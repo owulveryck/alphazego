@@ -1,6 +1,7 @@
 package wardley_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -8,41 +9,53 @@ import (
 	"github.com/owulveryck/alphazego/exp/wardley"
 )
 
-func sampleComponents() []wardley.Component {
-	return []wardley.Component{
-		{Name: "App", Phase: wardley.Product, Visibility: 80, Type: "build", Inertia: 0},
-		{Name: "DB", Phase: wardley.Custom, Visibility: 50, Type: "buy", Inertia: 0},
-		{Name: "Cloud", Phase: wardley.Commodity, Visibility: 20, Type: "outsource", Inertia: 0},
-	}
+type mockProposer struct {
+	candidates []wardley.Candidate
 }
 
-func sampleEdges() []wardley.Edge {
-	return []wardley.Edge{
-		{From: "App", To: "DB"},
-		{From: "DB", To: "Cloud"},
+func (p *mockProposer) Propose(_ context.Context, _ string, _ int) ([]wardley.Candidate, error) {
+	return p.candidates, nil
+}
+
+const sampleWTG2Text = `title: Test
+question: "Should we evolve?"
+stages: Genesis, Custom, Product, Commodity
+
+App : III.5
+DB : II.5
+
+App -> DB
+`
+
+const childWTG2Text = `title: Test
+question: "Should we evolve?"
+stages: Genesis, Custom, Product, Commodity
+
+App : III.5
+DB : III.5
+
+App -> DB
+`
+
+func sampleProposer() *mockProposer {
+	return &mockProposer{
+		candidates: []wardley.Candidate{
+			{Description: "Evolve DB to Product", WTG2: childWTG2Text, Confidence: 0.8},
+			{Description: "Add gameplay on App", WTG2: sampleWTG2Text, Confidence: 0.5},
+		},
 	}
 }
 
 func ExampleState_CurrentActor() {
-	s := wardley.NewState("test", "question?", sampleComponents(), sampleEdges(), 3)
+	s := wardley.NewState(sampleWTG2Text, "Test", "Should we evolve?", 3, sampleProposer(), context.Background())
 	fmt.Println(s.CurrentActor())
 	// Output: 1
 }
 
 func ExampleState_Evaluate() {
-	s := wardley.NewState("test", "question?", sampleComponents(), sampleEdges(), 3)
+	s := wardley.NewState(sampleWTG2Text, "Test", "Should we evolve?", 3, sampleProposer(), context.Background())
 	fmt.Println(s.Evaluate())
 	// Output: 0
-}
-
-func ExampleState_PossibleMoves() {
-	comps := []wardley.Component{
-		{Name: "A", Phase: wardley.Custom, Visibility: 50, Inertia: 0},
-	}
-	s := wardley.NewState("test", "q?", comps, nil, 5)
-	moves := s.PossibleMoves()
-	fmt.Printf("%d moves possibles\n", len(moves))
-	// Output: 7 moves possibles
 }
 
 func TestStateImplementsDecisionState(t *testing.T) {
@@ -50,7 +63,7 @@ func TestStateImplementsDecisionState(t *testing.T) {
 }
 
 func TestMonoActor(t *testing.T) {
-	s := wardley.NewState("t", "q", nil, nil, 5)
+	s := wardley.NewState("", "", "", 5, sampleProposer(), context.Background())
 	if s.CurrentActor() != wardley.Player {
 		t.Errorf("CurrentActor = %d, want %d", s.CurrentActor(), wardley.Player)
 	}
@@ -60,10 +73,7 @@ func TestMonoActor(t *testing.T) {
 }
 
 func TestEvaluateTerminalAtMaxDepth(t *testing.T) {
-	comps := []wardley.Component{
-		{Name: "A", Phase: wardley.Genesis, Inertia: 0},
-	}
-	s := wardley.NewState("t", "q", comps, nil, 1)
+	s := wardley.NewState(sampleWTG2Text, "Test", "q", 1, sampleProposer(), context.Background())
 
 	if s.Evaluate() != decision.Undecided {
 		t.Fatal("état initial devrait être Undecided")
@@ -84,104 +94,90 @@ func TestEvaluateTerminalAtMaxDepth(t *testing.T) {
 	}
 }
 
-func TestPossibleMovesEvolve(t *testing.T) {
-	comps := []wardley.Component{
-		{Name: "A", Phase: wardley.Genesis, Inertia: 0},
-		{Name: "B", Phase: wardley.Commodity, Inertia: 0},
-	}
-	s := wardley.NewState("t", "q", comps, nil, 10)
-	moves := s.PossibleMoves()
+func TestPossibleMovesFromProposer(t *testing.T) {
+	proposer := sampleProposer()
+	s := wardley.NewState(sampleWTG2Text, "Test", "q", 5, proposer, context.Background())
 
-	evolveMoves := 0
-	for _, m := range moves {
-		st := m.(*wardley.State)
-		if st.LastMove().Type == wardley.Evolve {
-			evolveMoves++
-		}
+	moves := s.PossibleMoves()
+	if len(moves) != 2 {
+		t.Fatalf("got %d moves, want 2", len(moves))
 	}
-	if evolveMoves != 1 {
-		t.Errorf("got %d evolve moves, want 1 (seul A peut évoluer, B est Commodity)", evolveMoves)
+
+	child := moves[0].(*wardley.State)
+	if child.LastDescription() != "Evolve DB to Product" {
+		t.Errorf("LastDescription = %q, want %q", child.LastDescription(), "Evolve DB to Product")
 	}
 }
 
-func TestPossibleMovesInertiaBlocks(t *testing.T) {
-	comps := []wardley.Component{
-		{Name: "A", Phase: wardley.Custom, Inertia: 2},
-	}
-	s := wardley.NewState("t", "q", comps, nil, 10)
-	moves := s.PossibleMoves()
+func TestPossibleMovesCached(t *testing.T) {
+	proposer := sampleProposer()
+	s := wardley.NewState(sampleWTG2Text, "Test", "q", 5, proposer, context.Background())
 
-	for _, m := range moves {
-		st := m.(*wardley.State)
-		if st.LastMove().Type == wardley.Evolve && st.LastMove().Component == "A" {
-			t.Error("composant A avec inertie ne devrait pas pouvoir évoluer")
+	moves1 := s.PossibleMoves()
+	moves2 := s.PossibleMoves()
+
+	if len(moves1) != len(moves2) {
+		t.Fatalf("cache broken: %d vs %d", len(moves1), len(moves2))
+	}
+	for i := range moves1 {
+		if moves1[i].ID() != moves2[i].ID() {
+			t.Errorf("cache broken at index %d", i)
 		}
 	}
 }
 
-func TestPossibleMovesGameplay(t *testing.T) {
-	comps := []wardley.Component{
-		{Name: "A", Phase: wardley.Custom, Inertia: 0, Gameplays: []string{"ILC"}},
-	}
-	s := wardley.NewState("t", "q", comps, nil, 10)
-	moves := s.PossibleMoves()
+func TestCachedConfidences(t *testing.T) {
+	proposer := sampleProposer()
+	s := wardley.NewState(sampleWTG2Text, "Test", "q", 5, proposer, context.Background())
 
-	gameplayCount := 0
-	for _, m := range moves {
-		st := m.(*wardley.State)
-		if st.LastMove().Type == wardley.ApplyGameplay {
-			gameplayCount++
-			if st.LastMove().Gameplay == "ILC" {
-				t.Error("ILC déjà appliqué ne devrait pas être proposé")
-			}
-		}
+	_ = s.PossibleMoves()
+	conf := s.CachedConfidences()
+	if len(conf) != 2 {
+		t.Fatalf("got %d confidences, want 2", len(conf))
 	}
-
-	expectedGameplays := len(wardley.AvailableGameplays) - 1
-	if gameplayCount != expectedGameplays {
-		t.Errorf("got %d gameplay moves, want %d", gameplayCount, expectedGameplays)
+	if conf[0] < 0.79 || conf[0] > 0.81 {
+		t.Errorf("confidence[0] = %f, want ~0.8", conf[0])
 	}
 }
 
 func TestIDDeterministic(t *testing.T) {
-	s1 := wardley.NewState("t", "q", sampleComponents(), sampleEdges(), 5)
-	s2 := wardley.NewState("t", "q", sampleComponents(), sampleEdges(), 5)
+	s1 := wardley.NewState(sampleWTG2Text, "Test", "q", 5, sampleProposer(), context.Background())
+	s2 := wardley.NewState(sampleWTG2Text, "Test", "q", 5, sampleProposer(), context.Background())
 	if s1.ID() != s2.ID() {
 		t.Errorf("IDs should be equal: %s != %s", s1.ID(), s2.ID())
 	}
 }
 
-func TestIDChangesAfterMove(t *testing.T) {
-	s := wardley.NewState("t", "q", sampleComponents(), sampleEdges(), 5)
-	id0 := s.ID()
-
-	moves := s.PossibleMoves()
-	if len(moves) == 0 {
-		t.Fatal("aucun move")
-	}
-	child := moves[0]
-	if child.ID() == id0 {
-		t.Error("ID devrait changer après un move")
+func TestIDChangesWithDifferentWTG2(t *testing.T) {
+	s1 := wardley.NewState(sampleWTG2Text, "Test", "q", 5, sampleProposer(), context.Background())
+	s2 := wardley.NewState(childWTG2Text, "Test", "q", 5, sampleProposer(), context.Background())
+	if s1.ID() == s2.ID() {
+		t.Error("IDs should differ for different WTG2 text")
 	}
 }
 
-func TestApplyMoveDoesNotMutateParent(t *testing.T) {
-	comps := []wardley.Component{
-		{Name: "A", Phase: wardley.Genesis, Inertia: 0, Gameplays: []string{"ILC"}},
+func TestHistoryAccumulates(t *testing.T) {
+	proposer := sampleProposer()
+	s := wardley.NewState(sampleWTG2Text, "Test", "q", 5, proposer, context.Background())
+
+	if len(s.History()) != 0 {
+		t.Fatalf("initial state should have empty history")
 	}
-	s := wardley.NewState("t", "q", comps, nil, 10)
 
-	parentComps := s.Components()
-	parentPhase := parentComps[0].Phase
-	parentGPs := len(parentComps[0].Gameplays)
-
-	_ = s.PossibleMoves()
-
-	afterComps := s.Components()
-	if afterComps[0].Phase != parentPhase {
-		t.Errorf("parent phase mutée: %d -> %d", parentPhase, afterComps[0].Phase)
+	moves := s.PossibleMoves()
+	child := moves[0].(*wardley.State)
+	hist := child.History()
+	if len(hist) != 1 {
+		t.Fatalf("child should have 1 history entry, got %d", len(hist))
 	}
-	if len(afterComps[0].Gameplays) != parentGPs {
-		t.Errorf("parent gameplays mutés: %d -> %d", parentGPs, len(afterComps[0].Gameplays))
+	if hist[0] != "Evolve DB to Product" {
+		t.Errorf("history[0] = %q, want %q", hist[0], "Evolve DB to Product")
+	}
+}
+
+func TestWTG2TextPreserved(t *testing.T) {
+	s := wardley.NewState(sampleWTG2Text, "Test", "q", 5, sampleProposer(), context.Background())
+	if s.WTG2Text() != sampleWTG2Text {
+		t.Errorf("WTG2Text not preserved:\ngot:  %q\nwant: %q", s.WTG2Text(), sampleWTG2Text)
 	}
 }

@@ -1,33 +1,31 @@
 package wardley
 
 import (
+	"fmt"
 	"image"
 	"io"
+	"strings"
 
-	wardleyToGo "github.com/owulveryck/wardleyToGo"
-	"github.com/owulveryck/wardleyToGo/components/wardley"
 	svgmap "github.com/owulveryck/wardleyToGo/encoding/svg"
+	"github.com/owulveryck/wardleyToGo/parser/wtg2"
 )
 
-// phaseToX convertit une Phase en coordonnée X (0-100).
-func phaseToX(p Phase) int {
-	switch p {
-	case Genesis:
-		return 12
-	case Custom:
-		return 37
-	case Product:
-		return 62
-	case Commodity:
-		return 87
-	default:
-		return 50
-	}
-}
-
-// RenderSVG génère un rendu SVG de la carte à partir de l'état.
+// RenderSVG génère un rendu SVG de la carte à partir du texte WTG2.
 func RenderSVG(w io.Writer, s *State) error {
-	m := buildMap(s)
+	p, err := wtg2.NewParser(strings.NewReader(s.WTG2Text()))
+	if err != nil {
+		return fmt.Errorf("render: parser: %w", err)
+	}
+
+	doc, err := p.Parse()
+	if err != nil {
+		return fmt.Errorf("render: parse: %w", err)
+	}
+
+	result, err := wtg2.BuildMap(doc)
+	if err != nil {
+		return fmt.Errorf("render: build map: %w", err)
+	}
 
 	box := image.Rect(30, 50, 1070, 850)
 	canvas := image.Rect(0, 0, 1000, 800)
@@ -37,59 +35,10 @@ func RenderSVG(w io.Writer, s *State) error {
 		return err
 	}
 
-	if err := enc.Encode(m); err != nil {
+	if err := enc.Encode(result.Map); err != nil {
 		return err
 	}
 
 	enc.Close()
 	return nil
-}
-
-func buildMap(s *State) *wardleyToGo.Map {
-	m := wardleyToGo.NewMap(0)
-
-	components := s.Components()
-	edges := s.Edges()
-
-	nodeByName := make(map[string]*wardley.Component, len(components))
-
-	for i, c := range components {
-		wc := wardley.NewComponent(int64(i + 1))
-		wc.Label = c.Name
-		wc.Placement = image.Pt(phaseToX(c.Phase), c.Visibility)
-
-		switch c.Type {
-		case "build":
-			wc.Type = wardley.BuildComponent
-		case "buy":
-			wc.Type = wardley.BuyComponent
-		case "outsource":
-			wc.Type = wardley.OutsourceComponent
-		}
-
-		for _, gp := range c.Gameplays {
-			wc.Gameplays = append(wc.Gameplays, wardley.ComponentGameplay{
-				Type: gp,
-			})
-		}
-
-		nodeByName[c.Name] = wc
-		_ = m.AddComponent(wc)
-	}
-
-	for _, e := range edges {
-		from, okFrom := nodeByName[e.From]
-		to, okTo := nodeByName[e.To]
-		if !okFrom || !okTo {
-			continue
-		}
-		collab := &wardley.Collaboration{
-			F:     from,
-			T:     to,
-			Label: e.Label,
-		}
-		_ = m.SetCollaboration(collab)
-	}
-
-	return m
 }

@@ -4,56 +4,69 @@ import (
 	"testing"
 )
 
-func TestParseBatchScoresValid(t *testing.T) {
-	scores, err := parseBatchScores(`[0.7, 0.3, 0.8]`, 3)
+func TestParseCandidatesValid(t *testing.T) {
+	text := `[{"description":"Evolve DB","wtg2":"App : III.5\nDB : III.5\n","confidence":0.8}]`
+	candidates, err := parseCandidates(text)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(scores) != 3 {
-		t.Fatalf("got %d scores, want 3", len(scores))
+	if len(candidates) != 1 {
+		t.Fatalf("got %d candidates, want 1", len(candidates))
 	}
-	want := []float64{0.7, 0.3, 0.8}
-	for i, s := range scores {
-		if diff := s - want[i]; diff > 1e-9 || diff < -1e-9 {
-			t.Errorf("score[%d] = %f, want %f", i, s, want[i])
-		}
+	if candidates[0].Description != "Evolve DB" {
+		t.Errorf("description = %q, want %q", candidates[0].Description, "Evolve DB")
+	}
+	if candidates[0].Confidence != 0.8 {
+		t.Errorf("confidence = %f, want 0.8", candidates[0].Confidence)
 	}
 }
 
-func TestParseBatchScoresWithSurroundingText(t *testing.T) {
-	text := "Voici les scores :\n[0.5, 0.9, 0.1]\nBonne continuation."
-	scores, err := parseBatchScores(text, 3)
+func TestParseCandidatesWithSurroundingText(t *testing.T) {
+	text := `Voici mes propositions :
+[{"description":"A","wtg2":"wtg2 content","confidence":0.5},{"description":"B","wtg2":"other","confidence":0.7}]
+Bonne continuation.`
+	candidates, err := parseCandidates(text)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(scores) != 3 {
-		t.Fatalf("got %d scores, want 3", len(scores))
+	if len(candidates) != 2 {
+		t.Fatalf("got %d candidates, want 2", len(candidates))
 	}
 }
 
-func TestParseBatchScoresClamp(t *testing.T) {
-	scores, err := parseBatchScores(`[-0.5, 1.5, 0.5]`, 3)
+func TestParseCandidatesClamp(t *testing.T) {
+	text := `[{"description":"A","wtg2":"content","confidence":1.5}]`
+	candidates, err := parseCandidates(text)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if scores[0] != 0.0 {
-		t.Errorf("score[0] = %f, want 0.0 (clamped)", scores[0])
-	}
-	if scores[1] != 1.0 {
-		t.Errorf("score[1] = %f, want 1.0 (clamped)", scores[1])
+	if candidates[0].Confidence != 1.0 {
+		t.Errorf("confidence = %f, want 1.0 (clamped)", candidates[0].Confidence)
 	}
 }
 
-func TestParseBatchScoresCountMismatch(t *testing.T) {
-	_, err := parseBatchScores(`[0.5, 0.9]`, 3)
-	if err == nil {
-		t.Error("expected error for count mismatch")
+func TestParseCandidatesSkipsEmptyWTG2(t *testing.T) {
+	text := `[{"description":"A","wtg2":"","confidence":0.5},{"description":"B","wtg2":"valid","confidence":0.7}]`
+	candidates, err := parseCandidates(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("got %d candidates, want 1 (empty WTG2 filtered)", len(candidates))
 	}
 }
 
-func TestParseBatchScoresNoJSON(t *testing.T) {
-	_, err := parseBatchScores(`pas de tableau`, 1)
+func TestParseCandidatesNoJSON(t *testing.T) {
+	_, err := parseCandidates(`pas de tableau`)
 	if err == nil {
 		t.Error("expected error for missing JSON array")
+	}
+}
+
+func TestParseCandidatesAllEmpty(t *testing.T) {
+	text := `[{"description":"A","wtg2":"","confidence":0.5}]`
+	_, err := parseCandidates(text)
+	if err == nil {
+		t.Error("expected error when all candidates have empty WTG2")
 	}
 }

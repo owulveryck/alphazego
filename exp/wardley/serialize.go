@@ -4,86 +4,12 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
-	"fmt"
-	"strings"
 )
 
-// phaseToWTG2 convertit une Phase en position WTG2 (centre de la phase).
-func phaseToWTG2(p Phase) string {
-	switch p {
-	case Genesis:
-		return "I.5"
-	case Custom:
-		return "II.5"
-	case Product:
-		return "III.5"
-	case Commodity:
-		return "IV.5"
-	default:
-		return "II.5"
-	}
-}
-
-// SerializeWTG2 génère le texte WTG2 correspondant à l'état de la carte.
+// SerializeWTG2 retourne le texte WTG2 de la carte.
+// Avec l'architecture WTG2-native, le texte est stocké tel quel.
 func SerializeWTG2(s *State) string {
-	var b strings.Builder
-
-	if s.Title() != "" {
-		fmt.Fprintf(&b, "title: %s\n", s.Title())
-	}
-	if s.Question() != "" {
-		fmt.Fprintf(&b, "question: %q\n", s.Question())
-	}
-	b.WriteString("stages: Genesis, Custom-Built, Product, Commodity\n\n")
-
-	components := s.Components()
-	edges := s.Edges()
-
-	for _, c := range components {
-		pos := phaseToWTG2(c.Phase)
-		if c.Type != "" {
-			fmt.Fprintf(&b, "%s : %s (%s)\n", c.Name, pos, c.Type)
-		} else {
-			fmt.Fprintf(&b, "%s : %s\n", c.Name, pos)
-		}
-	}
-
-	if len(edges) > 0 {
-		b.WriteString("\n")
-		for _, e := range edges {
-			if e.Label != "" {
-				fmt.Fprintf(&b, "%s -[%s]-> %s\n", e.From, e.Label, e.To)
-			} else {
-				fmt.Fprintf(&b, "%s -> %s\n", e.From, e.To)
-			}
-		}
-	}
-
-	hasGameplays := false
-	for _, c := range components {
-		if len(c.Gameplays) > 0 {
-			hasGameplays = true
-			break
-		}
-	}
-	if hasGameplays {
-		b.WriteString("\n")
-		for _, c := range components {
-			for _, gp := range c.Gameplays {
-				fmt.Fprintf(&b, "gameplay %s on %s\n", gp, c.Name)
-			}
-		}
-	}
-
-	annotations := s.Annotations()
-	if len(annotations) > 0 {
-		b.WriteString("\n")
-		for _, a := range annotations {
-			fmt.Fprintf(&b, "%s %q on %s\n", a.Kind, a.Text, a.Target)
-		}
-	}
-
-	return b.String()
+	return s.WTG2Text()
 }
 
 const playgroundBase = "https://owulveryck.github.io/wardleyToGo/?wtg2="

@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/owulveryck/alphazego/decision"
 	wardleyexp "github.com/owulveryck/alphazego/exp/wardley"
 	"github.com/owulveryck/alphazego/mcts"
 	"google.golang.org/genai"
@@ -30,8 +29,9 @@ func main() {
 	region := flag.String("region", "us-central1", "région GCP")
 	outputWTG2 := flag.String("output-wtg2", "", "fichier de sortie WTG2 (défaut: stdout)")
 	outputSVG := flag.String("output-svg", "", "fichier de sortie SVG (optionnel)")
-	model := flag.String("model", "gemini-3-flash", "modèle Gemini pour l'évaluation")
+	model := flag.String("model", "gemini-2.5-flash", "modèle Gemini pour l'évaluation")
 	outputDir := flag.String("output-dir", "", "dossier de sortie pour les étapes intermédiaires (WTG2 + URLs)")
+	branchFactor := flag.Int("branch-factor", 5, "nombre de candidats par expansion")
 	flag.Parse()
 
 	if *inputFile == "" || *project == "" {
@@ -47,11 +47,6 @@ func main() {
 	}
 	defer f.Close()
 
-	state, err := wardleyexp.ParseWTG2(f, *depth)
-	if err != nil {
-		log.Fatalf("Erreur parsing WTG2: %v", err)
-	}
-
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		Project:  *project,
 		Location: *region,
@@ -62,21 +57,26 @@ func main() {
 	}
 
 	judge := &geminiJudge{client: client, model: *model}
+
+	state, err := wardleyexp.ParseWTG2(f, *depth, judge, ctx, wardleyexp.WithBranchFactor(*branchFactor))
+	if err != nil {
+		log.Fatalf("Erreur parsing WTG2: %v", err)
+	}
+
 	eval := wardleyexp.NewEvaluator(ctx, judge)
 	engine := mcts.NewAlphaMCTS(eval, *cpuct)
 
 	fmt.Println("=== Exploration stratégique ===")
 	fmt.Printf("Carte : %s\n", state.Title())
 	fmt.Printf("Question : %s\n", state.Question())
-	fmt.Printf("Composants : %d | Modèle : %s\n", len(state.Components()), *model)
+	fmt.Printf("Modèle : %s | Candidats/expansion : %d\n", *model, *branchFactor)
 	fmt.Printf("Profondeur max : %d | Itérations/step : %d | CPUCT : %.1f\n\n", *depth, *iterations, *cpuct)
 
 	if *outputDir != "" {
 		if err := os.MkdirAll(*outputDir, 0755); err != nil {
 			log.Fatalf("Erreur création dossier %s: %v", *outputDir, err)
 		}
-		initialWTG2 := wardleyexp.SerializeWTG2(state)
-		if err := os.WriteFile(filepath.Join(*outputDir, "step_00.wtg2"), []byte(initialWTG2), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(*outputDir, "step_00.wtg2"), []byte(state.WTG2Text()), 0644); err != nil {
 			log.Fatalf("Erreur écriture step_00.wtg2: %v", err)
 		}
 		fmt.Printf("Step initial écrit dans %s/step_00.wtg2\n", *outputDir)
@@ -85,9 +85,9 @@ func main() {
 		}
 	}
 
-	current := decision.State(state)
+	current := state
 	for step := 0; step < *depth; step++ {
-		if current.Evaluate() != decision.Undecided {
+		if current.Evaluate() != 0 { // decision.Undecided == 0
 			break
 		}
 
@@ -95,16 +95,9 @@ func main() {
 
 		eval.ResetCounters()
 		eval.Progress = func(info wardleyexp.ProgressInfo) {
-			if info.Value != 0 {
-				fmt.Fprintf(os.Stderr,
-					"\r  iter %d/%d | %d appels LLM | value: %+.2f",
-					info.EvalCount, *iterations, info.LLMCalls, info.Value)
-			} else {
-				fmt.Fprintf(os.Stderr,
-					"\r  iter %d/%d | %d appels LLM | policy: %d/%d",
-					info.EvalCount, *iterations, info.LLMCalls,
-					info.PolicyScored, info.PolicyTotal)
-			}
+			fmt.Fprintf(os.Stderr,
+				"\r  iter %d/%d | %d appels LLM | candidats: %d | value: %+.2f",
+				info.EvalCount, *iterations, info.LLMCalls, info.CandidateCount, info.Value)
 		}
 
 		next := engine.RunMCTS(current, *iterations)
@@ -116,17 +109,15 @@ func main() {
 			break
 		}
 
-		lastMove := ws.LastMove()
-		fmt.Printf("  => %s\n\n", lastMove.String())
+		fmt.Printf("  => %s\n\n", ws.LastDescription())
 
 		if *outputDir != "" {
 			fmt.Fprintf(os.Stderr, "Annotation de l'étape %d...\n", step+1)
 			if err := wardleyexp.GenerateAnnotations(ctx, judge, ws); err != nil {
 				fmt.Fprintf(os.Stderr, "Avertissement : annotation step %d échouée : %v\n", step+1, err)
 			}
-			stepWTG2 := wardleyexp.SerializeWTG2(ws)
 			stepFile := filepath.Join(*outputDir, fmt.Sprintf("step_%02d.wtg2", step+1))
-			if err := os.WriteFile(stepFile, []byte(stepWTG2), 0644); err != nil {
+			if err := os.WriteFile(stepFile, []byte(ws.WTG2Text()), 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "Erreur écriture %s: %v\n", stepFile, err)
 			} else {
 				fmt.Printf("  Step %d écrit dans %s\n", step+1, stepFile)
@@ -136,33 +127,26 @@ func main() {
 			}
 		}
 
-		current = next
-	}
-
-	finalState, ok := current.(*wardleyexp.State)
-	if !ok {
-		log.Fatal("État final inattendu")
+		current = ws
 	}
 
 	fmt.Println("\n--- Séquence de moves ---")
-	for i, m := range finalState.History() {
-		fmt.Printf("  %d. %s\n", i+1, m.String())
+	for i, desc := range current.History() {
+		fmt.Printf("  %d. %s\n", i+1, desc)
 	}
 
 	if *outputDir == "" {
 		fmt.Fprintf(os.Stderr, "\nAnnotation de la carte par le LLM...\n")
-		if err := wardleyexp.GenerateAnnotations(ctx, judge, finalState); err != nil {
+		if err := wardleyexp.GenerateAnnotations(ctx, judge, current); err != nil {
 			fmt.Fprintf(os.Stderr, "Avertissement : annotation échouée : %v\n", err)
 		}
 	}
 
-	wtg2Output := wardleyexp.SerializeWTG2(finalState)
-
 	fmt.Println("\n--- Carte résultante (WTG2) ---")
-	fmt.Println(wtg2Output)
+	fmt.Println(current.WTG2Text())
 
 	if *outputWTG2 != "" {
-		if err := os.WriteFile(*outputWTG2, []byte(wtg2Output), 0644); err != nil {
+		if err := os.WriteFile(*outputWTG2, []byte(current.WTG2Text()), 0644); err != nil {
 			log.Fatalf("Erreur écriture WTG2: %v", err)
 		}
 		fmt.Printf("WTG2 écrit dans %s\n", *outputWTG2)
@@ -175,13 +159,13 @@ func main() {
 		}
 		defer svgFile.Close()
 
-		if err := wardleyexp.RenderSVG(svgFile, finalState); err != nil {
+		if err := wardleyexp.RenderSVG(svgFile, current); err != nil {
 			log.Fatalf("Erreur rendu SVG: %v", err)
 		}
 		fmt.Printf("SVG écrit dans %s\n", *outputSVG)
 	}
 
-	if url, err := wardleyexp.PlaygroundURL(finalState); err == nil {
+	if url, err := wardleyexp.PlaygroundURL(current); err == nil {
 		fmt.Printf("\n--- Playground ---\n%s\n", url)
 	}
 }
@@ -232,7 +216,6 @@ func extractText(resp *genai.GenerateContentResponse) string {
 
 func parseScore(text string) (float64, error) {
 	var score float64
-	// Chercher un nombre flottant dans le texte
 	for _, word := range splitWords(text) {
 		if _, err := fmt.Sscanf(word, "%f", &score); err == nil {
 			return clamp(score), nil
@@ -284,42 +267,55 @@ func (j *geminiJudge) Annotate(ctx context.Context, prompt string) (string, erro
 	return extractText(resp), nil
 }
 
-func (j *geminiJudge) ScoreBatch(ctx context.Context, prompt string, count int) ([]float64, error) {
+func (j *geminiJudge) Propose(ctx context.Context, prompt string, n int) ([]wardleyexp.Candidate, error) {
 	config := &genai.GenerateContentConfig{
-		Temperature:    genai.Ptr(float32(0.0)),
-		ThinkingConfig: &genai.ThinkingConfig{ThinkingBudget: genai.Ptr(int32(512))},
+		Temperature:    genai.Ptr(float32(0.7)),
+		ThinkingConfig: &genai.ThinkingConfig{ThinkingBudget: genai.Ptr(int32(2048))},
 	}
 
 	resp, err := j.client.Models.GenerateContent(ctx, j.model, genai.Text(prompt), config)
 	if err != nil {
-		return nil, fmt.Errorf("gemini batch: %w", err)
+		return nil, fmt.Errorf("gemini propose: %w", err)
 	}
 
 	text := extractText(resp)
-	return parseBatchScores(text, count)
+	return parseCandidates(text)
 }
 
-func parseBatchScores(text string, expected int) ([]float64, error) {
+func parseCandidates(text string) ([]wardleyexp.Candidate, error) {
 	start := strings.Index(text, "[")
 	if start == -1 {
-		return nil, fmt.Errorf("pas de tableau JSON trouvé dans %q", text)
+		return nil, fmt.Errorf("pas de tableau JSON trouvé dans la réponse")
 	}
 	end := strings.LastIndex(text, "]")
 	if end == -1 || end <= start {
-		return nil, fmt.Errorf("tableau JSON mal formé dans %q", text)
+		return nil, fmt.Errorf("tableau JSON mal formé")
 	}
 
-	var scores []float64
-	if err := json.Unmarshal([]byte(text[start:end+1]), &scores); err != nil {
+	var raw []struct {
+		Description string  `json:"description"`
+		WTG2        string  `json:"wtg2"`
+		Confidence  float64 `json:"confidence"`
+	}
+	if err := json.Unmarshal([]byte(text[start:end+1]), &raw); err != nil {
 		return nil, fmt.Errorf("parsing JSON: %w", err)
 	}
 
-	if len(scores) != expected {
-		return nil, fmt.Errorf("attendu %d scores, reçu %d", expected, len(scores))
+	candidates := make([]wardleyexp.Candidate, 0, len(raw))
+	for _, r := range raw {
+		if r.WTG2 == "" {
+			continue
+		}
+		candidates = append(candidates, wardleyexp.Candidate{
+			Description: r.Description,
+			WTG2:        r.WTG2,
+			Confidence:  clamp(r.Confidence),
+		})
 	}
 
-	for i := range scores {
-		scores[i] = clamp(scores[i])
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("aucun candidat valide dans la réponse")
 	}
-	return scores, nil
+
+	return candidates, nil
 }

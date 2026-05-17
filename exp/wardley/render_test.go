@@ -2,6 +2,7 @@ package wardley_test
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 
@@ -9,14 +10,15 @@ import (
 )
 
 func TestRenderSVG(t *testing.T) {
-	comps := []wardley.Component{
-		{Name: "App", Phase: wardley.Product, Visibility: 80, Type: "build"},
-		{Name: "DB", Phase: wardley.Custom, Visibility: 50, Type: "buy"},
-	}
-	edges := []wardley.Edge{
-		{From: "App", To: "DB"},
-	}
-	s := wardley.NewState("Test Map", "question?", comps, edges, 5)
+	wtg2 := `title: Test Map
+stages: Genesis, Custom, Product, Commodity
+
+App : III.5
+DB : II.5
+
+App -> DB
+`
+	s := wardley.NewState(wtg2, "Test Map", "question?", 5, sampleProposer(), context.Background())
 
 	var buf bytes.Buffer
 	err := wardley.RenderSVG(&buf, s)
@@ -36,8 +38,11 @@ func TestRenderSVG(t *testing.T) {
 	}
 }
 
-func TestRenderSVGEmpty(t *testing.T) {
-	s := wardley.NewState("Empty", "", nil, nil, 5)
+func TestRenderSVGMinimal(t *testing.T) {
+	wtg2 := `title: Empty
+stages: Genesis, Custom, Product, Commodity
+`
+	s := wardley.NewState(wtg2, "Empty", "", 5, sampleProposer(), context.Background())
 
 	var buf bytes.Buffer
 	err := wardley.RenderSVG(&buf, s)
@@ -46,6 +51,6 @@ func TestRenderSVGEmpty(t *testing.T) {
 	}
 
 	if !strings.Contains(buf.String(), "<svg") {
-		t.Error("even empty map should produce valid SVG")
+		t.Error("even minimal map should produce valid SVG")
 	}
 }

@@ -1,16 +1,24 @@
 package wardley
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/owulveryck/wardleyToGo/parser/wtg2"
 )
 
-// ParseWTG2 parse un fichier WTG2 et retourne un [State] prêt pour le MCTS.
-// maxDepth limite la profondeur de l'arbre de recherche.
-func ParseWTG2(r io.Reader, maxDepth int) (*State, error) {
-	p, err := wtg2.NewParser(r)
+// ParseWTG2 lit un fichier WTG2 et retourne un [State] prêt pour le MCTS.
+// Le texte WTG2 est stocké tel quel comme représentation canonique.
+func ParseWTG2(r io.Reader, maxDepth int, proposer Proposer, ctx context.Context, opts ...Option) (*State, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("wardley: erreur lecture: %w", err)
+	}
+	text := string(data)
+
+	p, err := wtg2.NewParser(strings.NewReader(text))
 	if err != nil {
 		return nil, fmt.Errorf("wardley: erreur création parser: %w", err)
 	}
@@ -20,72 +28,36 @@ func ParseWTG2(r io.Reader, maxDepth int) (*State, error) {
 		return nil, fmt.Errorf("wardley: erreur parsing WTG2: %w", err)
 	}
 
-	return buildStateFromDocument(doc, maxDepth)
+	return NewState(text, doc.Title, doc.Question, maxDepth, proposer, ctx, opts...), nil
 }
 
-func buildStateFromDocument(doc *wtg2.Document, maxDepth int) (*State, error) {
-	gameplaysByNode := make(map[string][]string)
-	for _, gp := range doc.Gameplays {
-		gameplaysByNode[gp.Target] = append(gameplaysByNode[gp.Target], gp.Type)
-	}
-
-	var components []Component
-	for _, node := range doc.Nodes {
-		phase, err := positionToPhase(node.Evolution)
-		if err != nil {
-			return nil, fmt.Errorf("wardley: composant %q: %w", node.Name, err)
-		}
-
-		visibility := 50
-		if node.Visibility >= 0 {
-			visibility = int(node.Visibility * 100)
-		}
-
-		c := Component{
-			Name:       node.Name,
-			Phase:      phase,
-			Visibility: visibility,
-			Type:       node.Type,
-			Inertia:    node.Inertia,
-		}
-		if gps, ok := gameplaysByNode[node.Name]; ok {
-			c.Gameplays = make([]string, len(gps))
-			copy(c.Gameplays, gps)
-		}
-		components = append(components, c)
-	}
-
-	var edges []Edge
-	for _, e := range doc.Edges {
-		edges = append(edges, Edge{
-			From:  e.From,
-			To:    e.To,
-			Label: e.Label,
-		})
-	}
-
-	return NewState(doc.Title, doc.Question, components, edges, maxDepth), nil
-}
-
-// positionToPhase convertit une position WTG2 (ex: "III.5") en Phase.
-func positionToPhase(evolution string) (Phase, error) {
-	if evolution == "" {
-		return Genesis, nil
-	}
-
-	pos, err := wtg2.ParsePosition(evolution)
+// validateWTG2 vérifie qu'un texte WTG2 est syntaxiquement valide.
+func validateWTG2(text string) error {
+	p, err := wtg2.NewParser(strings.NewReader(text))
 	if err != nil {
-		return Genesis, fmt.Errorf("position invalide %q: %w", evolution, err)
+		return fmt.Errorf("validation WTG2: %w", err)
 	}
+	_, err = p.Parse()
+	if err != nil {
+		return fmt.Errorf("validation WTG2: %w", err)
+	}
+	return nil
+}
 
-	switch {
-	case pos < 25:
-		return Genesis, nil
-	case pos < 50:
-		return Custom, nil
-	case pos < 75:
-		return Product, nil
-	default:
-		return Commodity, nil
+// nodeNames extrait les noms des noeuds d'un texte WTG2.
+// Utilisé pour valider les cibles d'annotations.
+func nodeNames(wtg2Text string) map[string]bool {
+	p, err := wtg2.NewParser(strings.NewReader(wtg2Text))
+	if err != nil {
+		return nil
 	}
+	doc, err := p.Parse()
+	if err != nil {
+		return nil
+	}
+	names := make(map[string]bool, len(doc.Nodes))
+	for _, n := range doc.Nodes {
+		names[n.Name] = true
+	}
+	return names
 }

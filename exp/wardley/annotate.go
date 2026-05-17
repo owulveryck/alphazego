@@ -17,14 +17,15 @@ type Annotator interface {
 // pour la carte résultante. Les annotations sont ajoutées directement à l'état.
 func GenerateAnnotations(ctx context.Context, annotator Annotator, s *State) error {
 	wtg2Text := SerializeWTG2(s)
-	prompt := formatAnnotationPrompt(wtg2Text, s.Question(), s.History(), s.Components())
+	prompt := formatAnnotationPrompt(wtg2Text, s.Question(), s.History())
 
 	text, err := annotator.Annotate(ctx, prompt)
 	if err != nil {
 		return fmt.Errorf("annotation: %w", err)
 	}
 
-	annotations, err := parseAnnotations(text, s.Components())
+	names := nodeNames(s.WTG2Text())
+	annotations, err := parseAnnotations(text, names)
 	if err != nil {
 		return fmt.Errorf("annotation parsing: %w", err)
 	}
@@ -33,7 +34,7 @@ func GenerateAnnotations(ctx context.Context, annotator Annotator, s *State) err
 	return nil
 }
 
-func parseAnnotations(text string, components []Component) ([]Annotation, error) {
+func parseAnnotations(text string, compNames map[string]bool) ([]Annotation, error) {
 	start := strings.Index(text, "[")
 	if start == -1 {
 		return nil, fmt.Errorf("pas de tableau JSON trouvé")
@@ -50,11 +51,6 @@ func parseAnnotations(text string, components []Component) ([]Annotation, error)
 	}
 	if err := json.Unmarshal([]byte(text[start:end+1]), &raw); err != nil {
 		return nil, fmt.Errorf("JSON: %w", err)
-	}
-
-	compNames := make(map[string]bool, len(components))
-	for _, c := range components {
-		compNames[c.Name] = true
 	}
 
 	var annotations []Annotation
