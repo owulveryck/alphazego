@@ -40,7 +40,7 @@ func moveDescription(m Move, components []Component) string {
 	switch m.Type {
 	case Evolve:
 		for _, c := range components {
-			if c.Name == m.Component {
+			if c.Name == m.Component && c.Phase < Commodity {
 				from := phaseNames[c.Phase]
 				to := phaseNames[c.Phase+1]
 				return fmt.Sprintf("EVOLVE %q (%s → %s)", m.Component, from, to)
@@ -97,6 +97,41 @@ func formatValuePrompt(wtg2Text, question string, history []Move) string {
 	b.WriteString("pour juger la progression.\n")
 	b.WriteString("0 = stratégie incohérente ou contre-productive.\n")
 	b.WriteString("1 = stratégie optimale répondant clairement à la question.\n")
+
+	return b.String()
+}
+
+// formatAnnotationPrompt construit le prompt pour générer des notes explicatives
+// sur la carte résultante. Le LLM doit retourner un tableau JSON d'annotations.
+func formatAnnotationPrompt(wtg2Text, question string, history []Move, _ []Component) string {
+	var b strings.Builder
+
+	b.WriteString(skillContext)
+	b.WriteString("\n\n---\n\n")
+	b.WriteString("Tu es un expert en stratégie Wardley. Annote la carte suivante ")
+	b.WriteString("avec des notes explicatives pour aider un décideur à comprendre ")
+	b.WriteString("la stratégie proposée.\n\n")
+	fmt.Fprintf(&b, "Carte Wardley résultante :\n```wtg2\n%s```\n\n", wtg2Text)
+	fmt.Fprintf(&b, "Question stratégique : %s\n\n", question)
+
+	if len(history) > 0 {
+		b.WriteString("Séquence de décisions stratégiques appliquées :\n")
+		for i, m := range history {
+			fmt.Fprintf(&b, "  %d. %s\n", i+1, m.String())
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("Génère des notes explicatives pour les composants clés de la carte. ")
+	b.WriteString("Chaque note doit expliquer :\n")
+	b.WriteString("- Pourquoi un composant a été évolué ou pourquoi un gameplay a été appliqué\n")
+	b.WriteString("- Les implications stratégiques (opportunités, risques, dépendances)\n")
+	b.WriteString("- Les signaux climatiques ou violations de doctrine pertinents\n\n")
+	b.WriteString("Ajoute aussi des notes sur les composants non modifiés si leur position ")
+	b.WriteString("actuelle mérite une explication stratégique.\n\n")
+	b.WriteString("Réponds uniquement par un tableau JSON d'objets avec les champs ")
+	b.WriteString("\"kind\" (\"note\" ou \"warning\"), \"text\" et \"target\" (nom exact du composant).\n")
+	b.WriteString("Exemple : [{\"kind\":\"note\",\"text\":\"Évolué vers Product pour standardiser\",\"target\":\"API\"}]\n")
 
 	return b.String()
 }

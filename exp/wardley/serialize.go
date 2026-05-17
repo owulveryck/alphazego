@@ -75,6 +75,14 @@ func SerializeWTG2(s *State) string {
 		}
 	}
 
+	annotations := s.Annotations()
+	if len(annotations) > 0 {
+		b.WriteString("\n")
+		for _, a := range annotations {
+			fmt.Fprintf(&b, "%s %q on %s\n", a.Kind, a.Text, a.Target)
+		}
+	}
+
 	return b.String()
 }
 

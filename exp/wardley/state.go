@@ -99,15 +99,23 @@ func (m Move) String() string {
 	}
 }
 
+// Annotation représente une note explicative attachée à un composant.
+type Annotation struct {
+	Kind   string // "note" ou "warning"
+	Text   string
+	Target string // nom du composant
+}
+
 // State représente l'état d'une carte Wardley pour l'exploration MCTS.
 // Il implémente [decision.State] comme un puzzle mono-acteur.
 type State struct {
-	title      string
-	question   string
-	components []Component
-	edges      []Edge
-	history    []Move
-	maxDepth   int
+	title       string
+	question    string
+	components  []Component
+	edges       []Edge
+	history     []Move
+	annotations []Annotation
+	maxDepth    int
 }
 
 // NewState crée un état initial à partir des composants et edges extraits
@@ -226,6 +234,19 @@ func (s *State) History() []Move {
 	out := make([]Move, len(s.history))
 	copy(out, s.history)
 	return out
+}
+
+// Annotations retourne les annotations de la carte.
+func (s *State) Annotations() []Annotation {
+	out := make([]Annotation, len(s.annotations))
+	copy(out, s.annotations)
+	return out
+}
+
+// SetAnnotations remplace les annotations de la carte.
+func (s *State) SetAnnotations(annotations []Annotation) {
+	s.annotations = make([]Annotation, len(annotations))
+	copy(s.annotations, annotations)
 }
 
 // LastMove retourne le dernier move appliqué, ou un Move vide si aucun.

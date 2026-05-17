@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/owulveryck/alphazego/decision"
@@ -30,6 +31,7 @@ func main() {
 	outputWTG2 := flag.String("output-wtg2", "", "fichier de sortie WTG2 (défaut: stdout)")
 	outputSVG := flag.String("output-svg", "", "fichier de sortie SVG (optionnel)")
 	model := flag.String("model", "gemini-3-flash", "modèle Gemini pour l'évaluation")
+	outputDir := flag.String("output-dir", "", "dossier de sortie pour les étapes intermédiaires (WTG2 + URLs)")
 	flag.Parse()
 
 	if *inputFile == "" || *project == "" {
@@ -69,6 +71,20 @@ func main() {
 	fmt.Printf("Composants : %d | Modèle : %s\n", len(state.Components()), *model)
 	fmt.Printf("Profondeur max : %d | Itérations/step : %d | CPUCT : %.1f\n\n", *depth, *iterations, *cpuct)
 
+	if *outputDir != "" {
+		if err := os.MkdirAll(*outputDir, 0755); err != nil {
+			log.Fatalf("Erreur création dossier %s: %v", *outputDir, err)
+		}
+		initialWTG2 := wardleyexp.SerializeWTG2(state)
+		if err := os.WriteFile(filepath.Join(*outputDir, "step_00.wtg2"), []byte(initialWTG2), 0644); err != nil {
+			log.Fatalf("Erreur écriture step_00.wtg2: %v", err)
+		}
+		fmt.Printf("Step initial écrit dans %s/step_00.wtg2\n", *outputDir)
+		if url, err := wardleyexp.PlaygroundURL(state); err == nil {
+			fmt.Printf("  %s\n\n", url)
+		}
+	}
+
 	current := decision.State(state)
 	for step := 0; step < *depth; step++ {
 		if current.Evaluate() != decision.Undecided {
@@ -103,6 +119,23 @@ func main() {
 		lastMove := ws.LastMove()
 		fmt.Printf("  => %s\n\n", lastMove.String())
 
+		if *outputDir != "" {
+			fmt.Fprintf(os.Stderr, "Annotation de l'étape %d...\n", step+1)
+			if err := wardleyexp.GenerateAnnotations(ctx, judge, ws); err != nil {
+				fmt.Fprintf(os.Stderr, "Avertissement : annotation step %d échouée : %v\n", step+1, err)
+			}
+			stepWTG2 := wardleyexp.SerializeWTG2(ws)
+			stepFile := filepath.Join(*outputDir, fmt.Sprintf("step_%02d.wtg2", step+1))
+			if err := os.WriteFile(stepFile, []byte(stepWTG2), 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "Erreur écriture %s: %v\n", stepFile, err)
+			} else {
+				fmt.Printf("  Step %d écrit dans %s\n", step+1, stepFile)
+			}
+			if url, err := wardleyexp.PlaygroundURL(ws); err == nil {
+				fmt.Printf("  %s\n\n", url)
+			}
+		}
+
 		current = next
 	}
 
@@ -114,6 +147,13 @@ func main() {
 	fmt.Println("\n--- Séquence de moves ---")
 	for i, m := range finalState.History() {
 		fmt.Printf("  %d. %s\n", i+1, m.String())
+	}
+
+	if *outputDir == "" {
+		fmt.Fprintf(os.Stderr, "\nAnnotation de la carte par le LLM...\n")
+		if err := wardleyexp.GenerateAnnotations(ctx, judge, finalState); err != nil {
+			fmt.Fprintf(os.Stderr, "Avertissement : annotation échouée : %v\n", err)
+		}
 	}
 
 	wtg2Output := wardleyexp.SerializeWTG2(finalState)
@@ -228,6 +268,20 @@ func clamp(v float64) float64 {
 		return 1
 	}
 	return v
+}
+
+func (j *geminiJudge) Annotate(ctx context.Context, prompt string) (string, error) {
+	config := &genai.GenerateContentConfig{
+		Temperature:    genai.Ptr(float32(0.3)),
+		ThinkingConfig: &genai.ThinkingConfig{ThinkingBudget: genai.Ptr(int32(1024))},
+	}
+
+	resp, err := j.client.Models.GenerateContent(ctx, j.model, genai.Text(prompt), config)
+	if err != nil {
+		return "", fmt.Errorf("gemini annotate: %w", err)
+	}
+
+	return extractText(resp), nil
 }
 
 func (j *geminiJudge) ScoreBatch(ctx context.Context, prompt string, count int) ([]float64, error) {
